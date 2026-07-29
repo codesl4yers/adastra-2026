@@ -1,4 +1,4 @@
- """Regenera los fixtures que no se pueden escribir a mano en un editor de texto.
+"""Regenera los fixtures que no se pueden escribir a mano en un editor de texto.
 
 Los demás fixtures de este directorio son HTML normal y se editan directamente.
 Estos dos necesitan control byte a byte:
