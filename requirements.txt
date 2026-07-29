@@ -1,0 +1,10 @@
+# Dependencias de la capa de extracción.
+# Versiones fijadas por línea menor: cambiar de parser o de detector de idioma
+# cambia la salida, y la salida debe ser reproducible entre máquinas.
+
+beautifulsoup4>=4.12,<5      # parseo de HTML
+lxml>=5.0,<7                 # parser rápido y estable usado por beautifulsoup4
+langdetect>=1.0.9,<2         # detección de idioma (semilla fijada en limpieza.py)
+
+# Desarrollo
+pytest>=8.0

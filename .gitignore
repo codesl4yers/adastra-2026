@@ -216,3 +216,8 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# --- Proyecto: capa de extracción ---
+# Salida del pipeline. Se regenera con `python orquestador.py`; versionarla
+# provocaría conflictos constantes. Para comparar corridas, usa el manifiesto.
+extraidos/
