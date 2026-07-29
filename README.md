@@ -1,9 +1,3 @@
-# mas-testbed
-
-llm sandbox with tools, safeguards and memory
-
----
-
 # Capa de extracción — CODEFEST Ad Astra 2026 (Etapa 1)
 
 Contrato de datos y extractores del pipeline RAG. Esta capa convierte cada
