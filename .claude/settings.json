@@ -1,9 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "PowerShell(.\\\\.venv\\\\Scripts\\\\python.exe -c \"from pathlib import Path; import unicodedata; b=Path\\('fixtures/nfd.html'\\).read_bytes\\(\\); s=b.decode\\('utf-8'\\); print\\('nfd bytes:', len\\(b\\)\\); print\\('es NFD:', s == unicodedata.normalize\\('NFD', s\\)\\); print\\('difiere de NFC:', s != unicodedata.normalize\\('NFC', s\\)\\); m=Path\\('fixtures/malformado.html'\\).read_bytes\\(\\); print\\('malformado bytes:', len\\(m\\), 'tiene NUL:', bytes\\([0]\\) in m\\)\")",
-      "PowerShell(.\\\\.venv\\\\Scripts\\\\python.exe -m pytest -q 2>&1)",
-      "PowerShell(.\\\\.venv\\\\Scripts\\\\python.exe -m pytest tests/test_limpieza.py -q 2>&1)"
-    ]
-  }
-}
