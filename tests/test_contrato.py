@@ -174,3 +174,39 @@ def test_documento_es_inmutable():
     doc = documento_minimo()
     with pytest.raises(dataclasses.FrozenInstanceError):
         doc.fuente = "otra.html"
+
+
+# --- doc_id: las tres formas admisibles (spec 2026-08-02) --------------------
+
+
+def test_admite_doc_id_derivado_de_la_ruta_relativa():
+    """En el corpus real dos archivos comparten nombre; la ruta los desambigua."""
+    doc = documento_minimo(
+        fuente="informe.html",
+        doc_id=calcular_doc_id("sub/a/informe.html"),
+        meta={"ruta_relativa": "sub/a/informe.html"},
+    )
+    assert validar_documento(doc) == []
+
+
+def test_admite_doc_id_del_indice_de_adl():
+    doc = documento_minimo(fuente="AIINDEX_reporte.pdf", doc_id="F1-AIINDEX-001")
+    assert validar_documento(doc) == []
+
+
+def test_admite_doc_id_del_indice_con_codigo_alfanumerico():
+    doc = documento_minimo(fuente="x.pdf", doc_id="F3-MAPP2-118")
+    assert validar_documento(doc) == []
+
+
+def test_rechaza_doc_id_arbitrario_aunque_haya_ruta_relativa():
+    doc = documento_minimo(
+        fuente="informe.html",
+        doc_id="no-deriva-de-nada",
+        meta={"ruta_relativa": "sub/a/informe.html"},
+    )
+    assert any("doc_id" in v for v in validar_documento(doc))
+
+
+def test_admite_el_formato_texto():
+    assert validar_documento(documento_minimo(formato="texto")) == []

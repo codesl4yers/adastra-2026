@@ -15,13 +15,14 @@ una vez y no las modifiques.
 from __future__ import annotations
 
 import hashlib
+import re
 from dataclasses import asdict, dataclass
 from typing import Any
 
 from limpieza import normalizar_texto
 
 TIPOS_BLOQUE: tuple[str, ...] = ("titulo", "parrafo", "lista", "fila", "ocr")
-FORMATOS: tuple[str, ...] = ("pdf", "html", "json", "csv", "xlsx", "imagen", "pbf")
+FORMATOS: tuple[str, ...] = ("pdf", "html", "json", "csv", "xlsx", "imagen", "pbf", "texto")
 IDIOMAS: tuple[str, ...] = ("es", "en", "pt")
 FENOMENOS: tuple[int, ...] = (1, 2, 3)
 
@@ -99,6 +100,31 @@ def calcular_doc_id(fuente: str) -> str:
 def documento_a_dict(doc: Documento) -> dict[str, Any]:
     """Convierte el documento a estructuras primitivas listas para ``json.dumps``."""
     return asdict(doc)
+
+
+# DOC_ID del índice maestro de ADL: "F1-AIINDEX-001", "F3-MAPP2-118".
+_DOC_ID_ADL = re.compile(r"^F[123]-[A-Z0-9]+-\d+$")
+
+
+def _doc_id_es_admisible(doc: Documento) -> bool:
+    """Un ``doc_id`` vale si es trazable a algo estable, no si es cualquier cosa.
+
+    Son tres formas, por orden de preferencia del pipeline:
+
+    1. El ``DOC_ID`` que entrega ADL en su índice maestro. Es la identidad
+       oficial del documento y la que el jurado puede rastrear.
+    2. Derivado de ``meta["ruta_relativa"]``. Necesario porque 59 nombres de
+       archivo se repiten en el corpus (186 archivos): derivarlo de ``fuente``
+       le daría el mismo ``doc_id`` a documentos distintos y uno sobrescribiría
+       al otro.
+    3. Derivado de ``fuente``. El caso simple, sin índice y sin colisiones.
+    """
+    if _DOC_ID_ADL.match(doc.doc_id):
+        return True
+    if doc.doc_id == calcular_doc_id(doc.fuente):
+        return True
+    ruta_relativa = doc.meta.get("ruta_relativa") if isinstance(doc.meta, dict) else None
+    return isinstance(ruta_relativa, str) and doc.doc_id == calcular_doc_id(ruta_relativa)
 
 
 def _violaciones_de_bloque(indice: int, bloque: Bloque) -> list[str]:
@@ -200,10 +226,14 @@ def validar_documento(doc: Documento) -> list[str]:
 
     if not isinstance(doc.fuente, str) or not doc.fuente.strip():
         violaciones.append("fuente vacía: es el campo de emparejamiento, no puede faltar")
-    elif doc.doc_id != calcular_doc_id(doc.fuente):
+    elif not isinstance(doc.doc_id, str) or not doc.doc_id.strip():
+        violaciones.append("doc_id vacío")
+    elif not _doc_id_es_admisible(doc):
         violaciones.append(
-            f"doc_id {doc.doc_id!r} no deriva de fuente {doc.fuente!r} "
-            f"(esperado {calcular_doc_id(doc.fuente)!r})"
+            f"doc_id {doc.doc_id!r} no es trazable: no es un DOC_ID de ADL, "
+            f"ni deriva de fuente {doc.fuente!r} "
+            f"(esperado {calcular_doc_id(doc.fuente)!r}), "
+            f"ni de meta['ruta_relativa']"
         )
 
     if doc.formato not in FORMATOS:

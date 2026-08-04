@@ -5,6 +5,7 @@
 beautifulsoup4>=4.12,<5      # parseo de HTML
 lxml>=5.0,<7                 # parser rápido y estable usado por beautifulsoup4
 langdetect>=1.0.9,<2         # detección de idioma (semilla fijada en limpieza.py)
+openpyxl>=3.1,<4            # lectura del índice maestro de ADL (indice.py)
 
 # Desarrollo
 pytest>=8.0
