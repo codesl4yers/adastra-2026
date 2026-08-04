@@ -10,8 +10,9 @@ import sys
 
 import pytest
 
-from contrato import calcular_doc_id
-from orquestador import cargar_manifiesto, procesar_directorio
+from contrato import calcular_doc_id, validar_documento
+from indice import cargar_indice
+from orquestador import cargar_manifiesto, procesar_corpus, procesar_directorio
 
 
 @pytest.fixture
@@ -120,10 +121,14 @@ def test_el_manifiesto_esta_ordenado_por_fuente(salida_doble):
 
 
 def test_el_manifiesto_tiene_una_linea_por_documento(salida_doble, dir_fixtures):
+    from orquestador import EXTRACTORES
+
     primera, _ = salida_doble
     entradas = cargar_manifiesto(primera / "manifiesto.jsonl")
-    html_en_fixtures = sorted(p.name for p in dir_fixtures.glob("*.html"))
-    assert [e["fuente"] for e in entradas] == html_en_fixtures
+    con_extractor = [
+        p for p in dir_fixtures.rglob("*") if p.is_file() and p.suffix.lower() in EXTRACTORES
+    ]
+    assert len(entradas) == len(con_extractor)
 
 
 def test_el_manifiesto_tiene_los_campos_del_contrato(salida_doble):
@@ -137,6 +142,8 @@ def test_el_manifiesto_tiene_los_campos_del_contrato(salida_doble):
         "n_bloques",
         "n_chars",
         "n_errores",
+        "observatorio",
+        "fuente_ambigua",
     }
     for entrada in cargar_manifiesto(primera / "manifiesto.jsonl"):
         assert set(entrada.keys()) == esperados
@@ -196,16 +203,99 @@ def test_recorre_subdirectorios(tmp_path):
     assert [d.fuente for d in documentos] == ["anidada.html"]
 
 
-def test_detecta_colision_de_nombres_entre_subdirectorios(tmp_path):
-    """Dos archivos con el mismo nombre comparten fuente y por tanto doc_id."""
+def test_dos_homonimos_producen_dos_documentos_sin_excepcion(tmp_path):
+    """En el corpus de ADL 59 nombres se repiten en 186 archivos.
+
+    Son colisiones legítimas —el mismo informe en carpetas por tipo, el mismo
+    tile en distintos niveles de zoom—, así que el pipeline no puede morir por
+    ellas. La desambiguación se hace por ruta.
+    """
     entrada = tmp_path / "entrada"
     (entrada / "a").mkdir(parents=True)
     (entrada / "b").mkdir(parents=True)
     (entrada / "a" / "informe.html").write_text("<html><body><p>Uno</p></body></html>", "utf-8")
     (entrada / "b" / "informe.html").write_text("<html><body><p>Dos</p></body></html>", "utf-8")
 
-    with pytest.raises(ValueError, match="colisión"):
-        procesar_directorio(entrada, tmp_path / "salida")
+    documentos = procesar_directorio(entrada, tmp_path / "salida")
+
+    assert len(documentos) == 2
+    assert {d.fuente for d in documentos} == {"informe.html"}
+    assert len({d.doc_id for d in documentos}) == 2
+    assert all(d.meta["fuente_ambigua"] is True for d in documentos)
+    assert {d.meta["ruta_relativa"] for d in documentos} == {"a/informe.html", "b/informe.html"}
+
+
+def test_el_doc_id_de_un_homonimo_deriva_de_la_ruta_no_del_nombre(tmp_path):
+    entrada = tmp_path / "entrada"
+    (entrada / "a").mkdir(parents=True)
+    (entrada / "b").mkdir(parents=True)
+    (entrada / "a" / "informe.html").write_text("<html><body><p>Uno</p></body></html>", "utf-8")
+    (entrada / "b" / "informe.html").write_text("<html><body><p>Dos</p></body></html>", "utf-8")
+
+    documentos = procesar_directorio(entrada, tmp_path / "salida")
+    esperados = {calcular_doc_id("a/informe.html"), calcular_doc_id("b/informe.html")}
+    assert {d.doc_id for d in documentos} == esperados
+
+
+def test_dos_homonimos_escriben_dos_json_distintos(tmp_path):
+    """El defecto oculto: con doc_id derivado del nombre, uno sobrescribía al otro."""
+    entrada = tmp_path / "entrada"
+    (entrada / "a").mkdir(parents=True)
+    (entrada / "b").mkdir(parents=True)
+    (entrada / "a" / "informe.html").write_text("<html><body><p>Uno</p></body></html>", "utf-8")
+    (entrada / "b" / "informe.html").write_text("<html><body><p>Dos</p></body></html>", "utf-8")
+    salida = tmp_path / "salida"
+
+    documentos = procesar_directorio(entrada, salida)
+
+    assert len(list(salida.glob("*.json"))) == 2
+    assert len(cargar_manifiesto(salida / "manifiesto.jsonl")) == 2
+
+
+def test_un_archivo_sin_homonimos_no_se_marca_ambiguo(tmp_path):
+    entrada = tmp_path / "entrada"
+    entrada.mkdir()
+    (entrada / "unico.html").write_text("<html><body><p>Solo</p></body></html>", "utf-8")
+
+    documentos = procesar_directorio(entrada, tmp_path / "salida")
+    assert documentos[0].meta["fuente_ambigua"] is False
+
+
+def test_todos_los_documentos_llevan_ruta_relativa(tmp_path):
+    """No solo los ambiguos: la ruta es trazabilidad de todos."""
+    entrada = tmp_path / "entrada"
+    (entrada / "sub").mkdir(parents=True)
+    (entrada / "raiz.html").write_text("<html><body><p>Raiz</p></body></html>", "utf-8")
+    (entrada / "sub" / "hoja.html").write_text("<html><body><p>Hoja</p></body></html>", "utf-8")
+
+    documentos = procesar_directorio(entrada, tmp_path / "salida")
+    rutas = {d.fuente: d.meta["ruta_relativa"] for d in documentos}
+    assert rutas == {"raiz.html": "raiz.html", "hoja.html": "sub/hoja.html"}
+
+
+def test_la_colision_se_avisa_por_stderr(tmp_path, capsys):
+    entrada = tmp_path / "entrada"
+    (entrada / "a").mkdir(parents=True)
+    (entrada / "b").mkdir(parents=True)
+    (entrada / "a" / "informe.html").write_text("<html><body><p>Uno</p></body></html>", "utf-8")
+    (entrada / "b" / "informe.html").write_text("<html><body><p>Dos</p></body></html>", "utf-8")
+
+    procesar_directorio(entrada, tmp_path / "salida")
+
+    err = capsys.readouterr().err
+    assert "1 nombre" in err
+    assert "2 archivo" in err
+
+
+def test_la_salida_de_homonimos_cumple_el_contrato(tmp_path):
+    entrada = tmp_path / "entrada"
+    (entrada / "a").mkdir(parents=True)
+    (entrada / "b").mkdir(parents=True)
+    (entrada / "a" / "informe.html").write_text("<html><body><p>Uno</p></body></html>", "utf-8")
+    (entrada / "b" / "informe.html").write_text("<html><body><p>Dos</p></body></html>", "utf-8")
+
+    for documento in procesar_directorio(entrada, tmp_path / "salida"):
+        assert validar_documento(documento) == []
 
 
 def test_directorio_de_entrada_vacio_produce_manifiesto_vacio(tmp_path):
@@ -227,3 +317,288 @@ def test_el_fenomeno_se_infiere_del_subdirectorio(tmp_path):
 
     documentos = procesar_directorio(entrada, tmp_path / "salida", fenomeno_por_defecto=1)
     assert documentos[0].fenomeno == 2
+
+
+# --- fenomeno: precedencia indice > carpeta > defecto -------------------------
+
+
+def test_el_fenomeno_se_infiere_de_la_carpeta_de_adl(tmp_path):
+    """Las carpetas reales son F3_Dinamicas_Territoriales, no fenomeno_3."""
+    entrada = tmp_path / "entrada"
+    (entrada / "F3_Dinamicas_Territoriales").mkdir(parents=True)
+    (entrada / "F3_Dinamicas_Territoriales" / "informe.html").write_text(
+        "<html><body><p>Contenido del tercer fenomeno</p></body></html>", "utf-8"
+    )
+
+    documentos = procesar_directorio(entrada, tmp_path / "salida", fenomeno_por_defecto=1)
+    assert documentos[0].fenomeno == 3
+    assert documentos[0].meta["origen_fenomeno"] == "carpeta"
+
+
+@pytest.mark.parametrize(
+    "carpeta,esperado",
+    [
+        ("F1_IA_y_Capacidades_Estrategicas", 1),
+        ("F2_Seguridad_Entorno_Espacial", 2),
+        ("F3_Dinamicas_Territoriales", 3),
+        ("fenomeno_2", 2),
+        ("Fenomeno 3", 3),
+        ("fenómeno-1", 1),
+    ],
+)
+def test_las_dos_convenciones_de_carpeta_valen(tmp_path, carpeta, esperado):
+    entrada = tmp_path / "entrada"
+    (entrada / carpeta).mkdir(parents=True)
+    (entrada / carpeta / "informe.html").write_text(
+        "<html><body><p>Contenido</p></body></html>", "utf-8"
+    )
+
+    documentos = procesar_directorio(entrada, tmp_path / "salida", fenomeno_por_defecto=1)
+    assert documentos[0].fenomeno == esperado
+
+
+def test_una_carpeta_que_no_declara_fenomeno_cae_al_defecto(tmp_path):
+    entrada = tmp_path / "entrada"
+    (entrada / "recursos").mkdir(parents=True)
+    (entrada / "recursos" / "informe.html").write_text(
+        "<html><body><p>Contenido</p></body></html>", "utf-8"
+    )
+
+    documentos = procesar_directorio(entrada, tmp_path / "salida", fenomeno_por_defecto=2)
+    assert documentos[0].fenomeno == 2
+    assert documentos[0].meta["origen_fenomeno"] == "defecto"
+
+
+def test_una_carpeta_llamada_F4_no_se_confunde_con_un_fenomeno(tmp_path):
+    entrada = tmp_path / "entrada"
+    (entrada / "F4_Otra_Cosa").mkdir(parents=True)
+    (entrada / "F4_Otra_Cosa" / "informe.html").write_text(
+        "<html><body><p>Contenido</p></body></html>", "utf-8"
+    )
+
+    documentos = procesar_directorio(entrada, tmp_path / "salida", fenomeno_por_defecto=1)
+    assert documentos[0].meta["origen_fenomeno"] == "defecto"
+
+
+# --- indice como fuente de verdad ---------------------------------------------
+
+
+def test_con_indice_el_doc_id_y_el_fenomeno_salen_del_indice(tmp_path, indice_minimo):
+    entrada = tmp_path / "entrada"
+    (entrada / "colisiones" / "a").mkdir(parents=True)
+    (entrada / "colisiones" / "a" / "informe.html").write_text(
+        "<html><body><p>Uno</p></body></html>", "utf-8"
+    )
+
+    documentos = procesar_directorio(
+        entrada, tmp_path / "salida", fenomeno_por_defecto=1, indice=cargar_indice(indice_minimo)
+    )
+
+    documento = documentos[0]
+    assert documento.doc_id == "F2-SWF-001"
+    assert documento.fenomeno == 2
+    assert documento.meta["origen_doc_id"] == "indice"
+    assert documento.meta["origen_fenomeno"] == "indice"
+    assert documento.meta["observatorio"] == "Secure_World"
+    assert documento.meta["codigo_observatorio"] == "SWF"
+    assert documento.fuente == "informe.html"
+
+
+def test_el_indice_gana_a_la_carpeta(tmp_path, indice_minimo):
+    """La carpeta dice F1; el indice dice F2. Manda el indice."""
+    entrada = tmp_path / "entrada"
+    destino = entrada / "F1_IA_y_Capacidades_Estrategicas" / "colisiones" / "a"
+    destino.mkdir(parents=True)
+    (destino / "informe.html").write_text("<html><body><p>Uno</p></body></html>", "utf-8")
+
+    indice = {
+        "F1_IA_y_Capacidades_Estrategicas/colisiones/a/informe.html": next(
+            e for e in cargar_indice(indice_minimo).values() if e.doc_id == "F2-SWF-001"
+        )
+    }
+    documentos = procesar_directorio(entrada, tmp_path / "salida", indice=indice)
+    assert documentos[0].fenomeno == 2
+    assert documentos[0].meta["origen_fenomeno"] == "indice"
+
+
+def test_un_archivo_fuera_del_indice_no_se_procesa(tmp_path, indice_minimo):
+    """Con indice, el indice filtra: manda ADL sobre lo que haya en disco."""
+    entrada = tmp_path / "entrada"
+    (entrada / "colisiones" / "a").mkdir(parents=True)
+    (entrada / "colisiones" / "a" / "informe.html").write_text(
+        "<html><body><p>Uno</p></body></html>", "utf-8"
+    )
+    (entrada / "intruso.html").write_text("<html><body><p>No listado</p></body></html>", "utf-8")
+
+    documentos, reporte = procesar_corpus(
+        entrada, tmp_path / "salida", indice=cargar_indice(indice_minimo)
+    )
+
+    assert [d.fuente for d in documentos] == ["informe.html"]
+    assert reporte.fuera_del_indice == ["intruso.html"]
+
+
+def test_sin_indice_el_pipeline_sigue_funcionando(tmp_path):
+    """Las fixtures sinteticas no tienen indice; no puede ser obligatorio."""
+    entrada = tmp_path / "entrada"
+    entrada.mkdir()
+    (entrada / "pagina.html").write_text("<html><body><p>Hola</p></body></html>", "utf-8")
+
+    documentos = procesar_directorio(entrada, tmp_path / "salida", indice=None)
+    assert documentos[0].meta["origen_doc_id"] == "derivado"
+
+
+# --- reporte de cobertura -----------------------------------------------------
+
+
+def test_el_reporte_lista_los_archivos_sin_extractor(tmp_path):
+    entrada = tmp_path / "entrada"
+    entrada.mkdir()
+    (entrada / "pagina.html").write_text("<html><body><p>Hola</p></body></html>", "utf-8")
+    (entrada / "presentacion.docx").write_bytes(b"PK\x03\x04 falso")
+
+    documentos, reporte = procesar_corpus(entrada, tmp_path / "salida")
+
+    assert reporte.sin_extractor == ["presentacion.docx"]
+    assert [d.fuente for d in documentos] == ["pagina.html"]
+
+
+def test_el_reporte_lista_las_entradas_huerfanas_del_indice(tmp_path, indice_minimo):
+    entrada = tmp_path / "entrada"
+    entrada.mkdir()
+    (entrada / "bien_formado.html").write_text("<html><body><p>Hola</p></body></html>", "utf-8")
+
+    _, reporte = procesar_corpus(
+        entrada, tmp_path / "salida", indice=cargar_indice(indice_minimo)
+    )
+
+    # El orden es el del archivo xlsx, no el alfabético: F1 bien_formado (en
+    # disco), F2 colisiones/a, F2 colisiones/b, F3 anidado.
+    assert reporte.huerfanos_del_indice == [
+        "colisiones/a/informe.html",
+        "colisiones/b/informe.html",
+        "anidado.html",
+    ]
+
+
+def test_el_reporte_cuenta_los_origenes(tmp_path):
+    entrada = tmp_path / "entrada"
+    (entrada / "F2_Seguridad_Entorno_Espacial").mkdir(parents=True)
+    (entrada / "F2_Seguridad_Entorno_Espacial" / "a.html").write_text(
+        "<html><body><p>Uno</p></body></html>", "utf-8"
+    )
+    (entrada / "suelto.html").write_text("<html><body><p>Dos</p></body></html>", "utf-8")
+
+    _, reporte = procesar_corpus(entrada, tmp_path / "salida")
+
+    assert reporte.por_origen_fenomeno == {"carpeta": 1, "defecto": 1}
+    assert reporte.por_origen_doc_id == {"derivado": 2}
+
+
+def test_el_reporte_cuenta_las_fuentes_ambiguas(tmp_path):
+    entrada = tmp_path / "entrada"
+    (entrada / "a").mkdir(parents=True)
+    (entrada / "b").mkdir(parents=True)
+    (entrada / "a" / "informe.html").write_text("<html><body><p>Uno</p></body></html>", "utf-8")
+    (entrada / "b" / "informe.html").write_text("<html><body><p>Dos</p></body></html>", "utf-8")
+
+    _, reporte = procesar_corpus(entrada, tmp_path / "salida")
+
+    assert reporte.nombres_ambiguos == 1
+    assert reporte.archivos_ambiguos == 2
+
+
+# --- doc_id duplicado: lo unico que sigue deteniendo la corrida ---------------
+
+
+def test_un_doc_id_duplicado_en_el_indice_detiene_la_corrida(tmp_path):
+    from indice import EntradaIndice
+
+    entrada = tmp_path / "entrada"
+    (entrada / "a").mkdir(parents=True)
+    (entrada / "b").mkdir(parents=True)
+    (entrada / "a" / "uno.html").write_text("<html><body><p>Uno</p></body></html>", "utf-8")
+    (entrada / "b" / "dos.html").write_text("<html><body><p>Dos</p></body></html>", "utf-8")
+
+    def entrada_con(ruta, fuente):
+        return EntradaIndice(
+            doc_id="F1-OBS-001",
+            fuente=fuente,
+            ruta_relativa=ruta,
+            fenomeno=1,
+            observatorio="Obs",
+            codigo_observatorio="OBS",
+            tipo_declarado="HTML",
+        )
+
+    indice = {
+        "a/uno.html": entrada_con("a/uno.html", "uno.html"),
+        "b/dos.html": entrada_con("b/dos.html", "dos.html"),
+    }
+
+    with pytest.raises(ValueError, match="doc_id duplicado"):
+        procesar_directorio(entrada, tmp_path / "salida", indice=indice)
+
+
+# --- manifiesto ampliado ------------------------------------------------------
+
+
+def test_el_manifiesto_lleva_observatorio_y_fuente_ambigua(tmp_path, indice_minimo):
+    entrada = tmp_path / "entrada"
+    (entrada / "colisiones" / "a").mkdir(parents=True)
+    (entrada / "colisiones" / "b").mkdir(parents=True)
+    (entrada / "colisiones" / "a" / "informe.html").write_text(
+        "<html><body><p>Uno</p></body></html>", "utf-8"
+    )
+    (entrada / "colisiones" / "b" / "informe.html").write_text(
+        "<html><body><p>Dos</p></body></html>", "utf-8"
+    )
+    salida = tmp_path / "salida"
+
+    procesar_directorio(entrada, salida, indice=cargar_indice(indice_minimo))
+
+    entradas = cargar_manifiesto(salida / "manifiesto.jsonl")
+    assert all(e["observatorio"] == "Secure_World" for e in entradas)
+    assert all(e["fuente_ambigua"] is True for e in entradas)
+
+
+# --- CLI ----------------------------------------------------------------------
+
+
+def test_la_cli_acepta_indice(tmp_path, raiz_proyecto, indice_minimo):
+    entrada = tmp_path / "entrada"
+    (entrada / "colisiones" / "a").mkdir(parents=True)
+    (entrada / "colisiones" / "a" / "informe.html").write_text(
+        "<html><body><p>Uno</p></body></html>", "utf-8"
+    )
+    salida = tmp_path / "salida"
+
+    resultado = subprocess.run(
+        [
+            sys.executable, "orquestador.py",
+            "--entrada", str(entrada),
+            "--salida", str(salida),
+            "--indice", str(indice_minimo),
+        ],
+        # errors="replace": el hijo escribe stderr en la codificación local, que
+        # en Windows no es UTF-8. Sin esto el hilo lector revienta, stderr queda
+        # en None y el mensaje del assert de abajo pierde todo su valor.
+        cwd=raiz_proyecto, capture_output=True, text=True, encoding="utf-8", errors="replace",
+    )
+
+    assert resultado.returncode == 0, resultado.stderr
+    entradas = cargar_manifiesto(salida / "manifiesto.jsonl")
+    assert [e["doc_id"] for e in entradas] == ["F2-SWF-001"]
+
+
+def test_la_cli_funciona_sin_indice(tmp_path, raiz_proyecto):
+    entrada = tmp_path / "entrada"
+    entrada.mkdir()
+    (entrada / "pagina.html").write_text("<html><body><p>Hola</p></body></html>", "utf-8")
+    salida = tmp_path / "salida"
+
+    resultado = subprocess.run(
+        [sys.executable, "orquestador.py", "--entrada", str(entrada), "--salida", str(salida)],
+        cwd=raiz_proyecto, capture_output=True, text=True, encoding="utf-8", errors="replace",
+    )
+    assert resultado.returncode == 0, resultado.stderr
