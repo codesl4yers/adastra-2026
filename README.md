@@ -33,6 +33,7 @@ Opciones:
 | `--entrada` | Directorio del corpus. Se recorre recursivamente. |
 | `--salida` | Directorio de resultados. Se crea si no existe. |
 | `--fenomeno` | Fenómeno por defecto (1, 2 o 3) cuando no se deduce del directorio. |
+| `--indice` | Ruta al `Indice_Datos_Codefest.xlsx` de ADL. Opcional. Con él, `doc_id`, `fenomeno` y `observatorio` salen del índice y solo se procesa lo que el índice lista. |
 | `--limpiar` | Borra los resultados de la corrida anterior antes de escribir. |
 
 Si el corpus viene organizado en carpetas `fenomeno_1/`, `fenomeno_2/`,
@@ -64,7 +65,7 @@ revisar.
 python -m pytest
 ```
 
-106 pruebas. Las cinco que exige el enunciado:
+161 pruebas. Las cinco que exige el enunciado:
 
 | Requisito | Dónde |
 |---|---|
@@ -81,6 +82,7 @@ regeneran con `python fixtures/generar_binarios.py`.
 
 ```
 contrato.py          Bloque, Documento, calcular_doc_id, validar_documento
+indice.py            lectura del índice maestro de ADL (solo lee)
 limpieza.py          normalización, idioma, detección de repetidos
 orquestador.py       recorrido, persistencia y CLI
 extractores/
@@ -90,7 +92,9 @@ extractores/
     tabular.py       stub documentado (csv + xlsx)
     imagen.py        stub documentado (OCR)
     pbf.py           stub documentado (mapas vectoriales)
+    texto.py         stub documentado (texto plano: .txt, .md)
 fixtures/            corpus sintético
+scripts/             herramientas fuera del pipeline (verificación contra el corpus real)
 tests/               pytest
 ```
 
@@ -113,7 +117,7 @@ class Bloque:
 class Documento:
     doc_id: str         # derivado de fuente, estable entre corridas
     fuente: str         # nombre EXACTO del archivo original
-    formato: str        # "pdf"|"html"|"json"|"csv"|"xlsx"|"imagen"|"pbf"
+    formato: str        # "pdf"|"html"|"json"|"csv"|"xlsx"|"imagen"|"pbf"|"texto"
     fenomeno: int       # 1, 2 o 3
     idioma: str         # "es" | "en" | "pt"
     bloques: list[Bloque]
@@ -202,10 +206,24 @@ Las que no son obvias, con su porqué:
 
 **`fuente = path.name`, no la ruta relativa.** El enunciado pide el nombre
 exacto del archivo entregado. La contrapartida es que dos archivos con el mismo
-nombre en subdirectorios distintos colisionan; el orquestador lo detecta y
-**se detiene** con `ValueError`. Es el único caso en que el pipeline para: un
-fallo de extracción se registra y se sigue, pero una colisión de identidad
-invalidaría la entrega entera y hay que verla, no encontrarla después.
+nombre en subdirectorios distintos comparten `fuente`, y en el corpus de ADL eso
+pasa en **59 nombres repartidos por 186 archivos** (CSET_Georgetown 112, Amazon
+Underworld 72, ESA_Space_Debris 2). Son colisiones legítimas: el mismo informe
+archivado por tipo, el mismo tile en varios niveles de zoom. El pipeline no se
+detiene por ellas —lo hacía, y moría en la primera corrida sin procesar nada—:
+las marca con `meta["fuente_ambigua"]` y desambigua la identidad por
+`meta["ruta_relativa"]`. Es una limitación del corpus, no del pipeline.
+
+**`doc_id` sale del índice de ADL cuando lo hay.** Es la identidad oficial y
+trazable (`F1-AIINDEX-001`). Sin índice se deriva de la ruta relativa, nunca del
+nombre: derivarlo del nombre daba el mismo `doc_id` a los 7 PDF homónimos de
+CSET y el pipeline se sobrescribía a sí mismo seis veces sin avisar.
+
+**El índice filtra.** Con `--indice`, solo se procesa lo que ADL lista. En disco
+hay 13 archivos con extractor que el índice no menciona —el enunciado, el propio
+índice, `FASE ORDENADA CODEFEST.xlsx` y 10 `*_catalogo.json`/`*_registro.json`
+de scraping— y no son documentos de la entrega. Se reportan en stderr, no se
+procesan y no se borran.
 
 **Un HTML con bytes NUL se descarta entero.** BeautifulSoup es tan tolerante
 que casi nunca falla: le das basura binaria y devuelve un árbol con fragmentos
@@ -234,7 +252,9 @@ tabular y PBF, en cambio, cada fila o feature debe ir con `atomico=True`.
 
 ## Pendiente
 
-- Extractores de PDF, JSON, CSV/XLSX, imagen y PBF (stubs con estrategia
-  escrita).
-- Cuando llegue el corpus real: verificar el mapeo de extensiones en
-  `EXTRACTORES` y decidir la política de fenómeno si no viene por carpetas.
+- Extractores de PDF, JSON, CSV/XLSX, imagen, PBF y texto plano (stubs con
+  estrategia escrita). Con el corpus completo, los 1826 documentos salen con
+  `bloques=[]` y "extractor no implementado": esta etapa arregla el recorrido y
+  la identidad, no la extracción.
+- `.avif` necesita `pillow-avif-plugin` cuando se implemente el extractor de
+  imagen (1 archivo, F2-SWF-065).
