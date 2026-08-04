@@ -76,6 +76,52 @@ def test_determinismo_con_semilla_de_hash_distinta(dir_fixtures, tmp_path, raiz_
         assert (primera / nombre).read_bytes() == (segunda / nombre).read_bytes()
 
 
+def test_determinismo_con_indice_y_semilla_de_hash_distinta(
+    dir_fixtures, tmp_path, raiz_proyecto, indice_minimo
+):
+    """La misma red del test anterior, pero por el camino con ``--indice``.
+
+    Sin esta prueba, el orden de ``huerfanos_del_indice`` y los conteos del
+    reporte de cobertura —que solo se calculan cuando hay índice— no los cubre
+    ninguna prueba de determinismo: el camino sin índice no ejercita
+    ``_cruzar_con_indice`` ni el resto de la lógica que depende del mapa.
+    """
+    salidas = []
+    for semilla in ("0", "12345"):
+        destino = tmp_path / f"semilla_{semilla}"
+        entorno = dict(os.environ, PYTHONHASHSEED=semilla)
+        resultado = subprocess.run(
+            [
+                sys.executable,
+                "orquestador.py",
+                "--entrada",
+                str(dir_fixtures),
+                "--salida",
+                str(destino),
+                "--indice",
+                str(indice_minimo),
+            ],
+            cwd=raiz_proyecto,
+            env=entorno,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            # errors="replace": en Windows el hijo escribe stderr en la
+            # codificación local (cp1252), no en UTF-8. Sin esto el hilo lector
+            # revienta, stderr queda en None y el mensaje del assert de abajo
+            # pierde todo su valor.
+            errors="replace",
+        )
+        assert resultado.returncode == 0, resultado.stderr
+        salidas.append(destino)
+
+    primera, segunda = salidas
+    archivos = sorted(p.name for p in primera.iterdir())
+    assert archivos == sorted(p.name for p in segunda.iterdir())
+    for nombre in archivos:
+        assert (primera / nombre).read_bytes() == (segunda / nombre).read_bytes()
+
+
 def test_los_archivos_usan_saltos_de_linea_unix(salida_doble):
     """En Windows, un salto CRLF rompería el diff entre plataformas."""
     primera, _ = salida_doble
@@ -470,6 +516,24 @@ def test_un_archivo_fuera_del_indice_no_se_procesa(tmp_path, indice_minimo):
     assert reporte.fuera_del_indice == ["intruso.html"]
 
 
+def test_un_indice_vacio_sigue_filtrando_todo(tmp_path):
+    """Un xlsx con cabecera y sin filas produce ``indice == {}``.
+
+    ``{}`` es falsy en Python, así que un chequeo con ``if indice`` (en vez de
+    ``is not None``) confundiría "índice vacío" con "sin índice" y procesaría
+    el disco entero en silencio, justo lo contrario de lo que pide ``--indice``.
+    """
+    entrada = tmp_path / "entrada"
+    entrada.mkdir()
+    (entrada / "pagina.html").write_text("<html><body><p>Hola</p></body></html>", "utf-8")
+
+    documentos, reporte = procesar_corpus(entrada, tmp_path / "salida", indice={})
+
+    assert documentos == []
+    assert reporte.fuera_del_indice == ["pagina.html"]
+    assert reporte.huerfanos_del_indice == []
+
+
 def test_sin_indice_el_pipeline_sigue_funcionando(tmp_path):
     """Las fixtures sinteticas no tienen indice; no puede ser obligatorio."""
     entrada = tmp_path / "entrada"
@@ -511,6 +575,39 @@ def test_el_reporte_lista_las_entradas_huerfanas_del_indice(tmp_path, indice_min
         "colisiones/b/informe.html",
         "anidado.html",
     ]
+
+
+def test_un_archivo_indexado_sin_extractor_no_es_huerfano(tmp_path):
+    """Un archivo que el índice lista y que existe en disco no es un huérfano.
+
+    Antes de esta corrección, ``_cruzar_con_indice`` solo miraba los archivos
+    con extractor: uno indexado con una extensión sin extractor (p. ej. un
+    ``.zip`` del catálogo) no aparecía entre los "vistos" y se reportaba como
+    "no existe en disco" siendo falso. Debe salir en ``sin_extractor``, que es
+    el motivo real por el que no se procesa.
+    """
+    from indice import EntradaIndice
+
+    entrada = tmp_path / "entrada"
+    entrada.mkdir()
+    (entrada / "catalogo.zip").write_bytes(b"PK\x05\x06" + b"\x00" * 18)
+
+    indice = {
+        "catalogo.zip": EntradaIndice(
+            doc_id="F1-OBS-001",
+            fuente="catalogo.zip",
+            ruta_relativa="catalogo.zip",
+            fenomeno=1,
+            observatorio="Obs",
+            codigo_observatorio="OBS",
+            tipo_declarado="ZIP",
+        )
+    }
+
+    _, reporte = procesar_corpus(entrada, tmp_path / "salida", indice=indice)
+
+    assert reporte.sin_extractor == ["catalogo.zip"]
+    assert reporte.huerfanos_del_indice == []
 
 
 def test_el_reporte_cuenta_los_origenes(tmp_path):

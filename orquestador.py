@@ -5,11 +5,15 @@ Es el único módulo que escribe a disco. Los extractores son funciones puras.
 Produce:
 
 - ``{salida}/{doc_id}.json``: un ``Documento`` serializado por archivo.
-- ``{salida}/manifiesto.jsonl``: una línea por documento, ordenada por fuente.
+- ``{salida}/manifiesto.jsonl``: una línea por documento, ordenada por
+  ``(fuente, ruta_relativa)``.
 
 El manifiesto existe para hacer ``diff`` entre corridas y detectar regresiones,
 así que su estabilidad importa tanto como su contenido: claves ordenadas,
-saltos de línea Unix y orden por ``fuente``.
+saltos de línea Unix y orden por ``(fuente, ruta_relativa)``. Se desempata por
+ruta porque hay 59 nombres de archivo repetidos en 186 archivos del corpus de
+ADL: ordenar solo por ``fuente`` dejaría el orden relativo de esos homónimos a
+merced del sistema de archivos.
 
 Uso::
 
@@ -101,7 +105,13 @@ class ReporteCobertura:
     """Rutas relativas de archivos en disco cuya extensión no está en ``EXTRACTORES``."""
 
     huerfanos_del_indice: list[str]
-    """Rutas que el índice lista pero que no existen en disco."""
+    """Rutas que el índice lista pero que no existen en disco.
+
+    Se calcula contra **todos** los archivos del disco, tengan o no extractor:
+    uno indexado sin extractor sigue estando ahí y sale en ``sin_extractor``,
+    no aquí. Confundir ambos casos mandaría a un operador a buscar un archivo
+    que sí existe.
+    """
 
     fuera_del_indice: list[str]
     """Rutas con extractor que están en disco pero el índice no lista."""
@@ -142,7 +152,9 @@ def procesar_corpus(
         _ruta_relativa(ruta, entrada) for ruta in archivos if not _tiene_extractor(ruta)
     ]
 
-    rutas, fuera_del_indice, huerfanos = _cruzar_con_indice(con_extractor, entrada, indice)
+    rutas, fuera_del_indice, huerfanos = _cruzar_con_indice(
+        con_extractor, archivos, entrada, indice
+    )
 
     colisiones = _agrupar_colisiones(rutas, entrada)
     ambiguos = set(colisiones)
@@ -201,28 +213,39 @@ def procesar_directorio(
 
 def _cruzar_con_indice(
     con_extractor: list[Path],
+    todos: list[Path],
     entrada: Path,
     indice: dict[str, EntradaIndice] | None,
 ) -> tuple[list[Path], list[str], list[str]]:
     """Reparte los archivos entre los que el índice lista y los que no.
 
     Sin índice no hay nada que cruzar: se procesa todo lo que tenga extractor.
+    Se compara con ``is None`` y no con verdad/falsedad: un índice vacío
+    (``{}``) es un índice real —un xlsx con cabecera y sin filas— y debe seguir
+    filtrando a "nada", no comportarse como si no se hubiera pasado ``--indice``.
+
+    Los archivos que sí procesa el pipeline (``listadas``) y los que sobran del
+    disco (``sueltas``) se calculan solo sobre ``con_extractor``, porque eso es
+    lo único que se puede llegar a extraer. Los huérfanos, en cambio, se
+    calculan contra ``todos`` los archivos del disco: un archivo que el índice
+    lista y que existe en disco pero sin extractor registrado no es un
+    huérfano, es un caso de ``sin_extractor``. Cruzarlo solo contra
+    ``con_extractor`` lo reportaría como "no existe en disco" cuando sí existe.
     """
-    if not indice:
+    if indice is None:
         return con_extractor, [], []
 
     listadas, sueltas = [], []
-    vistas: set[str] = set()
     for ruta in con_extractor:
         relativa = _ruta_relativa(ruta, entrada)
         if relativa in indice:
             listadas.append(ruta)
-            vistas.add(relativa)
         else:
             sueltas.append(relativa)
 
+    existentes = {_ruta_relativa(ruta, entrada) for ruta in todos}
     # Se recorre el índice, no un set, para que el orden sea el del archivo.
-    huerfanos = [relativa for relativa in indice if relativa not in vistas]
+    huerfanos = [relativa for relativa in indice if relativa not in existentes]
     return listadas, sueltas, huerfanos
 
 
@@ -238,13 +261,24 @@ def _avisar_colisiones(colisiones: dict[str, list[str]]) -> None:
     """Resumen a stderr. No detiene nada: es información, no un fallo."""
     if not colisiones:
         return
-    archivos = sum(len(rutas) for rutas in colisiones.values())
+    n_nombres = len(colisiones)
+    n_archivos = sum(len(rutas) for rutas in colisiones.values())
+    verbo = "se repite" if n_nombres == 1 else "se repiten"
     print(
-        f"[aviso] {len(colisiones)} nombres de archivo se repiten en "
-        f"{archivos} archivos; se desambiguan por ruta y se marcan con "
-        f"meta['fuente_ambigua']",
+        f"[aviso] {n_nombres} {_pluralizar('nombre', n_nombres)} de archivo "
+        f"{verbo} en {n_archivos} {_pluralizar('archivo', n_archivos)}; se "
+        f"desambiguan por ruta y se marcan con meta['fuente_ambigua']",
         file=sys.stderr,
     )
+
+
+def _pluralizar(sustantivo: str, cantidad: int) -> str:
+    """Añade una "s" si ``cantidad`` no es 1.
+
+    El vocabulario del pipeline ("nombre", "archivo") es lo bastante simple
+    como para no necesitar una librería de pluralización.
+    """
+    return sustantivo if cantidad == 1 else f"{sustantivo}s"
 
 
 # --- recorrido ----------------------------------------------------------------
@@ -340,7 +374,9 @@ def _identidad_de(
     el mismo ``doc_id`` a los 7 PDF homónimos de CSET.
     """
     ruta_relativa = _ruta_relativa(ruta, raiz)
-    entrada = indice.get(ruta_relativa) if indice else None
+    # ``is not None`` y no verdad/falsedad: un índice vacío sigue siendo un
+    # índice (nada listado, luego nada tiene entrada), no la ausencia de uno.
+    entrada = indice.get(ruta_relativa) if indice is not None else None
 
     if entrada is not None:
         return _Identidad(
