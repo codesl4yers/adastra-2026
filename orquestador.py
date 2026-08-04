@@ -31,7 +31,7 @@ from pathlib import Path, PurePosixPath
 from types import ModuleType
 
 from contrato import Documento, calcular_doc_id, documento_a_dict
-from extractores import html, imagen, json_, pbf, pdf, tabular, texto
+from extractores import imagen, json_, pbf, pdf, tabular, texto
 from indice import EntradaIndice, cargar_indice
 
 NOMBRE_MANIFIESTO = "manifiesto.jsonl"
@@ -39,10 +39,9 @@ NOMBRE_MANIFIESTO = "manifiesto.jsonl"
 # Extensión -> (módulo extractor, formato declarado en el contrato).
 # Una extensión que no esté aquí se ignora, pero no en silencio: el reporte de
 # cobertura de `main()` la lista en stderr con su extensión.
-# `.html`/`.htm` se mantienen aunque el corpus de ADL no traiga ninguno.
+# Sin `.html`/`.htm`: el corpus real de ADL no trae ese formato, así que no
+# tiene extractor registrado.
 EXTRACTORES: dict[str, tuple[ModuleType, str]] = {
-    ".html": (html, "html"),
-    ".htm": (html, "html"),
     ".pdf": (pdf, "pdf"),
     ".json": (json_, "json"),
     ".geojson": (json_, "json"),

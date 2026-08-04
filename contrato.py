@@ -22,7 +22,7 @@ from typing import Any
 from limpieza import normalizar_texto
 
 TIPOS_BLOQUE: tuple[str, ...] = ("titulo", "parrafo", "lista", "fila", "ocr")
-FORMATOS: tuple[str, ...] = ("pdf", "html", "json", "csv", "xlsx", "imagen", "pbf", "texto")
+FORMATOS: tuple[str, ...] = ("pdf", "json", "csv", "xlsx", "imagen", "pbf", "texto")
 IDIOMAS: tuple[str, ...] = ("es", "en", "pt")
 FENOMENOS: tuple[int, ...] = (1, 2, 3)
 

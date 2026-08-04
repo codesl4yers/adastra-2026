@@ -5,9 +5,11 @@ archivo del corpus en un `Documento` normalizado y lo persiste. **No** hace
 chunking, embeddings, indexación ni recuperación: eso vive en capas
 posteriores y consume la salida de `extraidos/`.
 
-Estado: contrato, limpieza, orquestador y extractor **HTML** completos. Los
-demás formatos son stubs documentados, listos para que otra persona los
-complete.
+Estado: contrato, limpieza y orquestador completos. Los extractores de
+formato son stubs documentados, listos para que otra persona los complete.
+
+No hay extractor de HTML ni entrada en `EXTRACTORES` para `.html`/`.htm`: el
+corpus real de ADL no trae archivos de ese formato.
 
 ## Instalación
 
@@ -79,18 +81,18 @@ revisar.
 python -m pytest
 ```
 
-172 pruebas. Las cinco que exige el enunciado:
+135 pruebas. Las cinco que exige el enunciado:
 
 | Requisito | Dónde |
 |---|---|
-| 1. `validar_documento` limpio para toda salida HTML | `tests/test_html.py::test_ninguna_salida_viola_el_contrato` |
-| 2. Archivo malformado → `bloques=[]` y `errores` no vacía | `tests/test_html.py::test_archivo_malformado_no_lanza_excepcion` |
+| 1. `validar_documento` limpio para toda salida de un extractor | Pendiente: solo verificable con un extractor implementado. Mientras tanto, `tests/test_contrato.py` cubre `validar_documento` contra documentos construidos a mano. |
+| 2. Archivo malformado → `bloques=[]` y `errores` no vacía | `tests/test_orquestador.py::test_el_manifiesto_registra_documentos_sin_extractor_implementado` (blindaje del orquestador; el blindaje propio de cada extractor se prueba cuando se implemente) |
 | 3. Dos corridas → bytes idénticos | `tests/test_orquestador.py::test_dos_corridas_producen_bytes_identicos` |
-| 4. `fuente` = nombre exacto del archivo | `tests/test_html.py::test_fuente_conserva_la_extension_y_el_nombre_sin_normalizar` |
-| 5. Breadcrumb correcto a tres niveles | `tests/test_html.py::test_breadcrumb_en_documento_anidado_a_tres_niveles` |
+| 4. `fuente` = nombre exacto del archivo | `tests/test_orquestador.py::test_todos_los_documentos_llevan_ruta_relativa` y `tests/test_contrato.py::test_detecta_fuente_vacia` |
+| 5. Breadcrumb correcto a tres niveles | Pendiente: solo verificable con un extractor implementado. `contrato.py` valida la coherencia del breadcrumb (`tests/test_contrato.py::test_ruta_correcta_tras_cerrar_una_seccion_no_reporta_violacion`), pero ningún extractor lo produce todavía. |
 
-Los fixtures binarios (`malformado.html`, `nfd.html`) no se editan a mano; se
-regeneran con `python fixtures/generar_binarios.py`.
+El fixture binario (`indice_minimo.xlsx`) no se edita a mano; se regenera con
+`python fixtures/generar_binarios.py`.
 
 ## Estructura
 
@@ -100,7 +102,6 @@ indice.py            lectura del índice maestro de ADL (solo lee)
 limpieza.py          normalización, idioma, detección de repetidos
 orquestador.py       recorrido, persistencia y CLI
 extractores/
-    html.py          completo — implementación de referencia
     pdf.py           stub documentado
     json_.py         stub documentado
     tabular.py       stub documentado (csv + xlsx)
@@ -131,7 +132,7 @@ class Bloque:
 class Documento:
     doc_id: str         # del índice de ADL, o derivado de la ruta relativa
     fuente: str         # nombre EXACTO del archivo original
-    formato: str        # "pdf"|"html"|"json"|"csv"|"xlsx"|"imagen"|"pbf"|"texto"
+    formato: str        # "pdf"|"json"|"csv"|"xlsx"|"imagen"|"pbf"|"texto"
     fenomeno: int       # 1, 2 o 3
     idioma: str         # "es" | "en" | "pt"
     bloques: list[Bloque]
@@ -171,9 +172,7 @@ Los stubs ya traen la estrategia y la trampa principal de cada formato en su
 docstring. Léelo antes de empezar: está ahí para ahorrarte el descubrimiento.
 
 **1. Escribe primero las fixtures y las pruebas.** Añade a `fixtures/` al menos
-un archivo bien formado, uno con boilerplate y uno corrupto. Copia
-`tests/test_html.py` como plantilla: la mitad de sus pruebas aplican a
-cualquier formato con solo cambiar el módulo.
+un archivo bien formado, uno con boilerplate y uno corrupto.
 
 **2. Implementa la firma exacta.** Sin excepciones, sin estado global, sin
 escribir a disco:
@@ -182,7 +181,7 @@ escribir a disco:
 def extraer(path: Path, fenomeno: int) -> Documento:
 ```
 
-**3. Envuelve todo en el blindaje.** El patrón está en `extractores/html.py`:
+**3. Envuelve todo en el blindaje.** El patrón:
 
 ```python
 def extraer(path: Path, fenomeno: int) -> Documento:
@@ -205,13 +204,12 @@ parece válida.
 **4. Usa `limpieza`, no reinventes.** `normalizar_texto` en todo texto antes de
 construir el `Bloque`. `es_ruido_estructural` para numeración de páginas.
 `lineas_repetidas` para cabeceras y pies, pasándole como "unidades" lo que en
-tu formato se repite: páginas en PDF, hojas en XLSX, secciones en HTML.
+tu formato se repite: páginas en PDF, hojas en XLSX.
 
 **5. Mantén el breadcrumb.** Una pila de `(nivel, texto)`; un título de nivel N
 cierra los de nivel >= N. **Construye una lista nueva para cada `ruta`**: si
 compartes la misma lista entre bloques, todos acaban viendo el último
-breadcrumb. Hay una prueba para eso
-(`test_la_ruta_de_un_bloque_no_se_comparte_entre_bloques`).
+breadcrumb.
 
 **6. Ordena todo lo que recorras.** Claves de diccionario, resultados de
 `glob`, features de una capa. Si el orden lo decide una librería, ordénalo tú.
@@ -247,30 +245,16 @@ hay 13 archivos con extractor que el índice no menciona —el enunciado, el pro
 de scraping— y no son documentos de la entrega. Se reportan en stderr, no se
 procesan y no se borran.
 
-**Un HTML con bytes NUL se descarta entero.** BeautifulSoup es tan tolerante
-que casi nunca falla: le das basura binaria y devuelve un árbol con fragmentos
-de texto plausible. Ese es el peor resultado posible, porque entra al índice
-sin que nadie lo note. Un byte NUL en un archivo de texto significa corrupción
-o truncamiento, así que se registra el error y no se extrae nada.
-
-**El boilerplate se detecta por repetición entre secciones.** Después de podar
-`nav`/`footer`/`script`, lo que queda son menús inline y enlaces de navegación.
-Un texto corto que reaparece en casi todas las secciones es navegación; uno
-largo casi siempre es contenido. Los títulos nunca se descartan, para que el
-breadcrumb de los bloques restantes siga siendo válido.
+**Sin extractor de HTML.** El corpus real de ADL no trae archivos `.html` ni
+`.htm`. Mantener un extractor para un formato que el corpus no tiene es
+complejidad muerta que arrastra dependencias (`beautifulsoup4`, `lxml`) y
+fixtures sin ningún archivo real que los ejercite, así que no está en
+`EXTRACTORES`.
 
 **Detección de idioma con respaldo.** `langdetect` con `DetectorFactory.seed =
 0`, restringido a `es`/`en`/`pt`. Si devuelve un idioma fuera del contrato
 (francés, italiano) o no está instalado, se cae a un recuento de palabras
 funcionales. Ambos caminos son deterministas.
-
-**El texto anidado no se duplica.** `_texto_propio` toma solo el texto que no
-pertenece a otro elemento de interés descendiente. Sin esto, un `<p>` dentro de
-un `<li>` aparece dos veces: una en el párrafo y otra en el elemento de lista.
-
-**En HTML, `atomico` siempre es `False` y `pagina` siempre es `None`.** Un HTML
-no tiene páginas y ninguno de sus bloques es un registro indivisible. En
-tabular y PBF, en cambio, cada fila o feature debe ir con `atomico=True`.
 
 ## Pendiente
 

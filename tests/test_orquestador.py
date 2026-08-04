@@ -141,7 +141,7 @@ def test_escribe_un_json_por_documento_nombrado_por_doc_id(salida_doble):
 
 def test_el_json_tiene_claves_ordenadas_e_indentacion_fija(salida_doble):
     primera, _ = salida_doble
-    doc_id = calcular_doc_id("bien_formado.html")
+    doc_id = calcular_doc_id("bien_formado.txt")
     crudo = (primera / f"{doc_id}.json").read_text(encoding="utf-8")
 
     datos = json.loads(crudo)
@@ -149,10 +149,15 @@ def test_el_json_tiene_claves_ordenadas_e_indentacion_fija(salida_doble):
     assert crudo == json.dumps(datos, ensure_ascii=False, sort_keys=True, indent=2) + "\n"
 
 
-def test_el_json_conserva_los_acentos_sin_escapar(salida_doble):
-    primera, _ = salida_doble
-    doc_id = calcular_doc_id("bien_formado.html")
-    crudo = (primera / f"{doc_id}.json").read_text(encoding="utf-8")
+def test_el_json_conserva_los_acentos_sin_escapar(tmp_path):
+    entrada = tmp_path / "entrada"
+    entrada.mkdir()
+    (entrada / "Deforestación.txt").write_text("contenido", encoding="utf-8")
+    salida = tmp_path / "salida"
+
+    procesar_directorio(entrada, salida)
+
+    crudo = next(salida.glob("*.json")).read_text(encoding="utf-8")
     assert "Deforestación" in crudo
     assert "\\u00f3" not in crudo
 
@@ -204,12 +209,14 @@ def test_los_contadores_del_manifiesto_coinciden_con_el_documento(salida_doble):
         assert entrada["n_chars"] == sum(len(b["texto"]) for b in datos["bloques"])
 
 
-def test_el_manifiesto_registra_el_documento_corrupto(salida_doble):
+def test_el_manifiesto_registra_documentos_sin_extractor_implementado(salida_doble):
+    """Ningún extractor de la etapa actual está implementado: el manifiesto debe
+    reflejarlo con ceros bloques y al menos un error, no ocultarlo."""
     primera, _ = salida_doble
     entradas = {e["fuente"]: e for e in cargar_manifiesto(primera / "manifiesto.jsonl")}
-    corrupto = entradas["malformado.html"]
-    assert corrupto["n_bloques"] == 0
-    assert corrupto["n_errores"] > 0
+    pendiente = entradas["bien_formado.txt"]
+    assert pendiente["n_bloques"] == 0
+    assert pendiente["n_errores"] > 0
 
 
 # --- recorrido y robustez -----------------------------------------------------
@@ -251,34 +258,36 @@ def test_ignora_los_formatos_sin_extractor_registrado(tmp_path):
     entrada = tmp_path / "entrada"
     entrada.mkdir()
     (entrada / "presentacion.docx").write_bytes(b"PK\x03\x04 falso")
-    (entrada / "pagina.html").write_text("<html><body><p>Hola</p></body></html>", encoding="utf-8")
+    (entrada / "pagina.txt").write_text("Hola", encoding="utf-8")
 
     documentos = procesar_directorio(entrada, tmp_path / "salida")
-    assert [d.fuente for d in documentos] == ["pagina.html"]
+    assert [d.fuente for d in documentos] == ["pagina.txt"]
 
 
 def test_un_formato_aun_no_implementado_no_tumba_el_pipeline(tmp_path):
+    """Dos extractores distintos, ninguno implementado: ninguno debe frenar al otro."""
     entrada = tmp_path / "entrada"
     entrada.mkdir()
     (entrada / "informe.pdf").write_bytes(b"%PDF-1.4 contenido falso")
-    (entrada / "pagina.html").write_text("<html><body><p>Hola</p></body></html>", encoding="utf-8")
+    (entrada / "pagina.txt").write_text("Hola", encoding="utf-8")
 
     documentos = procesar_directorio(entrada, tmp_path / "salida")
     por_fuente = {d.fuente: d for d in documentos}
     assert por_fuente["informe.pdf"].bloques == []
     assert por_fuente["informe.pdf"].errores != []
-    assert por_fuente["pagina.html"].bloques != []
+    assert por_fuente["pagina.txt"].bloques == []
+    assert por_fuente["pagina.txt"].errores != []
 
 
 def test_recorre_subdirectorios(tmp_path):
     entrada = tmp_path / "entrada"
     (entrada / "sub").mkdir(parents=True)
-    (entrada / "sub" / "anidada.html").write_text(
-        "<html><body><p>Contenido anidado</p></body></html>", encoding="utf-8"
+    (entrada / "sub" / "anidada.txt").write_text(
+        "Contenido anidado", encoding="utf-8"
     )
 
     documentos = procesar_directorio(entrada, tmp_path / "salida")
-    assert [d.fuente for d in documentos] == ["anidada.html"]
+    assert [d.fuente for d in documentos] == ["anidada.txt"]
 
 
 def test_dos_homonimos_producen_dos_documentos_sin_excepcion(tmp_path):
@@ -291,27 +300,27 @@ def test_dos_homonimos_producen_dos_documentos_sin_excepcion(tmp_path):
     entrada = tmp_path / "entrada"
     (entrada / "a").mkdir(parents=True)
     (entrada / "b").mkdir(parents=True)
-    (entrada / "a" / "informe.html").write_text("<html><body><p>Uno</p></body></html>", "utf-8")
-    (entrada / "b" / "informe.html").write_text("<html><body><p>Dos</p></body></html>", "utf-8")
+    (entrada / "a" / "informe.txt").write_text("Uno", "utf-8")
+    (entrada / "b" / "informe.txt").write_text("Dos", "utf-8")
 
     documentos = procesar_directorio(entrada, tmp_path / "salida")
 
     assert len(documentos) == 2
-    assert {d.fuente for d in documentos} == {"informe.html"}
+    assert {d.fuente for d in documentos} == {"informe.txt"}
     assert len({d.doc_id for d in documentos}) == 2
     assert all(d.meta["fuente_ambigua"] is True for d in documentos)
-    assert {d.meta["ruta_relativa"] for d in documentos} == {"a/informe.html", "b/informe.html"}
+    assert {d.meta["ruta_relativa"] for d in documentos} == {"a/informe.txt", "b/informe.txt"}
 
 
 def test_el_doc_id_de_un_homonimo_deriva_de_la_ruta_no_del_nombre(tmp_path):
     entrada = tmp_path / "entrada"
     (entrada / "a").mkdir(parents=True)
     (entrada / "b").mkdir(parents=True)
-    (entrada / "a" / "informe.html").write_text("<html><body><p>Uno</p></body></html>", "utf-8")
-    (entrada / "b" / "informe.html").write_text("<html><body><p>Dos</p></body></html>", "utf-8")
+    (entrada / "a" / "informe.txt").write_text("Uno", "utf-8")
+    (entrada / "b" / "informe.txt").write_text("Dos", "utf-8")
 
     documentos = procesar_directorio(entrada, tmp_path / "salida")
-    esperados = {calcular_doc_id("a/informe.html"), calcular_doc_id("b/informe.html")}
+    esperados = {calcular_doc_id("a/informe.txt"), calcular_doc_id("b/informe.txt")}
     assert {d.doc_id for d in documentos} == esperados
 
 
@@ -320,8 +329,8 @@ def test_dos_homonimos_escriben_dos_json_distintos(tmp_path):
     entrada = tmp_path / "entrada"
     (entrada / "a").mkdir(parents=True)
     (entrada / "b").mkdir(parents=True)
-    (entrada / "a" / "informe.html").write_text("<html><body><p>Uno</p></body></html>", "utf-8")
-    (entrada / "b" / "informe.html").write_text("<html><body><p>Dos</p></body></html>", "utf-8")
+    (entrada / "a" / "informe.txt").write_text("Uno", "utf-8")
+    (entrada / "b" / "informe.txt").write_text("Dos", "utf-8")
     salida = tmp_path / "salida"
 
     documentos = procesar_directorio(entrada, salida)
@@ -333,7 +342,7 @@ def test_dos_homonimos_escriben_dos_json_distintos(tmp_path):
 def test_un_archivo_sin_homonimos_no_se_marca_ambiguo(tmp_path):
     entrada = tmp_path / "entrada"
     entrada.mkdir()
-    (entrada / "unico.html").write_text("<html><body><p>Solo</p></body></html>", "utf-8")
+    (entrada / "unico.txt").write_text("Solo", "utf-8")
 
     documentos = procesar_directorio(entrada, tmp_path / "salida")
     assert documentos[0].meta["fuente_ambigua"] is False
@@ -343,20 +352,20 @@ def test_todos_los_documentos_llevan_ruta_relativa(tmp_path):
     """No solo los ambiguos: la ruta es trazabilidad de todos."""
     entrada = tmp_path / "entrada"
     (entrada / "sub").mkdir(parents=True)
-    (entrada / "raiz.html").write_text("<html><body><p>Raiz</p></body></html>", "utf-8")
-    (entrada / "sub" / "hoja.html").write_text("<html><body><p>Hoja</p></body></html>", "utf-8")
+    (entrada / "raiz.txt").write_text("Raiz", "utf-8")
+    (entrada / "sub" / "hoja.txt").write_text("Hoja", "utf-8")
 
     documentos = procesar_directorio(entrada, tmp_path / "salida")
     rutas = {d.fuente: d.meta["ruta_relativa"] for d in documentos}
-    assert rutas == {"raiz.html": "raiz.html", "hoja.html": "sub/hoja.html"}
+    assert rutas == {"raiz.txt": "raiz.txt", "hoja.txt": "sub/hoja.txt"}
 
 
 def test_la_colision_se_avisa_por_stderr(tmp_path, capsys):
     entrada = tmp_path / "entrada"
     (entrada / "a").mkdir(parents=True)
     (entrada / "b").mkdir(parents=True)
-    (entrada / "a" / "informe.html").write_text("<html><body><p>Uno</p></body></html>", "utf-8")
-    (entrada / "b" / "informe.html").write_text("<html><body><p>Dos</p></body></html>", "utf-8")
+    (entrada / "a" / "informe.txt").write_text("Uno", "utf-8")
+    (entrada / "b" / "informe.txt").write_text("Dos", "utf-8")
 
     procesar_directorio(entrada, tmp_path / "salida")
 
@@ -369,8 +378,8 @@ def test_la_salida_de_homonimos_cumple_el_contrato(tmp_path):
     entrada = tmp_path / "entrada"
     (entrada / "a").mkdir(parents=True)
     (entrada / "b").mkdir(parents=True)
-    (entrada / "a" / "informe.html").write_text("<html><body><p>Uno</p></body></html>", "utf-8")
-    (entrada / "b" / "informe.html").write_text("<html><body><p>Dos</p></body></html>", "utf-8")
+    (entrada / "a" / "informe.txt").write_text("Uno", "utf-8")
+    (entrada / "b" / "informe.txt").write_text("Dos", "utf-8")
 
     for documento in procesar_directorio(entrada, tmp_path / "salida"):
         assert validar_documento(documento) == []
@@ -389,8 +398,8 @@ def test_directorio_de_entrada_vacio_produce_manifiesto_vacio(tmp_path):
 def test_el_fenomeno_se_infiere_del_subdirectorio(tmp_path):
     entrada = tmp_path / "entrada"
     (entrada / "fenomeno_2").mkdir(parents=True)
-    (entrada / "fenomeno_2" / "informe.html").write_text(
-        "<html><body><p>Contenido del segundo fenómeno</p></body></html>", "utf-8"
+    (entrada / "fenomeno_2" / "informe.txt").write_text(
+        "Contenido del segundo fenómeno", "utf-8"
     )
 
     documentos = procesar_directorio(entrada, tmp_path / "salida", fenomeno_por_defecto=1)
@@ -404,8 +413,8 @@ def test_el_fenomeno_se_infiere_de_la_carpeta_de_adl(tmp_path):
     """Las carpetas reales son F3_Dinamicas_Territoriales, no fenomeno_3."""
     entrada = tmp_path / "entrada"
     (entrada / "F3_Dinamicas_Territoriales").mkdir(parents=True)
-    (entrada / "F3_Dinamicas_Territoriales" / "informe.html").write_text(
-        "<html><body><p>Contenido del tercer fenomeno</p></body></html>", "utf-8"
+    (entrada / "F3_Dinamicas_Territoriales" / "informe.txt").write_text(
+        "Contenido del tercer fenomeno", "utf-8"
     )
 
     documentos = procesar_directorio(entrada, tmp_path / "salida", fenomeno_por_defecto=1)
@@ -427,8 +436,8 @@ def test_el_fenomeno_se_infiere_de_la_carpeta_de_adl(tmp_path):
 def test_las_dos_convenciones_de_carpeta_valen(tmp_path, carpeta, esperado):
     entrada = tmp_path / "entrada"
     (entrada / carpeta).mkdir(parents=True)
-    (entrada / carpeta / "informe.html").write_text(
-        "<html><body><p>Contenido</p></body></html>", "utf-8"
+    (entrada / carpeta / "informe.txt").write_text(
+        "Contenido", "utf-8"
     )
 
     documentos = procesar_directorio(entrada, tmp_path / "salida", fenomeno_por_defecto=1)
@@ -438,8 +447,8 @@ def test_las_dos_convenciones_de_carpeta_valen(tmp_path, carpeta, esperado):
 def test_una_carpeta_que_no_declara_fenomeno_cae_al_defecto(tmp_path):
     entrada = tmp_path / "entrada"
     (entrada / "recursos").mkdir(parents=True)
-    (entrada / "recursos" / "informe.html").write_text(
-        "<html><body><p>Contenido</p></body></html>", "utf-8"
+    (entrada / "recursos" / "informe.txt").write_text(
+        "Contenido", "utf-8"
     )
 
     documentos = procesar_directorio(entrada, tmp_path / "salida", fenomeno_por_defecto=2)
@@ -450,8 +459,8 @@ def test_una_carpeta_que_no_declara_fenomeno_cae_al_defecto(tmp_path):
 def test_una_carpeta_llamada_F4_no_se_confunde_con_un_fenomeno(tmp_path):
     entrada = tmp_path / "entrada"
     (entrada / "F4_Otra_Cosa").mkdir(parents=True)
-    (entrada / "F4_Otra_Cosa" / "informe.html").write_text(
-        "<html><body><p>Contenido</p></body></html>", "utf-8"
+    (entrada / "F4_Otra_Cosa" / "informe.txt").write_text(
+        "Contenido", "utf-8"
     )
 
     documentos = procesar_directorio(entrada, tmp_path / "salida", fenomeno_por_defecto=1)
@@ -464,8 +473,8 @@ def test_una_carpeta_llamada_F4_no_se_confunde_con_un_fenomeno(tmp_path):
 def test_con_indice_el_doc_id_y_el_fenomeno_salen_del_indice(tmp_path, indice_minimo):
     entrada = tmp_path / "entrada"
     (entrada / "colisiones" / "a").mkdir(parents=True)
-    (entrada / "colisiones" / "a" / "informe.html").write_text(
-        "<html><body><p>Uno</p></body></html>", "utf-8"
+    (entrada / "colisiones" / "a" / "informe.txt").write_text(
+        "Uno", "utf-8"
     )
 
     documentos = procesar_directorio(
@@ -479,7 +488,7 @@ def test_con_indice_el_doc_id_y_el_fenomeno_salen_del_indice(tmp_path, indice_mi
     assert documento.meta["origen_fenomeno"] == "indice"
     assert documento.meta["observatorio"] == "Secure_World"
     assert documento.meta["codigo_observatorio"] == "SWF"
-    assert documento.fuente == "informe.html"
+    assert documento.fuente == "informe.txt"
 
 
 def test_el_indice_gana_a_la_carpeta(tmp_path, indice_minimo):
@@ -487,10 +496,10 @@ def test_el_indice_gana_a_la_carpeta(tmp_path, indice_minimo):
     entrada = tmp_path / "entrada"
     destino = entrada / "F1_IA_y_Capacidades_Estrategicas" / "colisiones" / "a"
     destino.mkdir(parents=True)
-    (destino / "informe.html").write_text("<html><body><p>Uno</p></body></html>", "utf-8")
+    (destino / "informe.txt").write_text("Uno", "utf-8")
 
     indice = {
-        "F1_IA_y_Capacidades_Estrategicas/colisiones/a/informe.html": next(
+        "F1_IA_y_Capacidades_Estrategicas/colisiones/a/informe.txt": next(
             e for e in cargar_indice(indice_minimo).values() if e.doc_id == "F2-SWF-001"
         )
     }
@@ -503,17 +512,17 @@ def test_un_archivo_fuera_del_indice_no_se_procesa(tmp_path, indice_minimo):
     """Con indice, el indice filtra: manda ADL sobre lo que haya en disco."""
     entrada = tmp_path / "entrada"
     (entrada / "colisiones" / "a").mkdir(parents=True)
-    (entrada / "colisiones" / "a" / "informe.html").write_text(
-        "<html><body><p>Uno</p></body></html>", "utf-8"
+    (entrada / "colisiones" / "a" / "informe.txt").write_text(
+        "Uno", "utf-8"
     )
-    (entrada / "intruso.html").write_text("<html><body><p>No listado</p></body></html>", "utf-8")
+    (entrada / "intruso.txt").write_text("No listado", "utf-8")
 
     documentos, reporte = procesar_corpus(
         entrada, tmp_path / "salida", indice=cargar_indice(indice_minimo)
     )
 
-    assert [d.fuente for d in documentos] == ["informe.html"]
-    assert reporte.fuera_del_indice == ["intruso.html"]
+    assert [d.fuente for d in documentos] == ["informe.txt"]
+    assert reporte.fuera_del_indice == ["intruso.txt"]
 
 
 def test_un_indice_vacio_sigue_filtrando_todo(tmp_path):
@@ -525,12 +534,12 @@ def test_un_indice_vacio_sigue_filtrando_todo(tmp_path):
     """
     entrada = tmp_path / "entrada"
     entrada.mkdir()
-    (entrada / "pagina.html").write_text("<html><body><p>Hola</p></body></html>", "utf-8")
+    (entrada / "pagina.txt").write_text("Hola", "utf-8")
 
     documentos, reporte = procesar_corpus(entrada, tmp_path / "salida", indice={})
 
     assert documentos == []
-    assert reporte.fuera_del_indice == ["pagina.html"]
+    assert reporte.fuera_del_indice == ["pagina.txt"]
     assert reporte.huerfanos_del_indice == []
 
 
@@ -538,7 +547,7 @@ def test_sin_indice_el_pipeline_sigue_funcionando(tmp_path):
     """Las fixtures sinteticas no tienen indice; no puede ser obligatorio."""
     entrada = tmp_path / "entrada"
     entrada.mkdir()
-    (entrada / "pagina.html").write_text("<html><body><p>Hola</p></body></html>", "utf-8")
+    (entrada / "pagina.txt").write_text("Hola", "utf-8")
 
     documentos = procesar_directorio(entrada, tmp_path / "salida", indice=None)
     assert documentos[0].meta["origen_doc_id"] == "derivado"
@@ -550,19 +559,19 @@ def test_sin_indice_el_pipeline_sigue_funcionando(tmp_path):
 def test_el_reporte_lista_los_archivos_sin_extractor(tmp_path):
     entrada = tmp_path / "entrada"
     entrada.mkdir()
-    (entrada / "pagina.html").write_text("<html><body><p>Hola</p></body></html>", "utf-8")
+    (entrada / "pagina.txt").write_text("Hola", "utf-8")
     (entrada / "presentacion.docx").write_bytes(b"PK\x03\x04 falso")
 
     documentos, reporte = procesar_corpus(entrada, tmp_path / "salida")
 
     assert reporte.sin_extractor == ["presentacion.docx"]
-    assert [d.fuente for d in documentos] == ["pagina.html"]
+    assert [d.fuente for d in documentos] == ["pagina.txt"]
 
 
 def test_el_reporte_lista_las_entradas_huerfanas_del_indice(tmp_path, indice_minimo):
     entrada = tmp_path / "entrada"
     entrada.mkdir()
-    (entrada / "bien_formado.html").write_text("<html><body><p>Hola</p></body></html>", "utf-8")
+    (entrada / "bien_formado.txt").write_text("Hola", "utf-8")
 
     _, reporte = procesar_corpus(
         entrada, tmp_path / "salida", indice=cargar_indice(indice_minimo)
@@ -571,9 +580,9 @@ def test_el_reporte_lista_las_entradas_huerfanas_del_indice(tmp_path, indice_min
     # El orden es el del archivo xlsx, no el alfabético: F1 bien_formado (en
     # disco), F2 colisiones/a, F2 colisiones/b, F3 anidado.
     assert reporte.huerfanos_del_indice == [
-        "colisiones/a/informe.html",
-        "colisiones/b/informe.html",
-        "anidado.html",
+        "colisiones/a/informe.txt",
+        "colisiones/b/informe.txt",
+        "anidado.txt",
     ]
 
 
@@ -613,10 +622,10 @@ def test_un_archivo_indexado_sin_extractor_no_es_huerfano(tmp_path):
 def test_el_reporte_cuenta_los_origenes(tmp_path):
     entrada = tmp_path / "entrada"
     (entrada / "F2_Seguridad_Entorno_Espacial").mkdir(parents=True)
-    (entrada / "F2_Seguridad_Entorno_Espacial" / "a.html").write_text(
-        "<html><body><p>Uno</p></body></html>", "utf-8"
+    (entrada / "F2_Seguridad_Entorno_Espacial" / "a.txt").write_text(
+        "Uno", "utf-8"
     )
-    (entrada / "suelto.html").write_text("<html><body><p>Dos</p></body></html>", "utf-8")
+    (entrada / "suelto.txt").write_text("Dos", "utf-8")
 
     _, reporte = procesar_corpus(entrada, tmp_path / "salida")
 
@@ -628,8 +637,8 @@ def test_el_reporte_cuenta_las_fuentes_ambiguas(tmp_path):
     entrada = tmp_path / "entrada"
     (entrada / "a").mkdir(parents=True)
     (entrada / "b").mkdir(parents=True)
-    (entrada / "a" / "informe.html").write_text("<html><body><p>Uno</p></body></html>", "utf-8")
-    (entrada / "b" / "informe.html").write_text("<html><body><p>Dos</p></body></html>", "utf-8")
+    (entrada / "a" / "informe.txt").write_text("Uno", "utf-8")
+    (entrada / "b" / "informe.txt").write_text("Dos", "utf-8")
 
     _, reporte = procesar_corpus(entrada, tmp_path / "salida")
 
@@ -646,8 +655,8 @@ def test_un_doc_id_duplicado_en_el_indice_detiene_la_corrida(tmp_path):
     entrada = tmp_path / "entrada"
     (entrada / "a").mkdir(parents=True)
     (entrada / "b").mkdir(parents=True)
-    (entrada / "a" / "uno.html").write_text("<html><body><p>Uno</p></body></html>", "utf-8")
-    (entrada / "b" / "dos.html").write_text("<html><body><p>Dos</p></body></html>", "utf-8")
+    (entrada / "a" / "uno.txt").write_text("Uno", "utf-8")
+    (entrada / "b" / "dos.txt").write_text("Dos", "utf-8")
 
     def entrada_con(ruta, fuente):
         return EntradaIndice(
@@ -657,12 +666,12 @@ def test_un_doc_id_duplicado_en_el_indice_detiene_la_corrida(tmp_path):
             fenomeno=1,
             observatorio="Obs",
             codigo_observatorio="OBS",
-            tipo_declarado="HTML",
+            tipo_declarado="TXT",
         )
 
     indice = {
-        "a/uno.html": entrada_con("a/uno.html", "uno.html"),
-        "b/dos.html": entrada_con("b/dos.html", "dos.html"),
+        "a/uno.txt": entrada_con("a/uno.txt", "uno.txt"),
+        "b/dos.txt": entrada_con("b/dos.txt", "dos.txt"),
     }
 
     with pytest.raises(ValueError, match="doc_id duplicado"):
@@ -676,11 +685,11 @@ def test_el_manifiesto_lleva_observatorio_y_fuente_ambigua(tmp_path, indice_mini
     entrada = tmp_path / "entrada"
     (entrada / "colisiones" / "a").mkdir(parents=True)
     (entrada / "colisiones" / "b").mkdir(parents=True)
-    (entrada / "colisiones" / "a" / "informe.html").write_text(
-        "<html><body><p>Uno</p></body></html>", "utf-8"
+    (entrada / "colisiones" / "a" / "informe.txt").write_text(
+        "Uno", "utf-8"
     )
-    (entrada / "colisiones" / "b" / "informe.html").write_text(
-        "<html><body><p>Dos</p></body></html>", "utf-8"
+    (entrada / "colisiones" / "b" / "informe.txt").write_text(
+        "Dos", "utf-8"
     )
     salida = tmp_path / "salida"
 
@@ -697,8 +706,8 @@ def test_el_manifiesto_lleva_observatorio_y_fuente_ambigua(tmp_path, indice_mini
 def test_la_cli_acepta_indice(tmp_path, raiz_proyecto, indice_minimo):
     entrada = tmp_path / "entrada"
     (entrada / "colisiones" / "a").mkdir(parents=True)
-    (entrada / "colisiones" / "a" / "informe.html").write_text(
-        "<html><body><p>Uno</p></body></html>", "utf-8"
+    (entrada / "colisiones" / "a" / "informe.txt").write_text(
+        "Uno", "utf-8"
     )
     salida = tmp_path / "salida"
 
@@ -723,7 +732,7 @@ def test_la_cli_acepta_indice(tmp_path, raiz_proyecto, indice_minimo):
 def test_la_cli_funciona_sin_indice(tmp_path, raiz_proyecto):
     entrada = tmp_path / "entrada"
     entrada.mkdir()
-    (entrada / "pagina.html").write_text("<html><body><p>Hola</p></body></html>", "utf-8")
+    (entrada / "pagina.txt").write_text("Hola", "utf-8")
     salida = tmp_path / "salida"
 
     resultado = subprocess.run(

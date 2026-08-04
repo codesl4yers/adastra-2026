@@ -27,9 +27,10 @@ El CSV no declara ni su codificación ni su delimitador. Un archivo exportado
 desde Excel en español suele venir en cp1252 y separado por ``;``; leerlo como
 UTF-8 con ``,`` produce una única columna con todo el contenido dentro y ni un
 solo error. Hay que detectar el delimitador con ``csv.Sniffer`` sobre una
-muestra y confirmar la codificación probando en orden fijo, como hace
-:func:`extractores.html._decodificar`. Fijar el orden importa: si se delega en
-una autodetección probabilística, dos corridas pueden decodificar distinto.
+muestra y confirmar la codificación probando en un orden fijo (BOM, UTF-8,
+cp1252 con reemplazo como último recurso). Fijar el orden importa: si se
+delega en una autodetección probabilística, dos corridas pueden decodificar
+distinto.
 
 Segunda trampa, en XLSX: las celdas con fórmula devuelven la fórmula y no el
 valor si no se abre con ``data_only=True``, y las fechas llegan como enteros

@@ -106,8 +106,8 @@ def lineas_repetidas(
 ) -> list[str]:
     """Detecta líneas que se repiten entre unidades: cabeceras, pies, menús.
 
-    Cada "unidad" es una página de un PDF, una hoja de un XLSX o una sección de
-    un HTML: lo que en ese formato se repite cuando algo es boilerplate. Una
+    Cada "unidad" es una página de un PDF o una hoja de un XLSX: lo que en ese
+    formato se repite cuando algo es boilerplate. Una
     línea se considera repetida si aparece en al menos ``umbral`` de las
     unidades. Se cuenta *en cuántas unidades* aparece, no cuántas veces en
     total: tres repeticiones dentro de una misma página son énfasis, no cabecera.

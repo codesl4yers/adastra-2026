@@ -6,9 +6,9 @@ Estrategia
    ``cp1252`` y **registrar en ``meta`` la codificación usada**: un cambio de
    codificación cambia el texto, y sin dejarlo escrito no hay forma de saber
    después por qué dos corridas difieren.
-2. Rechazar el archivo entero si trae bytes NUL, igual que hace
-   :mod:`extractores.html`. Un NUL en un archivo de texto significa corrupción,
-   y un documento truncado que parece válido es peor que ninguno.
+2. Rechazar el archivo entero si trae bytes NUL. Un NUL en un archivo de texto
+   significa corrupción, y un documento truncado que parece válido es peor que
+   ninguno.
 3. Partir en párrafos por líneas en blanco, no por salto de línea: el texto
    plano de un informe viene con las líneas cortadas a 80 columnas y partir por
    ``\\n`` trocearía cada frase.

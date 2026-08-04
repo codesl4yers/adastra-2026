@@ -38,41 +38,41 @@ def test_carga_las_cuatro_entradas_del_fixture(indice_minimo):
 
 def test_la_clave_es_la_ruta_relativa_no_el_nombre(indice_minimo):
     entradas = cargar_indice(indice_minimo)
-    assert "colisiones/a/informe.html" in entradas
-    assert "colisiones/b/informe.html" in entradas
-    assert "informe.html" not in entradas
+    assert "colisiones/a/informe.txt" in entradas
+    assert "colisiones/b/informe.txt" in entradas
+    assert "informe.txt" not in entradas
 
 
 def test_mapea_el_fenomeno_a_entero(indice_minimo):
     entradas = cargar_indice(indice_minimo)
-    assert entradas["bien_formado.html"].fenomeno == 1
-    assert entradas["colisiones/a/informe.html"].fenomeno == 2
-    assert entradas["anidado.html"].fenomeno == 3
+    assert entradas["bien_formado.txt"].fenomeno == 1
+    assert entradas["colisiones/a/informe.txt"].fenomeno == 2
+    assert entradas["anidado.txt"].fenomeno == 3
 
 
 def test_la_entrada_lleva_todos_los_campos(indice_minimo):
-    entrada = cargar_indice(indice_minimo)["colisiones/a/informe.html"]
+    entrada = cargar_indice(indice_minimo)["colisiones/a/informe.txt"]
     assert entrada == EntradaIndice(
         doc_id="F2-SWF-001",
-        fuente="informe.html",
-        ruta_relativa="colisiones/a/informe.html",
+        fuente="informe.txt",
+        ruta_relativa="colisiones/a/informe.txt",
         fenomeno=2,
         observatorio="Secure_World",
         codigo_observatorio="SWF",
-        tipo_declarado="HTML",
+        tipo_declarado="TXT",
     )
 
 
 def test_una_carpeta_vacia_deja_la_ruta_igual_al_nombre(indice_minimo):
-    entrada = cargar_indice(indice_minimo)["bien_formado.html"]
-    assert entrada.ruta_relativa == "bien_formado.html"
+    entrada = cargar_indice(indice_minimo)["bien_formado.txt"]
+    assert entrada.ruta_relativa == "bien_formado.txt"
 
 
 def test_dos_homonimos_conservan_la_misma_fuente(indice_minimo):
     entradas = cargar_indice(indice_minimo)
-    a = entradas["colisiones/a/informe.html"]
-    b = entradas["colisiones/b/informe.html"]
-    assert a.fuente == b.fuente == "informe.html"
+    a = entradas["colisiones/a/informe.txt"]
+    b = entradas["colisiones/b/informe.txt"]
+    assert a.fuente == b.fuente == "informe.txt"
     assert a.doc_id != b.doc_id
 
 
