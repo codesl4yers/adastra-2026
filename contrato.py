@@ -61,7 +61,11 @@ class Documento:
     """Un archivo del corpus, ya extraído."""
 
     doc_id: str
-    """Identificador interno, derivado de :attr:`fuente`. Ver :func:`calcular_doc_id`."""
+    """Identificador interno, estable entre corridas. Sale del ``DOC_ID`` del
+    índice de ADL cuando lo hay; si no, se deriva de ``meta["ruta_relativa"]``
+    o de :attr:`fuente`. Ver :func:`calcular_doc_id` y
+    :func:`_doc_id_es_admisible` para las tres formas admitidas y el orden de
+    preferencia entre ellas."""
 
     fuente: str
     """Nombre o URL EXACTA del archivo original. Campo inmutable de emparejamiento."""

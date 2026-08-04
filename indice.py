@@ -48,6 +48,15 @@ _COLUMNAS_OPCIONALES: frozenset[str] = frozenset({_COL_CARPETA})
 
 _FENOMENOS: dict[str, int] = {"F1": 1, "F2": 2, "F3": 3}
 
+# orquestador.py usa el DOC_ID tal cual como nombre de archivo
+# (``{doc_id}.json``), así que cualquiera de estos caracteres lo revienta a
+# mitad de la escritura: los separadores de ruta lo convierten en una ruta con
+# subdirectorios inexistentes, y el resto son los que Windows prohíbe en un
+# nombre de archivo. No se exige la forma completa ``F<n>-<CODIGO>-<nnn>`` del
+# DOC_ID de ADL: el número de dígitos finales no es parte del contrato, es
+# solo una coincidencia del corpus de hoy (podría dejar de ser tres dígitos).
+_CARACTERES_PROHIBIDOS_EN_DOC_ID = frozenset('/\\:*?"<>|')
+
 
 @dataclass(frozen=True)
 class EntradaIndice:
@@ -57,7 +66,7 @@ class EntradaIndice:
     """``DOC_ID`` de ADL, tal cual. Forma ``F1-AIINDEX-001``."""
 
     fuente: str
-    """"Nombre estandarizado", sin tocar. Es el nombre exacto del archivo."""
+    """``Nombre estandarizado``, sin tocar. Es el nombre exacto del archivo."""
 
     ruta_relativa: str
     """``Carpeta/Nombre``, POSIX, relativa a la raíz del corpus. Clave del mapa."""
@@ -85,9 +94,9 @@ def cargar_indice(ruta_xlsx: Path) -> dict[str, EntradaIndice]:
     produzcan lo mismo.
 
     Lanza ``ValueError`` si el índice es inconsistente —``DOC_ID`` o rutas
-    repetidas, columnas ausentes, fenómeno fuera de rango—. Un índice
-    inconsistente invalida la trazabilidad completa de la entrega, así que sí es
-    motivo para detenerse.
+    repetidas, columnas ausentes, fenómeno fuera de rango, un ``DOC_ID`` que no
+    sirve como nombre de archivo—. Un índice inconsistente invalida la
+    trazabilidad completa de la entrega, así que sí es motivo para detenerse.
     """
     ruta_xlsx = Path(ruta_xlsx)
     if not ruta_xlsx.is_file():
@@ -187,13 +196,16 @@ def _entrada_de_fila(
             f"fila {numero}: fenómeno {bruto!r} no es F1, F2 ni F3"
         )
 
+    doc_id = _celda(fila, posiciones, _COL_DOC_ID, numero)
+    _validar_doc_id(doc_id, numero)
+
     nombre = _celda(fila, posiciones, _COL_NOMBRE, numero)
     carpeta = _celda(fila, posiciones, _COL_CARPETA, numero)
     # ADL genera el índice en Windows; el pipeline puede correr en Linux.
     carpeta = carpeta.replace("\\", "/").strip("/")
 
     return EntradaIndice(
-        doc_id=_celda(fila, posiciones, _COL_DOC_ID, numero),
+        doc_id=doc_id,
         fuente=nombre,
         ruta_relativa=f"{carpeta}/{nombre}" if carpeta else nombre,
         fenomeno=_FENOMENOS[bruto],
@@ -201,3 +213,23 @@ def _entrada_de_fila(
         codigo_observatorio=_celda(fila, posiciones, _COL_CODIGO, numero),
         tipo_declarado=_celda(fila, posiciones, _COL_TIPO, numero),
     )
+
+
+def _validar_doc_id(doc_id: str, numero: int) -> None:
+    """Rechaza un ``DOC_ID`` que no sirva como nombre de archivo.
+
+    ``orquestador.py`` lo usa crudo en ``salida / f"{doc_id}.json"``: un
+    separador de ruta (una barra por typo, o por autocorrección de Excel) lo
+    convierte en una ruta con subdirectorios que no existen, y revienta la
+    escritura a mitad de una corrida de 1826 archivos —sin manifiesto, porque
+    se escribe al final, y sin la corrida buena anterior si se pasó
+    ``--limpiar``—. Se detecta aquí, antes de escribir nada, por la misma
+    razón que un ``DOC_ID`` o una ruta duplicados: es una inconsistencia de
+    identidad, no un problema de extracción.
+    """
+    prohibidos = sorted(_CARACTERES_PROHIBIDOS_EN_DOC_ID.intersection(doc_id))
+    if prohibidos:
+        raise ValueError(
+            f"fila {numero}: DOC_ID {doc_id!r} no sirve como nombre de "
+            f"archivo: contiene {prohibidos}"
+        )

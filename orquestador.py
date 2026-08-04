@@ -492,11 +492,14 @@ def _escribir_salida(documentos: list[Documento], salida: Path, limpiar: bool) -
 
 
 def _limpiar_salida(salida: Path) -> None:
-    """Borra los productos de una corrida anterior, y solo esos.
+    """Borra los productos de una corrida anterior.
 
     Sin esto, los documentos de un corpus previo quedan como huérfanos y
-    ensucian el diff. Se restringe a los archivos que escribe este módulo para
-    no tocar nada más de ese directorio.
+    ensucian el diff. Se restringe por patrón (``*.json`` y
+    ``manifiesto.jsonl``), no por autoría: no distingue un ``.json`` que
+    escribió este módulo de uno ajeno que viva en el mismo directorio de
+    salida, así que quien pase ``--salida`` debe usar un directorio dedicado
+    al pipeline, no uno donde guarde otra cosa.
     """
     for archivo in sorted(salida.glob("*.json")):
         archivo.unlink()

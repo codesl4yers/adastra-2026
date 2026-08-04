@@ -154,6 +154,40 @@ def test_celda_obligatoria_vacia_lanza_value_error(tmp_path):
         cargar_indice(ruta)
 
 
+def test_doc_id_con_separador_de_ruta_lanza_value_error(tmp_path):
+    """Reproduce el caso real: una barra de más (typo o autocorrección de
+    Excel) convierte el DOC_ID en una ruta y revienta la escritura en
+    orquestador.py a mitad de la corrida. Debe detectarse aquí, no ahí."""
+    ruta = escribir_xlsx(
+        tmp_path / "i.xlsx",
+        [("F1", "Obs", "OBS", "F1-SUB/OBS-002", "a.pdf", "uno", "PDF")],
+    )
+    with pytest.raises(ValueError, match="DOC_ID"):
+        cargar_indice(ruta)
+
+
+@pytest.mark.parametrize("caracter", list('/\\:*?"<>|'))
+def test_doc_id_con_caracter_prohibido_en_windows_lanza_value_error(tmp_path, caracter):
+    ruta = escribir_xlsx(
+        tmp_path / "i.xlsx",
+        [("F1", "Obs", "OBS", f"F1-OBS{caracter}001", "a.pdf", "uno", "PDF")],
+    )
+    with pytest.raises(ValueError, match="DOC_ID"):
+        cargar_indice(ruta)
+
+
+def test_doc_id_con_mas_de_tres_digitos_no_es_demasiado_estricto(tmp_path):
+    """La forma es F<n>-<CODIGO>-<nnn>, pero el número de dígitos no está
+    fijado a tres: el día que un observatorio pase de 999 documentos, un
+    DOC_ID de cuatro dígitos debe seguir siendo válido."""
+    ruta = escribir_xlsx(
+        tmp_path / "i.xlsx",
+        [("F1", "Obs", "OBS", "F1-OBS-1000", "a.pdf", "uno", "PDF")],
+    )
+    entradas = cargar_indice(ruta)
+    assert entradas["uno/a.pdf"].doc_id == "F1-OBS-1000"
+
+
 def test_hoja_ausente_lanza_value_error(tmp_path):
     ruta = escribir_xlsx(
         tmp_path / "i.xlsx",

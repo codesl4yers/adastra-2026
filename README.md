@@ -32,18 +32,32 @@ Opciones:
 |---|---|
 | `--entrada` | Directorio del corpus. Se recorre recursivamente. |
 | `--salida` | Directorio de resultados. Se crea si no existe. |
-| `--fenomeno` | Fenómeno por defecto (1, 2 o 3) cuando no se deduce del directorio. |
+| `--fenomeno` | Fenómeno por defecto (1, 2 o 3) cuando ni el índice ni la carpeta lo determinan. |
 | `--indice` | Ruta al `Indice_Datos_Codefest.xlsx` de ADL. Opcional. Con él, `doc_id`, `fenomeno` y `observatorio` salen del índice y solo se procesa lo que el índice lista. |
 | `--limpiar` | Borra los resultados de la corrida anterior antes de escribir. |
 
-Si el corpus viene organizado en carpetas `fenomeno_1/`, `fenomeno_2/`,
-`fenomeno_3/`, el fenómeno se deduce de ahí y `--fenomeno` solo aplica al resto.
+El fenómeno de cada documento se resuelve con esta precedencia, de más a menos
+fiable:
+
+1. **El índice**, si se pasó `--indice`: el fenómeno declarado por ADL para
+   ese archivo.
+2. **La carpeta**, si ninguna entrada del índice lo cubre. Prioriza el patrón
+   real del corpus de ADL —carpetas raíz como `F1_IA_y_Capacidades_Estrategicas`,
+   `F2_Seguridad_Entorno_Espacial`, `F3_Dinamicas_Territoriales`— y cae a la
+   convención antigua (`fenomeno_1/`, `fenomeno_2/`, `fenomeno_3/`) como
+   respaldo, por si ADL reorganiza el corpus con esa nomenclatura.
+3. **`--fenomeno`**, para lo que ni el índice ni ninguna carpeta del camino
+   declaran.
 
 ### Qué produce
 
 - `extraidos/{doc_id}.json` — un `Documento` por archivo, con claves ordenadas
   e indentación de 2 espacios.
-- `extraidos/manifiesto.jsonl` — una línea por documento, ordenada por `fuente`.
+- `extraidos/manifiesto.jsonl` — una línea por documento, ordenada por
+  `(fuente, ruta_relativa)`. Se desempata por ruta porque 59 nombres de
+  archivo se repiten en 186 archivos del corpus de ADL: ordenar solo por
+  `fuente` dejaría el orden relativo de esos homónimos a merced del sistema de
+  archivos.
 
 El manifiesto es la herramienta de regresión. Para comprobar que un cambio no
 rompió nada:
@@ -65,7 +79,7 @@ revisar.
 python -m pytest
 ```
 
-161 pruebas. Las cinco que exige el enunciado:
+172 pruebas. Las cinco que exige el enunciado:
 
 | Requisito | Dónde |
 |---|---|
@@ -115,7 +129,7 @@ class Bloque:
 
 @dataclass(frozen=True)
 class Documento:
-    doc_id: str         # derivado de fuente, estable entre corridas
+    doc_id: str         # del índice de ADL, o derivado de la ruta relativa
     fuente: str         # nombre EXACTO del archivo original
     formato: str        # "pdf"|"html"|"json"|"csv"|"xlsx"|"imagen"|"pbf"|"texto"
     fenomeno: int       # 1, 2 o 3
@@ -142,6 +156,14 @@ final del pipeline.
    `calcular_doc_id` usa blake2b por eso.
 4. **Ningún extractor tumba el pipeline.** Un archivo corrupto produce un
    `Documento` válido con `bloques=[]` y el motivo en `errores`.
+5. **Lo único que detiene la corrida es una identidad inconsistente,
+   detectada antes de escribir nada.** Dos casos: un `doc_id` duplicado entre
+   dos documentos —el JSON de uno sobrescribiría al del otro y el manifiesto
+   tendría dos líneas apuntando al mismo archivo—, o un índice de ADL
+   malformado —`DOC_ID` o ruta repetidos, fenómeno fuera de rango, columnas
+   ausentes, o un `DOC_ID` que no sirve como nombre de archivo—. Un nombre de
+   archivo repetido, en cambio, ya no detiene nada: se desambigua por ruta y
+   se marca con `meta["fuente_ambigua"]`.
 
 ## Cómo añadir un extractor nuevo
 

@@ -15,6 +15,7 @@ import collections
 import json
 import shutil
 import sys
+import tempfile
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parent.parent
@@ -106,13 +107,27 @@ def main(argv: list[str] | None = None) -> int:
     ]
 
     # Determinismo: segunda corrida en otro directorio, diff byte a byte.
-    segunda = primera.parent / f"{primera.name}_bis"
-    procesar_corpus(args.corpus, segunda, limpiar=True, indice=indice)
-    iguales = (primera / "manifiesto.jsonl").read_bytes() == (
-        segunda / "manifiesto.jsonl"
-    ).read_bytes()
+    #
+    # El directorio es uno de verdad (tempfile.mkdtemp), no un hermano
+    # derivado de --salida (antes: f"{primera.name}_bis"): --salida por
+    # defecto es <repo>/extraidos, así que el hermano era <repo>/extraidos_bis
+    # y, si un operador había guardado ahí la salida de referencia de una
+    # entrega anterior, este script se la vaciaba (limpiar=True) y luego le
+    # borraba el directorio entero sin preguntar -el README enseña justo ese
+    # flujo de dos directorios para diffear corridas, así que no es
+    # hipotético-. mkdtemp() garantiza un directorio nuevo y exclusivo: nunca
+    # puede coincidir con uno que el operador ya esté usando. El try/finally
+    # además evita el huérfano que dejaba una excepción a mitad de la segunda
+    # corrida: antes eso hacía que el rmtree nunca se ejecutara.
+    segunda = Path(tempfile.mkdtemp(prefix="verificar_corpus_bis_"))
+    try:
+        procesar_corpus(args.corpus, segunda, limpiar=True, indice=indice)
+        iguales = (primera / "manifiesto.jsonl").read_bytes() == (
+            segunda / "manifiesto.jsonl"
+        ).read_bytes()
+    finally:
+        shutil.rmtree(segunda, ignore_errors=True)
     resultados.append(comprobar("dos corridas dan el mismo manifiesto", iguales, True))
-    shutil.rmtree(segunda)
 
     print()
     print(f"archivos fuera del índice (informativo): {len(reporte.fuera_del_indice)}")
