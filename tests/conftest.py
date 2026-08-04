@@ -16,3 +16,9 @@ def dir_fixtures() -> Path:
 @pytest.fixture(scope="session")
 def raiz_proyecto() -> Path:
     return RAIZ
+
+
+@pytest.fixture(scope="session")
+def indice_minimo(dir_fixtures) -> Path:
+    """Índice de 4 filas con la misma forma que el de ADL."""
+    return dir_fixtures / "indice_minimo.xlsx"
