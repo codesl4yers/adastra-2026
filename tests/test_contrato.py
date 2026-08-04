@@ -10,8 +10,8 @@ from contrato import Bloque, Documento, calcular_doc_id, validar_documento
 def documento_minimo(**cambios) -> Documento:
     """Documento válido al que las pruebas le rompen un campo a la vez."""
     base = {
-        "fuente": "ejemplo.html",
-        "formato": "html",
+        "fuente": "ejemplo.pdf",
+        "formato": "pdf",
         "fenomeno": 1,
         "idioma": "es",
         "bloques": [
@@ -34,15 +34,15 @@ def test_doc_id_es_estable_entre_llamadas():
 
 
 def test_doc_id_depende_de_la_fuente():
-    assert calcular_doc_id("informe.pdf") != calcular_doc_id("informe.html")
+    assert calcular_doc_id("informe.pdf") != calcular_doc_id("informe.txt")
 
 
 def test_doc_id_no_cambia_con_el_valor_conocido():
     # Fija el algoritmo: si alguien lo cambia, esta prueba lo detecta y obliga
     # a reindexar el corpus a conciencia en vez de por accidente.
-    assert calcular_doc_id("ejemplo.html") == calcular_doc_id("ejemplo.html")
-    assert len(calcular_doc_id("ejemplo.html")) == 16
-    assert calcular_doc_id("ejemplo.html").isalnum()
+    assert calcular_doc_id("ejemplo.pdf") == calcular_doc_id("ejemplo.pdf")
+    assert len(calcular_doc_id("ejemplo.pdf")) == 16
+    assert calcular_doc_id("ejemplo.pdf").isalnum()
 
 
 # --- validar_documento: caso limpio -----------------------------------------
@@ -173,7 +173,7 @@ def test_bloque_es_inmutable():
 def test_documento_es_inmutable():
     doc = documento_minimo()
     with pytest.raises(dataclasses.FrozenInstanceError):
-        doc.fuente = "otra.html"
+        doc.fuente = "otra.pdf"
 
 
 # --- doc_id: las tres formas admisibles (spec 2026-08-02) --------------------
@@ -182,9 +182,9 @@ def test_documento_es_inmutable():
 def test_admite_doc_id_derivado_de_la_ruta_relativa():
     """En el corpus real dos archivos comparten nombre; la ruta los desambigua."""
     doc = documento_minimo(
-        fuente="informe.html",
-        doc_id=calcular_doc_id("sub/a/informe.html"),
-        meta={"ruta_relativa": "sub/a/informe.html"},
+        fuente="informe.txt",
+        doc_id=calcular_doc_id("sub/a/informe.txt"),
+        meta={"ruta_relativa": "sub/a/informe.txt"},
     )
     assert validar_documento(doc) == []
 
@@ -201,9 +201,9 @@ def test_admite_doc_id_del_indice_con_codigo_alfanumerico():
 
 def test_rechaza_doc_id_arbitrario_aunque_haya_ruta_relativa():
     doc = documento_minimo(
-        fuente="informe.html",
+        fuente="informe.txt",
         doc_id="no-deriva-de-nada",
-        meta={"ruta_relativa": "sub/a/informe.html"},
+        meta={"ruta_relativa": "sub/a/informe.txt"},
     )
     assert any("doc_id" in v for v in validar_documento(doc))
 

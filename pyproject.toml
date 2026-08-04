@@ -4,8 +4,6 @@ version = "0.1.0"
 description = "Capa de contrato y extractores del pipeline RAG (CODEFEST Ad Astra 2026, Etapa 1)"
 requires-python = ">=3.11"
 dependencies = [
-    "beautifulsoup4>=4.12",
-    "lxml>=5.0",
     "langdetect>=1.0.9",
     "openpyxl>=3.1",
 ]

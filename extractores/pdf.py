@@ -12,8 +12,8 @@ para reconstruir el orden de lectura y para distinguir títulos de cuerpo.
 3. Inferir ``tipo="titulo"`` y su ``nivel`` por tamaño de fuente relativo: los
    tamaños más grandes que la moda del cuerpo, agrupados en escalones. El nivel
    sale del rango del escalón, no del valor absoluto en puntos.
-4. Mantener la pila de encabezados para el breadcrumb ``ruta``, igual que en
-   :mod:`extractores.html`.
+4. Mantener la pila de encabezados para el breadcrumb ``ruta``: una pila de
+   ``(nivel, texto)`` donde un título de nivel N cierra los de nivel >= N.
 5. Aplicar :func:`limpieza.lineas_repetidas` con las páginas como unidades para
    eliminar cabeceras y pies, y :func:`limpieza.es_ruido_estructural` para la
    numeración.
