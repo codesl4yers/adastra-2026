@@ -27,14 +27,15 @@ from pathlib import Path, PurePosixPath
 from types import ModuleType
 
 from contrato import Documento, calcular_doc_id, documento_a_dict
-from extractores import html, imagen, json_, pbf, pdf, tabular
+from extractores import html, imagen, json_, pbf, pdf, tabular, texto
 from indice import EntradaIndice, cargar_indice
 
 NOMBRE_MANIFIESTO = "manifiesto.jsonl"
 
 # Extensión -> (módulo extractor, formato declarado en el contrato).
-# Una extensión que no esté aquí se ignora: el corpus trae archivos auxiliares
-# (scripts, README) que no son documentos del reto.
+# Una extensión que no esté aquí se ignora, pero no en silencio: el reporte de
+# cobertura de `main()` la lista en stderr con su extensión.
+# `.html`/`.htm` se mantienen aunque el corpus de ADL no traiga ninguno.
 EXTRACTORES: dict[str, tuple[ModuleType, str]] = {
     ".html": (html, "html"),
     ".htm": (html, "html"),
@@ -50,8 +51,11 @@ EXTRACTORES: dict[str, tuple[ModuleType, str]] = {
     ".tiff": (imagen, "imagen"),
     ".bmp": (imagen, "imagen"),
     ".webp": (imagen, "imagen"),
+    ".avif": (imagen, "imagen"),
     ".pbf": (pbf, "pbf"),
     ".mvt": (pbf, "pbf"),
+    ".txt": (texto, "texto"),
+    ".md": (texto, "texto"),
 }
 
 # Carpetas raíz del corpus de ADL: "F1_IA_y_Capacidades_Estrategicas",

@@ -169,10 +169,42 @@ def test_el_manifiesto_registra_el_documento_corrupto(salida_doble):
 # --- recorrido y robustez -----------------------------------------------------
 
 
+def test_el_texto_plano_tiene_extractor_registrado(tmp_path):
+    """SWF_full-text.txt es un informe completo, no un residuo del corpus."""
+    entrada = tmp_path / "entrada"
+    entrada.mkdir()
+    (entrada / "SWF_full-text.txt").write_text("Informe completo.", encoding="utf-8")
+
+    documentos = procesar_directorio(entrada, tmp_path / "salida")
+    assert [d.fuente for d in documentos] == ["SWF_full-text.txt"]
+    assert documentos[0].formato == "texto"
+    assert documentos[0].bloques == []
+    assert documentos[0].errores != []
+
+
+def test_el_markdown_tiene_extractor_registrado(tmp_path):
+    entrada = tmp_path / "entrada"
+    entrada.mkdir()
+    (entrada / "notas.md").write_text("# Titulo", encoding="utf-8")
+
+    documentos = procesar_directorio(entrada, tmp_path / "salida")
+    assert [d.formato for d in documentos] == ["texto"]
+
+
+def test_avif_se_trata_como_imagen(tmp_path):
+    entrada = tmp_path / "entrada"
+    entrada.mkdir()
+    (entrada / "grafico_web.avif").write_bytes(b"\x00\x00\x00 ftypavif")
+
+    documentos = procesar_directorio(entrada, tmp_path / "salida")
+    assert [d.formato for d in documentos] == ["imagen"]
+    assert documentos[0].errores != []
+
+
 def test_ignora_los_formatos_sin_extractor_registrado(tmp_path):
     entrada = tmp_path / "entrada"
     entrada.mkdir()
-    (entrada / "notas.txt").write_text("texto suelto", encoding="utf-8")
+    (entrada / "presentacion.docx").write_bytes(b"PK\x03\x04 falso")
     (entrada / "pagina.html").write_text("<html><body><p>Hola</p></body></html>", encoding="utf-8")
 
     documentos = procesar_directorio(entrada, tmp_path / "salida")

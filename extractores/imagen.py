@@ -39,7 +39,10 @@ from contrato import Documento
 
 FORMATO = "imagen"
 
-EXTENSIONES = (".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp", ".webp")
+# .avif necesita el plugin `pillow-avif-plugin`; si no está instalado, Pillow
+# lanza UnidentifiedImageError y el orquestador registra el error en el
+# Documento. Un solo archivo del corpus lo usa (F2-SWF-065).
+EXTENSIONES = (".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp", ".webp", ".avif")
 
 
 def extraer(path: Path, fenomeno: int) -> Documento:
