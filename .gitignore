@@ -7,6 +7,9 @@ __pycache__/
 *.so
 
 
+#carpeta de docs
+base_documental/
+
 
 # Distribution / packaging
 .Python
@@ -148,7 +151,8 @@ activemq-data/
 
 # SageMath parsed files
 *.sage.py
-
+docs/
+.superpowers/
 # Environments
 .env
 .envrc

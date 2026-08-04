@@ -4,7 +4,14 @@ import dataclasses
 
 import pytest
 
-from contrato import Bloque, Documento, calcular_doc_id, validar_documento
+from contrato import (
+    Bloque,
+    Documento,
+    calcular_doc_id,
+    documento_a_dict,
+    documento_desde_dict,
+    validar_documento,
+)
 
 
 def documento_minimo(**cambios) -> Documento:
@@ -210,3 +217,32 @@ def test_rechaza_doc_id_arbitrario_aunque_haya_ruta_relativa():
 
 def test_admite_el_formato_texto():
     assert validar_documento(documento_minimo(formato="texto")) == []
+
+
+# --- documento_desde_dict: el inverso de documento_a_dict --------------------
+
+
+def test_reconstruye_un_documento_desde_su_dict():
+    """La capa de fragmentación lee ``extraidos/*.json`` y necesita el inverso."""
+    original = documento_minimo(meta={"titulo": "Informe anual"}, errores=["algo"])
+    assert documento_desde_dict(documento_a_dict(original)) == original
+
+
+def test_reconstruye_los_bloques_como_dataclases_no_como_dicts():
+    doc = documento_desde_dict(documento_a_dict(documento_minimo()))
+    assert all(isinstance(bloque, Bloque) for bloque in doc.bloques)
+
+
+def test_el_documento_reconstruido_pasa_la_validacion():
+    doc = documento_desde_dict(documento_a_dict(documento_minimo()))
+    assert validar_documento(doc) == []
+
+
+def test_reconstruye_un_documento_sin_bloques():
+    original = documento_minimo(bloques=[], errores=["extractor no implementado"])
+    assert documento_desde_dict(documento_a_dict(original)) == original
+
+
+def test_un_dict_sin_los_campos_del_contrato_lanza_value_error():
+    with pytest.raises(ValueError, match="campos"):
+        documento_desde_dict({"doc_id": "x", "fuente": "y.pdf"})

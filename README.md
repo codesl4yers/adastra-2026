@@ -1,12 +1,14 @@
-# Capa de extracción — CODEFEST Ad Astra 2026 (Etapa 1)
+# Capas de extracción y fragmentación — CODEFEST Ad Astra 2026 (Etapa 1)
 
-Contrato de datos y extractores del pipeline RAG. Esta capa convierte cada
-archivo del corpus en un `Documento` normalizado y lo persiste. **No** hace
-chunking, embeddings, indexación ni recuperación: eso vive en capas
-posteriores y consume la salida de `extraidos/`.
+Contrato de datos, extractores y fragmentador del pipeline RAG. La primera capa
+convierte cada archivo del corpus en un `Documento` normalizado; la segunda lo
+parte en `Fragmento` listos para codificar. **No** hay embeddings, indexación ni
+recuperación: eso vive en capas posteriores y consume `fragmentos.jsonl`.
 
-Estado: contrato, limpieza y orquestador completos. Los extractores de
-formato son stubs documentados, listos para que otra persona los complete.
+Estado: contrato, limpieza, orquestador, segmentador y fragmentador completos.
+Los extractores de formato son stubs documentados, listos para que otra persona
+los complete. Mientras sigan siéndolo, la fragmentación está probada contra
+`Documento` construidos a mano y **no validada sobre texto real**.
 
 No hay extractor de HTML ni entrada en `EXTRACTORES` para `.html`/`.htm`: el
 corpus real de ADL no trae archivos de ese formato.
@@ -75,13 +77,72 @@ Si el diff sale vacío, ningún documento cambió de tamaño, idioma ni número 
 bloques. Si sale con líneas, las líneas te dicen exactamente qué documentos
 revisar.
 
+## Fragmentar
+
+Segunda capa. Consume `extraidos/` y produce fragmentos de ≤250 palabras que
+nunca parten una oración por la mitad (§3.3 del enunciado).
+
+```bash
+python fragmentador.py --entrada extraidos --salida fragmentos
+```
+
+Produce `fragmentos/fragmentos.jsonl` (una línea por fragmento, claves
+ordenadas) y `fragmentos/reporte_fragmentacion.json` (histograma de palabras,
+mediana, p95, atómicos, huérfanos fusionados y oraciones indivisibles).
+
+La estrategia es **híbrida estructural-oracional con unidades atómicas
+preservadas**: la estructura del documento fija fronteras que no se cruzan, y
+dentro de cada frontera se empaquetan oraciones completas hasta ~190 palabras,
+con tope duro de 240 palabras y 450 tokens. Las filas de CSV/XLSX y los
+elementos de PBF (`atomico=True`) van por su propio camino: no se parten ni se
+mezclan con prosa vecina.
+
+Toda la parametrización vive en `ConfigFragmentacion`; no hay constantes sueltas
+en el algoritmo, para que el informe pueda citar la configuración exacta y el
+barrido pueda variarla sin editar código:
+
+```bash
+python fragmentador.py --entrada extraidos --salida fragmentos \
+    --objetivo-palabras 120 --oraciones-solape 0
+
+# tabla comparativa de seis configuraciones para el informe técnico
+python scripts/barrido_fragmentacion.py --entrada extraidos --salida docs/barrido.md
+```
+
+El conteo de tokens es inyectable (`ConfigFragmentacion.contar_tokens`). Por
+defecto usa la estimación conservadora `ceil(palabras × 1.6)`, porque **todavía
+no hay encoder elegido**. En cuanto se elija hay que cambiarlo por su
+`AutoTokenizer` y **re-fragmentar el corpus completo**: los `num_tokens`
+estimados no valen para la entrega.
+
+### Segmentación de oraciones
+
+Es el componente crítico: si la frontera oracional falla, todos los fragmentos
+afectados violan un requisito obligatorio. Vive en `segmentador.py` y se prueba
+contra `fixtures/oraciones_doradas.jsonl`, 65 casos etiquetados a mano —21 o más
+por idioma— con abreviaturas, decimales, siglas, citas, listas, comillas y
+elipsis. Un caso que el segmentador falle no se borra: se documenta con su
+motivo en el campo `excepcion` del JSONL y sale como `xfail`. Hoy no hay
+ninguno.
+
+El motor es [pysbd](https://github.com/nipunsadvilkar/pySBD) (MIT, por reglas,
+sin descarga de modelos). Dos avisos:
+
+- **pysbd 0.3.4 no trae módulo de portugués.** Se usa el español —la lengua más
+  cercana de las disponibles— con una lista de abreviaturas propia del
+  portugués, que es lo que de verdad cambia el resultado.
+- pysbd por sí solo parte `La Dra. | Gómez` y `EE.UU. | y la U.S. | Space
+  Force`. Encima va una capa de re-fusión de cortes falsos, deliberadamente
+  agresiva: partir una oración viola §3.3, fusionar dos de más solo engorda un
+  fragmento.
+
 ## Correr las pruebas
 
 ```bash
 python -m pytest
 ```
 
-135 pruebas. Las cinco que exige el enunciado:
+344 pruebas. Las cinco que exige el enunciado:
 
 | Requisito | Dónde |
 |---|---|
@@ -101,6 +162,8 @@ contrato.py          Bloque, Documento, calcular_doc_id, validar_documento
 indice.py            lectura del índice maestro de ADL (solo lee)
 limpieza.py          normalización, idioma, detección de repetidos
 orquestador.py       recorrido, persistencia y CLI
+segmentador.py       fronteras de oración por idioma (pysbd + re-fusión)
+fragmentador.py      Fragmento, ConfigFragmentacion, cascada de tres capas y CLI
 extractores/
     pdf.py           stub documentado
     json_.py         stub documentado
@@ -264,3 +327,15 @@ funcionales. Ambos caminos son deterministas.
   la identidad, no la extracción.
 - `.avif` necesita `pillow-avif-plugin` cuando se implemente el extractor de
   imagen (1 archivo, F2-SWF-065).
+- **Validar la fragmentación sobre corpus real.** Bloqueado por lo anterior: sin
+  un extractor implementado no hay texto que fragmentar. Cuando lo haya, correr
+  `fragmentar_corpus` sobre `extraidos/` y comprobar los criterios de §8.2 del
+  spec: cero fragmentos por encima de 250 palabras salvo oraciones indivisibles
+  (< 0.5 %), cero textos vacíos, dos corridas con diff vacío y mediana entre 150
+  y 220 palabras.
+- **Ejecutar el barrido de configuraciones** (`scripts/barrido_fragmentacion.py`)
+  sobre ese corpus. La tabla no elige la configuración: elegirla exige medir
+  NDCG@10 y F1@3 contra un ground truth interno que aún no existe.
+- **Elegir el encoder** y sustituir `estimar_tokens` por su tokenizador real.
+  Bloquea la re-fragmentación del corpus completo, así que cuanto más tarde se
+  cierre, más cara sale la re-corrida.

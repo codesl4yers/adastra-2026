@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import hashlib
 import re
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, fields
 from typing import Any
 
 from limpieza import normalizar_texto
@@ -104,6 +104,37 @@ def calcular_doc_id(fuente: str) -> str:
 def documento_a_dict(doc: Documento) -> dict[str, Any]:
     """Convierte el documento a estructuras primitivas listas para ``json.dumps``."""
     return asdict(doc)
+
+
+def documento_desde_dict(datos: dict[str, Any]) -> Documento:
+    """Inverso de :func:`documento_a_dict`.
+
+    Existe porque la capa de fragmentación no vuelve a extraer nada: lee los
+    ``extraidos/{doc_id}.json`` que dejó el orquestador. Sin esto, cada
+    consumidor reconstruiría los ``Bloque`` a mano y el contrato dejaría de ser
+    un único punto de verdad.
+
+    Lanza ``ValueError`` si faltan campos: un JSON incompleto significa que el
+    archivo no lo escribió este pipeline, y seguir adelante con valores
+    inventados enmascararía el problema hasta el índice.
+    """
+    campos_documento = {campo.name for campo in fields(Documento)}
+    faltan = sorted(campos_documento - datos.keys())
+    if faltan:
+        raise ValueError(f"al documento le faltan campos del contrato: {faltan}")
+
+    return Documento(
+        **{campo: datos[campo] for campo in campos_documento if campo != "bloques"},
+        bloques=[_bloque_desde_dict(bloque) for bloque in datos["bloques"]],
+    )
+
+
+def _bloque_desde_dict(datos: dict[str, Any]) -> Bloque:
+    campos_bloque = {campo.name for campo in fields(Bloque)}
+    faltan = sorted(campos_bloque - datos.keys())
+    if faltan:
+        raise ValueError(f"al bloque le faltan campos del contrato: {faltan}")
+    return Bloque(**{campo: datos[campo] for campo in campos_bloque})
 
 
 # DOC_ID del índice maestro de ADL: "F1-AIINDEX-001", "F3-MAPP2-118".

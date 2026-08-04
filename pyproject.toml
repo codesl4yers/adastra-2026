@@ -6,6 +6,7 @@ requires-python = ">=3.11"
 dependencies = [
     "langdetect>=1.0.9",
     "openpyxl>=3.1",
+    "pysbd>=0.3.4,<0.4",
 ]
 
 [project.optional-dependencies]
