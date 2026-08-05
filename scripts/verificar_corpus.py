@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import argparse
 import collections
-import json
+
 import shutil
 import sys
 import tempfile
@@ -22,6 +22,7 @@ RAIZ = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(RAIZ))
 
 from indice import cargar_indice  # noqa: E402
+from contrato import validar_documento  # noqa: E402
 from orquestador import cargar_manifiesto, procesar_corpus  # noqa: E402
 
 ESPERADO_TOTAL = 1826
@@ -65,6 +66,68 @@ def comprobar(titulo: str, obtenido, esperado) -> bool:
     return ok
 
 
+def _comprobar_extraccion(documentos) -> list[bool]:
+    """Los requisitos del enunciado que dependen de lo que extrajo cada extractor.
+
+    El requisito 1 —``validar_documento`` limpio para toda salida— solo se puede
+    comprobar de verdad aquí: contra el corpus real y con los extractores
+    implementados. Las pruebas unitarias lo verifican contra documentos armados
+    a mano, que es otra cosa.
+    """
+    violaciones = [
+        (documento.fuente, motivos)
+        for documento in documentos
+        if (motivos := validar_documento(documento))
+    ]
+    for fuente, motivos in violaciones[:5]:
+        print(f"        {fuente}: {motivos[0]}")
+
+    con_bloques = [documento for documento in documentos if documento.bloques]
+    con_jerarquia = [
+        documento
+        for documento in documentos
+        if any(len(bloque.ruta) >= 3 for bloque in documento.bloques)
+    ]
+
+    return [
+        comprobar("documentos que violan el contrato", len(violaciones), 0),
+        comprobar(
+            "documentos con al menos un bloque",
+            f"{len(con_bloques)}/{len(documentos)}",
+            f"{len(documentos)}/{len(documentos)}",
+        ),
+        comprobar("hay breadcrumb de tres niveles", bool(con_jerarquia), True),
+    ]
+
+
+def _resumen_de_extraccion(documentos) -> None:
+    """Informativo: qué salió por formato y por qué falló lo que falló."""
+    print()
+    print("--- extracción ---")
+
+    por_formato: dict[str, list[int]] = {}
+    for documento in documentos:
+        acumulado = por_formato.setdefault(documento.formato, [0, 0, 0])
+        acumulado[0] += 1
+        acumulado[1] += len(documento.bloques)
+        acumulado[2] += sum(len(bloque.texto) for bloque in documento.bloques)
+
+    print(f"{'formato':>8}  {'docs':>5}  {'bloques':>9}  {'caracteres':>12}")
+    for formato, (docs, bloques, chars) in sorted(por_formato.items()):
+        print(f"{formato:>8}  {docs:>5}  {bloques:>9}  {chars:>12}")
+
+    motivos = collections.Counter(
+        documento.errores[0].split(":")[0]
+        for documento in documentos
+        if documento.errores and not documento.bloques
+    )
+    if motivos:
+        print()
+        print("documentos sin bloques, por motivo:")
+        for motivo, cuantos in motivos.most_common():
+            print(f"    {cuantos:>4}  {motivo[:80]}")
+
+
 def main(argv: list[str] | None = None) -> int:
     _forzar_utf8(sys.stdout)
     _forzar_utf8(sys.stderr)
@@ -72,6 +135,16 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--corpus", required=True, type=Path)
     parser.add_argument("--salida", type=Path, default=RAIZ / "extraidos")
+    parser.add_argument(
+        "--procesos",
+        type=int,
+        default=1,
+        help=(
+            "procesos de extracción en paralelo. Este script hace dos corridas "
+            "completas para comprobar el determinismo, y en secuencial el corpus "
+            "real son unas 3 horas por corrida"
+        ),
+    )
     args = parser.parse_args(argv)
 
     xlsx = args.corpus / "Indice_Datos_Codefest.xlsx"
@@ -81,7 +154,7 @@ def main(argv: list[str] | None = None) -> int:
 
     primera = args.salida
     documentos, reporte = procesar_corpus(
-        args.corpus, primera, limpiar=True, indice=indice
+        args.corpus, primera, limpiar=True, indice=indice, procesos=args.procesos
     )
 
     manifiesto = cargar_manifiesto(primera / "manifiesto.jsonl")
@@ -106,6 +179,10 @@ def main(argv: list[str] | None = None) -> int:
         comprobar("todos con observatorio", sum(1 for e in manifiesto if e["observatorio"]), ESPERADO_TOTAL),
     ]
 
+    resultados += _comprobar_extraccion(documentos)
+
+    _resumen_de_extraccion(documentos)
+
     # Determinismo: segunda corrida en otro directorio, diff byte a byte.
     #
     # El directorio es uno de verdad (tempfile.mkdtemp), no un hermano
@@ -121,7 +198,9 @@ def main(argv: list[str] | None = None) -> int:
     # corrida: antes eso hacía que el rmtree nunca se ejecutara.
     segunda = Path(tempfile.mkdtemp(prefix="verificar_corpus_bis_"))
     try:
-        procesar_corpus(args.corpus, segunda, limpiar=True, indice=indice)
+        procesar_corpus(
+            args.corpus, segunda, limpiar=True, indice=indice, procesos=args.procesos
+        )
         iguales = (primera / "manifiesto.jsonl").read_bytes() == (
             segunda / "manifiesto.jsonl"
         ).read_bytes()

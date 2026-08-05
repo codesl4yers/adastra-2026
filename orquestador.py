@@ -24,17 +24,47 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import sys
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from dataclasses import dataclass, replace
 from pathlib import Path, PurePosixPath
 from types import ModuleType
+
+import psutil
 
 from contrato import Documento, calcular_doc_id, documento_a_dict
 from extractores import imagen, json_, pbf, pdf, tabular, texto
 from indice import EntradaIndice, cargar_indice
 
 NOMBRE_MANIFIESTO = "manifiesto.jsonl"
+
+# Cada cuántos documentos se recicla el pool de workers.
+#
+# pdfminer (bajo pdfplumber) no le devuelve al sistema operativo toda la
+# memoria que reserva por PDF: medido sobre el corpus real, un worker que
+# extrae el atlas de RESDAL (250 páginas) retiene ~200 MB después de liberar
+# el documento, y ese poso se acumula con cada PDF grande siguiente. No hay
+# forma de pedirle a pdfminer que libere esa memoria, así que la única forma
+# de recuperarla es que el sistema operativo se quede con el proceso entero.
+#
+# ``ProcessPoolExecutor(max_tasks_per_child=...)`` haría esto por worker
+# individual, pero tiene un deadlock conocido de CPython: el pool se cuelga en
+# cuanto un worker llega a su cupo y se recicla a mitad de una tanda de envíos
+# (https://github.com/python/cpython/issues/115634), sin corregir hasta Python
+# 3.14. Este proyecto pide 3.11+, así que en vez de eso se recicla el **pool
+# entero** cada ``procesos * DOCUMENTOS_POR_RECICLAJE`` documentos: se cierra
+# con el `with` normal (el único camino de arranque/cierre que de verdad está
+# probado) y se abre uno nuevo para el siguiente lote.
+DOCUMENTOS_POR_RECICLAJE = 25
+
+# MB de RAM reservados por proceso al calcular el valor por defecto de
+# --procesos. Viene de la misma medición: un worker llegó a ~330 MB de RSS
+# tras dos atlas grandes seguidos (250 y 371 páginas). Se deja margen porque
+# una racha de PDF grandes puede superar esa cifra antes del siguiente
+# reciclaje.
+RAM_MB_POR_PROCESO = 600
 
 # Extensión -> (módulo extractor, formato declarado en el contrato).
 # Una extensión que no esté aquí se ignora, pero no en silencio: el reporte de
@@ -134,6 +164,9 @@ def procesar_corpus(
     fenomeno_por_defecto: int = 1,
     limpiar: bool = False,
     indice: dict[str, EntradaIndice] | None = None,
+    procesos: int = 1,
+    reciclar_cada: int = DOCUMENTOS_POR_RECICLAJE,
+    solo_doc_ids: set[str] | None = None,
 ) -> tuple[list[Documento], ReporteCobertura]:
     """Como :func:`procesar_directorio`, pero devolviendo también la cobertura.
 
@@ -141,7 +174,24 @@ def procesar_corpus(
     archivo en disco que el índice no menciona no es un documento de la entrega
     —en el corpus real son el enunciado, el propio índice y los catálogos de
     scraping—, así que se reporta y no se procesa.
+
+    ``solo_doc_ids``, si se pasa, restringe la extracción a esos ``doc_id`` y
+    deja el resto del corpus intacto: sus JSON no se tocan y sus líneas del
+    manifiesto se conservan tal cual. Existe para no repetir una corrida
+    entera de 1826 documentos —30+ minutos con varios procesos— cuando solo
+    unos pocos fallaron por una causa ya corregida (el caso típico: Tesseract
+    no estaba disponible en la corrida anterior). En ese modo la función
+    **devuelve solo los documentos reprocesados**, no el corpus completo, y
+    requiere que ``salida`` ya tenga un manifiesto de una corrida previa —si
+    no lo tiene, no hay nada que conservar y no sabría qué está intacto.
+    Incompatible con ``limpiar``: borraría justo lo que hay que conservar.
     """
+    if solo_doc_ids is not None and limpiar:
+        raise ValueError(
+            "solo_doc_ids y limpiar son incompatibles: limpiar borraría los "
+            "documentos que solo_doc_ids necesita conservar"
+        )
+
     entrada = Path(entrada)
     salida = Path(salida)
 
@@ -165,10 +215,12 @@ def procesar_corpus(
     ]
     _verificar_doc_ids(identidades)
 
-    documentos = [_extraer_documento(identidad) for identidad in identidades]
-    documentos.sort(key=lambda doc: (doc.fuente, doc.meta["ruta_relativa"]))
-
-    _escribir_salida(documentos, salida, limpiar=limpiar)
+    # Se crea y limpia la salida antes de extraer, no después: cada documento
+    # se escribe en cuanto termina su extracción (ver `_extraer_todos`), así
+    # que el directorio ya tiene que estar listo cuando llegue el primero.
+    salida.mkdir(parents=True, exist_ok=True)
+    if limpiar:
+        _limpiar_salida(salida)
 
     reporte = ReporteCobertura(
         sin_extractor=sin_extractor,
@@ -179,6 +231,41 @@ def procesar_corpus(
         nombres_ambiguos=len(colisiones),
         archivos_ambiguos=sum(len(rs) for rs in colisiones.values()),
     )
+
+    if solo_doc_ids is None:
+        documentos = _extraer_todos(identidades, procesos, salida, reciclar_cada)
+        documentos.sort(key=lambda doc: (doc.fuente, doc.meta["ruta_relativa"]))
+        _escribir_manifiesto(
+            [_entrada_de_manifiesto(d) for d in documentos], salida / NOMBRE_MANIFIESTO
+        )
+        return documentos, reporte
+
+    ruta_manifiesto = salida / NOMBRE_MANIFIESTO
+    if not ruta_manifiesto.exists():
+        raise ValueError(
+            f"no hay manifiesto previo en {salida}: solo_doc_ids necesita una "
+            "corrida completa antes para saber qué conservar"
+        )
+
+    objetivo = [i for i in identidades if i.doc_id in solo_doc_ids]
+    faltantes = solo_doc_ids - {i.doc_id for i in objetivo}
+    if faltantes:
+        print(
+            f"[aviso] {len(faltantes)} doc_id pedidos ya no están en el corpus "
+            f"o el índice actual, se omiten: {sorted(faltantes)[:5]}"
+            + ("..." if len(faltantes) > 5 else ""),
+            file=sys.stderr,
+        )
+
+    documentos = _extraer_todos(objetivo, procesos, salida, reciclar_cada)
+
+    manifiesto_previo = cargar_manifiesto(ruta_manifiesto)
+    ruta_por_doc_id = {i.doc_id: i.ruta_relativa for i in identidades}
+    mantenidas = [e for e in manifiesto_previo if e["doc_id"] not in solo_doc_ids]
+    entradas = mantenidas + [_entrada_de_manifiesto(d) for d in documentos]
+    entradas.sort(key=lambda e: (e["fuente"], ruta_por_doc_id.get(e["doc_id"], "")))
+    _escribir_manifiesto(entradas, ruta_manifiesto)
+
     return documentos, reporte
 
 
@@ -188,6 +275,9 @@ def procesar_directorio(
     fenomeno_por_defecto: int = 1,
     limpiar: bool = False,
     indice: dict[str, EntradaIndice] | None = None,
+    procesos: int = 1,
+    reciclar_cada: int = DOCUMENTOS_POR_RECICLAJE,
+    solo_doc_ids: set[str] | None = None,
 ) -> list[Documento]:
     """Extrae todos los documentos de ``entrada`` y los escribe en ``salida``.
 
@@ -199,6 +289,9 @@ def procesar_directorio(
     Lanza ``ValueError`` únicamente si dos archivos acaban con el mismo
     ``doc_id``: entonces uno sobrescribiría al otro. Un nombre repetido ya no
     detiene nada, solo se marca en ``meta["fuente_ambigua"]``.
+
+    Con ``solo_doc_ids`` (ver :func:`procesar_corpus`), devuelve solo los
+    documentos reprocesados, no el corpus completo.
     """
     documentos, _ = procesar_corpus(
         entrada,
@@ -206,6 +299,9 @@ def procesar_directorio(
         fenomeno_por_defecto=fenomeno_por_defecto,
         limpiar=limpiar,
         indice=indice,
+        procesos=procesos,
+        reciclar_cada=reciclar_cada,
+        solo_doc_ids=solo_doc_ids,
     )
     return documentos
 
@@ -425,6 +521,58 @@ def _meta_de(identidad: _Identidad) -> dict:
 # --- extracción ----------------------------------------------------------------
 
 
+def _extraer_todos(
+    identidades: list[_Identidad],
+    procesos: int,
+    salida: Path,
+    reciclar_cada: int,
+) -> list[Documento]:
+    """Extrae todos los documentos, repartiéndolos entre procesos si se pide.
+
+    El paralelismo no cambia el resultado: cada extracción es independiente y la
+    lista se ordena después por ``(fuente, ruta_relativa)``, así que el orden en
+    que terminen los procesos da igual. Merece la pena porque el PDF domina la
+    corrida —2,9 GB y ~31.000 páginas, y el 99 % de ese tiempo está dentro de
+    pdfplumber, no en código propio que se pueda optimizar—.
+
+    Cada documento se escribe a disco en cuanto termina, en vez de esperar a
+    que acaben los 1826: con el corpus real, acumularlos todos en memoria antes
+    de escribir el primer byte es un segundo consumidor de RAM en el proceso
+    orquestador —menor que el de los workers, pero real—. Por eso se recorre
+    con ``as_completed`` (orden de llegada) y no con ``pool.map`` (orden de
+    envío): así el primer resultado que llega es el primero que se escribe,
+    sin esperar a que termine el documento más lento.
+
+    El pool entero se recicla cada ``procesos * reciclar_cada`` documentos (ver
+    ``DOCUMENTOS_POR_RECICLAJE``), para que el sistema operativo recupere lo
+    que pdfminer deja retenido. No se usa ``max_tasks_per_child`` —recicla por
+    worker individual, pero tiene un deadlock conocido de CPython sin corregir
+    hasta 3.14— así que se abren pools sucesivos, uno por lote.
+
+    Con ``procesos=1`` no se arranca ningún pool: en un corpus pequeño, levantar
+    intérpretes cuesta más que el trabajo.
+    """
+    if procesos <= 1 or len(identidades) < 2:
+        documentos = []
+        for identidad in identidades:
+            documento = _extraer_documento(identidad)
+            _escribir_json(salida / f"{documento.doc_id}.json", documento_a_dict(documento))
+            documentos.append(documento)
+        return documentos
+
+    documentos = []
+    tamano_lote = procesos * reciclar_cada
+    for inicio in range(0, len(identidades), tamano_lote):
+        lote = identidades[inicio : inicio + tamano_lote]
+        with ProcessPoolExecutor(max_workers=procesos) as pool:
+            futuros = [pool.submit(_extraer_documento, identidad) for identidad in lote]
+            for futuro in as_completed(futuros):
+                documento = futuro.result()
+                _escribir_json(salida / f"{documento.doc_id}.json", documento_a_dict(documento))
+                documentos.append(documento)
+    return documentos
+
+
 def _extraer_documento(identidad: _Identidad) -> Documento:
     """Invoca al extractor correspondiente, blindando el pipeline.
 
@@ -479,17 +627,6 @@ def _documento_fallido(identidad: _Identidad, formato: str, motivo: str) -> Docu
 # --- persistencia --------------------------------------------------------------
 
 
-def _escribir_salida(documentos: list[Documento], salida: Path, limpiar: bool) -> None:
-    salida.mkdir(parents=True, exist_ok=True)
-    if limpiar:
-        _limpiar_salida(salida)
-
-    for documento in documentos:
-        _escribir_json(salida / f"{documento.doc_id}.json", documento_a_dict(documento))
-
-    _escribir_manifiesto(documentos, salida / NOMBRE_MANIFIESTO)
-
-
 def _limpiar_salida(salida: Path) -> None:
     """Borra los productos de una corrida anterior.
 
@@ -518,11 +655,15 @@ def _escribir_json(ruta: Path, datos: dict) -> None:
     ruta.write_text(contenido + "\n", encoding="utf-8", newline="\n")
 
 
-def _escribir_manifiesto(documentos: list[Documento], ruta: Path) -> None:
-    lineas = [
-        json.dumps(_entrada_de_manifiesto(documento), ensure_ascii=False, sort_keys=True)
-        for documento in documentos
-    ]
+def _escribir_manifiesto(entradas: list[dict], ruta: Path) -> None:
+    """Escribe entradas ya resueltas, una por línea.
+
+    Toma diccionarios y no ``Documento`` porque el modo ``solo_doc_ids`` de
+    :func:`procesar_corpus` mezcla entradas nuevas (recién extraídas) con
+    entradas viejas leídas tal cual del manifiesto anterior, que ya no traen el
+    ``Documento`` completo detrás.
+    """
+    lineas = [json.dumps(entrada, ensure_ascii=False, sort_keys=True) for entrada in entradas]
     contenido = "".join(f"{linea}\n" for linea in lineas)
     ruta.write_text(contenido, encoding="utf-8", newline="\n")
 
@@ -581,15 +722,96 @@ def _construir_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="borra los resultados de la corrida anterior antes de escribir",
     )
+    parser.add_argument(
+        "--procesos",
+        type=int,
+        default=None,
+        help=(
+            "procesos de extracción en paralelo. El resultado es idéntico al "
+            "secuencial; solo cambia el tiempo. Sin este flag se calcula según "
+            "la RAM disponible (ver --reciclar-cada)"
+        ),
+    )
+    parser.add_argument(
+        "--reciclar-cada",
+        type=int,
+        default=DOCUMENTOS_POR_RECICLAJE,
+        help=(
+            "documentos por worker antes de reciclar el pool entero (se "
+            "multiplica por --procesos), para que el sistema operativo "
+            "recupere la memoria que pdfminer no libera solo "
+            f"(por defecto {DOCUMENTOS_POR_RECICLAJE})"
+        ),
+    )
+    parser.add_argument(
+        "--reintentar-errores",
+        action="store_true",
+        help=(
+            "reextrae solo los doc_id que quedaron con errores en el "
+            "manifiesto de --salida; el resto del corpus no se toca. "
+            "Requiere una corrida completa previa en --salida; incompatible "
+            "con --limpiar"
+        ),
+    )
     return parser
 
 
+def _procesos_por_defecto() -> int:
+    """Procesos en paralelo que caben en la RAM disponible, sin superar los núcleos.
+
+    Antes el valor por defecto era 1 (secuencial: ~3 horas sobre el corpus
+    real) y usar más procesos exigía que el operador adivinara un número y se
+    arriesgara a un ``MemoryError`` a mitad de una corrida de horas si se
+    pasaba. Esta cuenta lo hace explícito: cuánta RAM hay libre ahora mismo,
+    entre cuánta se reserva por proceso (``RAM_MB_POR_PROCESO``).
+    """
+    disponible_mb = psutil.virtual_memory().available / (1024 * 1024)
+    por_ram = max(1, int(disponible_mb // RAM_MB_POR_PROCESO))
+    return max(1, min(por_ram, os.cpu_count() or 1))
+
+
 def main(argv: list[str] | None = None) -> int:
-    args = _construir_parser().parse_args(argv)
+    parser = _construir_parser()
+    args = parser.parse_args(argv)
+
+    if args.reintentar_errores and args.limpiar:
+        parser.error("--reintentar-errores y --limpiar son incompatibles")
+
+    solo_doc_ids = None
+    if args.reintentar_errores:
+        ruta_manifiesto = args.salida / NOMBRE_MANIFIESTO
+        if not ruta_manifiesto.exists():
+            parser.error(
+                f"--reintentar-errores necesita un manifiesto previo en "
+                f"{args.salida}, y no se encontró {ruta_manifiesto}"
+            )
+        solo_doc_ids = {
+            entrada["doc_id"]
+            for entrada in cargar_manifiesto(ruta_manifiesto)
+            if entrada["n_errores"] > 0
+        }
+        if not solo_doc_ids:
+            print("--reintentar-errores: el manifiesto no tiene documentos con error", file=sys.stderr)
+            return 0
+        print(
+            f"--reintentar-errores: {len(solo_doc_ids)} documentos con error en "
+            "el manifiesto anterior, el resto se conserva tal cual",
+            file=sys.stderr,
+        )
 
     indice = cargar_indice(args.indice) if args.indice else None
     if indice is not None:
         print(f"índice: {len(indice)} entradas desde {args.indice}", file=sys.stderr)
+
+    if args.procesos is not None:
+        procesos = args.procesos
+    else:
+        procesos = _procesos_por_defecto()
+        print(
+            f"--procesos no indicado: se usan {procesos} según la RAM disponible "
+            f"({RAM_MB_POR_PROCESO} MB reservados por proceso)",
+            file=sys.stderr,
+        )
 
     documentos, reporte = procesar_corpus(
         args.entrada,
@@ -597,16 +819,21 @@ def main(argv: list[str] | None = None) -> int:
         fenomeno_por_defecto=args.fenomeno,
         limpiar=args.limpiar,
         indice=indice,
+        procesos=procesos,
+        reciclar_cada=args.reciclar_cada,
+        solo_doc_ids=solo_doc_ids,
     )
 
     con_errores = [documento for documento in documentos if documento.errores]
     bloques = sum(len(documento.bloques) for documento in documentos)
+    etiqueta = "reprocesados" if solo_doc_ids is not None else "documentos"
     print(
-        f"{len(documentos)} documentos, {bloques} bloques, "
+        f"{len(documentos)} {etiqueta}, {bloques} bloques, "
         f"{len(con_errores)} con errores -> {args.salida}"
     )
 
-    _informar_cobertura(reporte)
+    if solo_doc_ids is None:
+        _informar_cobertura(reporte)
 
     for documento in con_errores:
         print(f"  [error] {documento.fuente}: {documento.errores[0]}", file=sys.stderr)

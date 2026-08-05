@@ -58,9 +58,82 @@ def _escribir_colisiones(raiz: Path) -> None:
         (carpeta / "informe.txt").write_text(contenido, encoding="utf-8", newline="\n")
 
 
+# --- PDF mínimo ---------------------------------------------------------------
+#
+# Se escribe a mano y no con una librería de generación para no añadir una
+# dependencia solo por un fixture. Trae lo justo para ejercitar el extractor:
+# un título en cuerpo 20, un cuerpo en 10 y una segunda página, de modo que se
+# pueda comprobar la jerarquía por tamaño de fuente y la numeración de páginas.
+
+_TEXTO_PDF_PAGINA_1 = b"""BT /F1 20 Tf 72 720 Td (Informe de prueba) Tj ET
+BT /F1 10 Tf 72 690 Td (El informe anual describe la cobertura de sensores en la region.) Tj ET
+BT /F1 10 Tf 72 678 Td (La red actual deja fuera el hemisferio sur, donde hace mas falta.) Tj ET
+BT /F1 14 Tf 72 640 Td (Metodologia) Tj ET
+BT /F1 10 Tf 72 620 Td (Se revisaron catorce fuentes primarias y ocho informes anuales.) Tj ET"""
+
+_TEXTO_PDF_PAGINA_2 = b"""BT /F1 10 Tf 72 720 Td (La segunda pagina continua el analisis con datos de 2024.) Tj ET"""
+
+
+def _objeto_pdf(numero: int, cuerpo: bytes) -> bytes:
+    return b"%d 0 obj\n%s\nendobj\n" % (numero, cuerpo)
+
+
+def _escribir_pdf_minimo(destino: Path) -> None:
+    """Construye un PDF 1.4 válido, con su tabla xref bien calculada.
+
+    La tabla xref lleva el desplazamiento en bytes de cada objeto, así que hay
+    que ir midiendo conforme se escribe: un offset mal puesto produce un archivo
+    que algunos lectores abren y otros rechazan, que es la peor clase de
+    fixture.
+    """
+    contenidos = [_TEXTO_PDF_PAGINA_1, _TEXTO_PDF_PAGINA_2]
+    objetos = [
+        _objeto_pdf(1, b"<< /Type /Catalog /Pages 2 0 R >>"),
+        _objeto_pdf(2, b"<< /Type /Pages /Kids [3 0 R 4 0 R] /Count 2 >>"),
+        _objeto_pdf(
+            3,
+            b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] "
+            b"/Resources << /Font << /F1 5 0 R >> >> /Contents 6 0 R >>",
+        ),
+        _objeto_pdf(
+            4,
+            b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] "
+            b"/Resources << /Font << /F1 5 0 R >> >> /Contents 7 0 R >>",
+        ),
+        _objeto_pdf(
+            5, b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>"
+        ),
+    ]
+    for numero, contenido in enumerate(contenidos, start=6):
+        objetos.append(
+            _objeto_pdf(
+                numero, b"<< /Length %d >>\nstream\n%s\nendstream" % (len(contenido), contenido)
+            )
+        )
+
+    salida = bytearray(b"%PDF-1.4\n")
+    desplazamientos = []
+    for objeto in objetos:
+        desplazamientos.append(len(salida))
+        salida += objeto
+
+    inicio_xref = len(salida)
+    salida += b"xref\n0 %d\n" % (len(objetos) + 1)
+    salida += b"0000000000 65535 f \n"
+    for desplazamiento in desplazamientos:
+        salida += b"%010d 00000 n \n" % desplazamiento
+    salida += b"trailer\n<< /Size %d /Root 1 0 R >>\nstartxref\n%d\n%%%%EOF\n" % (
+        len(objetos) + 1,
+        inicio_xref,
+    )
+
+    destino.write_bytes(bytes(salida))
+
+
 def main() -> None:
     _escribir_indice(AQUI / "indice_minimo.xlsx")
     _escribir_colisiones(AQUI / "colisiones")
+    _escribir_pdf_minimo(AQUI / "minimo.pdf")
     print("fixtures binarios regenerados en", AQUI)
 
 

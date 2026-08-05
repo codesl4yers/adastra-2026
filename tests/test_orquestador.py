@@ -209,14 +209,14 @@ def test_los_contadores_del_manifiesto_coinciden_con_el_documento(salida_doble):
         assert entrada["n_chars"] == sum(len(b["texto"]) for b in datos["bloques"])
 
 
-def test_el_manifiesto_registra_documentos_sin_extractor_implementado(salida_doble):
-    """Ningún extractor de la etapa actual está implementado: el manifiesto debe
-    reflejarlo con ceros bloques y al menos un error, no ocultarlo."""
+def test_el_manifiesto_refleja_lo_que_extrajo_cada_extractor(salida_doble):
+    """El manifiesto es la herramienta de regresión: sus contadores no mienten."""
     primera, _ = salida_doble
     entradas = {e["fuente"]: e for e in cargar_manifiesto(primera / "manifiesto.jsonl")}
-    pendiente = entradas["bien_formado.txt"]
-    assert pendiente["n_bloques"] == 0
-    assert pendiente["n_errores"] > 0
+    extraido = entradas["bien_formado.txt"]
+    assert extraido["n_bloques"] > 0
+    assert extraido["n_chars"] > 0
+    assert extraido["n_errores"] == 0
 
 
 # --- recorrido y robustez -----------------------------------------------------
@@ -231,8 +231,8 @@ def test_el_texto_plano_tiene_extractor_registrado(tmp_path):
     documentos = procesar_directorio(entrada, tmp_path / "salida")
     assert [d.fuente for d in documentos] == ["SWF_full-text.txt"]
     assert documentos[0].formato == "texto"
-    assert documentos[0].bloques == []
-    assert documentos[0].errores != []
+    assert documentos[0].bloques != []
+    assert documentos[0].errores == []
 
 
 def test_el_markdown_tiene_extractor_registrado(tmp_path):
@@ -264,19 +264,24 @@ def test_ignora_los_formatos_sin_extractor_registrado(tmp_path):
     assert [d.fuente for d in documentos] == ["pagina.txt"]
 
 
-def test_un_formato_aun_no_implementado_no_tumba_el_pipeline(tmp_path):
-    """Dos extractores distintos, ninguno implementado: ninguno debe frenar al otro."""
+def test_un_archivo_corrupto_no_frena_a_los_demas(tmp_path):
+    """Requisito 2 del enunciado, a nivel de pipeline.
+
+    El PDF es basura con cabecera de PDF: su extractor falla y aun así el .txt
+    de al lado se extrae entero.
+    """
     entrada = tmp_path / "entrada"
     entrada.mkdir()
     (entrada / "informe.pdf").write_bytes(b"%PDF-1.4 contenido falso")
-    (entrada / "pagina.txt").write_text("Hola", encoding="utf-8")
+    (entrada / "pagina.txt").write_text("Hola, esto sí se lee.", encoding="utf-8")
 
     documentos = procesar_directorio(entrada, tmp_path / "salida")
     por_fuente = {d.fuente: d for d in documentos}
+
     assert por_fuente["informe.pdf"].bloques == []
     assert por_fuente["informe.pdf"].errores != []
-    assert por_fuente["pagina.txt"].bloques == []
-    assert por_fuente["pagina.txt"].errores != []
+    assert por_fuente["pagina.txt"].bloques != []
+    assert por_fuente["pagina.txt"].errores == []
 
 
 def test_recorre_subdirectorios(tmp_path):
@@ -333,7 +338,7 @@ def test_dos_homonimos_escriben_dos_json_distintos(tmp_path):
     (entrada / "b" / "informe.txt").write_text("Dos", "utf-8")
     salida = tmp_path / "salida"
 
-    documentos = procesar_directorio(entrada, salida)
+    procesar_directorio(entrada, salida)
 
     assert len(list(salida.glob("*.json"))) == 2
     assert len(cargar_manifiesto(salida / "manifiesto.jsonl")) == 2
@@ -740,3 +745,44 @@ def test_la_cli_funciona_sin_indice(tmp_path, raiz_proyecto):
         cwd=raiz_proyecto, capture_output=True, text=True, encoding="utf-8", errors="replace",
     )
     assert resultado.returncode == 0, resultado.stderr
+
+
+# --- paralelismo --------------------------------------------------------------
+
+
+@pytest.fixture
+def corpus_variado(tmp_path):
+    """Varios archivos de formatos distintos, suficientes para repartir trabajo."""
+    entrada = tmp_path / "entrada"
+    (entrada / "sub").mkdir(parents=True)
+    for numero in range(6):
+        (entrada / f"nota{numero}.txt").write_text(
+            f"Informe número {numero}. La cobertura de sensores sigue siendo parcial.",
+            encoding="utf-8",
+        )
+    (entrada / "sub" / "datos.csv").write_text("pais,valor\nColombia,3\n", encoding="utf-8")
+    return entrada
+
+
+def test_procesar_en_paralelo_da_el_mismo_resultado_que_en_serie(corpus_variado, tmp_path):
+    """El paralelismo no puede cambiar ni un byte: solo reparte el trabajo."""
+    en_serie = procesar_directorio(corpus_variado, tmp_path / "serie")
+    en_paralelo = procesar_directorio(corpus_variado, tmp_path / "paralelo", procesos=2)
+
+    assert en_paralelo == en_serie
+
+
+def test_dos_corridas_en_paralelo_producen_los_mismos_bytes(corpus_variado, tmp_path):
+    """Requisito 3 del enunciado, también con varios procesos."""
+    procesar_directorio(corpus_variado, tmp_path / "una", procesos=2)
+    procesar_directorio(corpus_variado, tmp_path / "otra", procesos=2)
+
+    unos = (tmp_path / "una" / "manifiesto.jsonl").read_bytes()
+    otros = (tmp_path / "otra" / "manifiesto.jsonl").read_bytes()
+    assert unos == otros
+
+
+def test_un_solo_proceso_no_arranca_el_pool(corpus_variado, tmp_path):
+    """Con procesos=1 el coste de arrancar procesos no se justifica."""
+    documentos = procesar_directorio(corpus_variado, tmp_path / "salida", procesos=1)
+    assert len(documentos) == 7

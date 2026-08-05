@@ -21,6 +21,18 @@ def raiz_proyecto() -> Path:
 
 
 @pytest.fixture(scope="session")
+def dir_corpus() -> Path:
+    """Corpus real de ADL. Las pruebas que lo usan se saltan si no está.
+
+    Solo se lee. No se toca un byte del corpus (decisión del usuario, 2026-08-02).
+    """
+    corpus = RAIZ / "base_documental"
+    if not corpus.is_dir():
+        pytest.skip("el corpus real no está disponible en base_documental/")
+    return corpus
+
+
+@pytest.fixture(scope="session")
 def indice_minimo(dir_fixtures) -> Path:
     """Índice de 4 filas con la misma forma que el de ADL."""
     return dir_fixtures / "indice_minimo.xlsx"

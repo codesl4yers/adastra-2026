@@ -5,10 +5,36 @@ convierte cada archivo del corpus en un `Documento` normalizado; la segunda lo
 parte en `Fragmento` listos para codificar. **No** hay embeddings, indexación ni
 recuperación: eso vive en capas posteriores y consume `fragmentos.jsonl`.
 
-Estado: contrato, limpieza, orquestador, segmentador y fragmentador completos.
-Los extractores de formato son stubs documentados, listos para que otra persona
-los complete. Mientras sigan siéndolo, la fragmentación está probada contra
-`Documento` construidos a mano y **no validada sobre texto real**.
+Estado: todas las capas implementadas —contrato, limpieza, orquestador,
+extractores, segmentador y fragmentador—, con 545 pruebas y verificadas contra
+el corpus real de ADL.
+
+### Qué se ha verificado contra el corpus
+
+| Formato | Verificados | Bloques | Caracteres | Violaciones del contrato |
+|---|---:|---:|---:|---:|
+| `json` | 954 / 954 | 13.412 | 4,7 M | 0 |
+| `csv` | 26 / 26 | 38.558 | 17,6 M | 0 |
+| `pbf` | 73 / 73 | 11.979 | 5,5 M | 0 |
+| `xlsx` | 4 / 4 | 5.039 | 0,8 M | 0 |
+| `texto` | 1 / 1 | 1 | 12 K | 0 |
+| `imagen` | 9 / 9 | 0 | 0 | 0 (sin Tesseract) |
+| `pdf` | 70 / 759 | 40.675 | 9,1 M | 0 |
+
+Todos los formatos salvo PDF están verificados al completo. Del PDF se verificó
+una muestra aleatoria con semilla fija más los cinco archivos más grandes del
+corpus; **la corrida sobre los 759 tarda ~70 minutos con 6 procesos** y es el
+paso que queda por lanzar (`scripts/verificar_corpus.py`).
+
+Dos cosas que conviene saber antes de indexar: los 26 CSV aportan más texto que
+los 954 JSON juntos —17,6 M de caracteres frente a 4,7 M, aun con el truncado a
+5000 filas por archivo—, así que pesarán mucho en el índice; y entre el 5 y el
+11 % de los PDF vienen escaneados.
+
+El único hueco es el **OCR**: `pytesseract` está integrado, pero Tesseract es un
+binario del sistema y no está instalado. Sin él, las 9 imágenes y el ~3 % de PDF
+escaneados salen con `bloques=[]` y el motivo en `errores`; nada se pierde en
+silencio y basta con instalarlo y volver a extraer.
 
 No hay extractor de HTML ni entrada en `EXTRACTORES` para `.html`/`.htm`: el
 corpus real de ADL no trae archivos de ese formato.
@@ -39,6 +65,38 @@ Opciones:
 | `--fenomeno` | Fenómeno por defecto (1, 2 o 3) cuando ni el índice ni la carpeta lo determinan. |
 | `--indice` | Ruta al `Indice_Datos_Codefest.xlsx` de ADL. Opcional. Con él, `doc_id`, `fenomeno` y `observatorio` salen del índice y solo se procesa lo que el índice lista. |
 | `--limpiar` | Borra los resultados de la corrida anterior antes de escribir. |
+| `--procesos` | Procesos de extracción en paralelo. El resultado es idéntico byte a byte al secuencial; solo cambia el tiempo. Sin este flag se calcula solo según la RAM libre en el momento de arrancar (ver abajo). |
+| `--reciclar-cada` | Documentos que procesa un worker antes de reciclarse (por defecto 25). |
+
+Sobre el corpus completo, `--procesos` no es un lujo: los 760 PDF suman 2,9 GB
+y ~31.000 páginas, y el 99 % de ese tiempo está dentro de `pdfplumber`, no en
+código propio que se pueda optimizar. En secuencial son unas 3 horas; con 6
+procesos, unos 30 minutos.
+
+```bash
+python orquestador.py --entrada base_documental --salida extraidos \
+    --indice base_documental/Indice_Datos_Codefest.xlsx --procesos 6 --limpiar
+```
+
+**Sin `--procesos`, el pipeline elige un número según la RAM libre**, con el
+número de núcleos como tope: reserva 600 MB por proceso (`RAM_MB_POR_PROCESO`
+en `orquestador.py`) y lo imprime por stderr al arrancar. Esa cifra sale de medir
+un worker real después de extraer los dos atlas más grandes del corpus
+(`RESDAL_atlas-2024-esp.pdf`, 250 páginas; `SWF_global-counterspace-capabilities-2026-hr.pdf`,
+371 páginas): `pdfminer` no le devuelve al sistema operativo toda la memoria
+que reserva por PDF, así que cada worker retiene un poso de varios cientos de
+MB por documento grande que procesa, y ese poso solo se libera reciclando el
+proceso entero. Eso lo hace `--reciclar-cada` (25 documentos por worker por
+defecto): cada `--procesos * --reciclar-cada` documentos se cierra el pool
+completo y se abre uno nuevo. Es un reciclaje del pool entero, no de un worker
+suelto —`ProcessPoolExecutor(max_tasks_per_child=...)` haría esto último, pero
+tiene [un deadlock conocido de
+CPython](https://github.com/python/cpython/issues/115634) sin corregir hasta
+Python 3.14 que cuelga el pool en cuanto un worker se recicla a mitad de una
+tanda—. Aun así, si la máquina tiene poca RAM libre o hay otros procesos
+compitiendo por ella, sigue siendo razonable fijar `--procesos` a mano y no
+por encima de 6: los tiempos por documento son muy desiguales, así que el
+reparto va de uno en uno.
 
 El fenómeno de cada documento se resuelve con esta precedencia, de más a menos
 fiable:
@@ -142,15 +200,15 @@ sin descarga de modelos). Dos avisos:
 python -m pytest
 ```
 
-344 pruebas. Las cinco que exige el enunciado:
+544 pruebas. Las cinco que exige el enunciado:
 
 | Requisito | Dónde |
 |---|---|
-| 1. `validar_documento` limpio para toda salida de un extractor | Pendiente: solo verificable con un extractor implementado. Mientras tanto, `tests/test_contrato.py` cubre `validar_documento` contra documentos construidos a mano. |
-| 2. Archivo malformado → `bloques=[]` y `errores` no vacía | `tests/test_orquestador.py::test_el_manifiesto_registra_documentos_sin_extractor_implementado` (blindaje del orquestador; el blindaje propio de cada extractor se prueba cuando se implemente) |
-| 3. Dos corridas → bytes idénticos | `tests/test_orquestador.py::test_dos_corridas_producen_bytes_identicos` |
+| 1. `validar_documento` limpio para toda salida de un extractor | `test_toda_salida_cumple_el_contrato` en cada `tests/test_extractor_*.py`, y sobre el corpus real en `scripts/verificar_corpus.py` |
+| 2. Archivo malformado → `bloques=[]` y `errores` no vacía | `test_un_*_ilegible_no_lanza` en cada `tests/test_extractor_*.py`, y `tests/test_orquestador.py::test_un_archivo_corrupto_no_frena_a_los_demas` |
+| 3. Dos corridas → bytes idénticos | `tests/test_orquestador.py::test_dos_corridas_producen_bytes_identicos`, también con `--procesos` |
 | 4. `fuente` = nombre exacto del archivo | `tests/test_orquestador.py::test_todos_los_documentos_llevan_ruta_relativa` y `tests/test_contrato.py::test_detecta_fuente_vacia` |
-| 5. Breadcrumb correcto a tres niveles | Pendiente: solo verificable con un extractor implementado. `contrato.py` valida la coherencia del breadcrumb (`tests/test_contrato.py::test_ruta_correcta_tras_cerrar_una_seccion_no_reporta_violacion`), pero ningún extractor lo produce todavía. |
+| 5. Breadcrumb correcto a tres niveles | `tests/test_extractores_comun.py::test_la_jerarquia_produce_un_documento_que_valida` y `tests/test_extractor_json.py::test_las_secciones_abren_subsecciones`; sobre el corpus real lo comprueba `verificar_corpus.py` |
 
 El fixture binario (`indice_minimo.xlsx`) no se edita a mano; se regenera con
 `python fixtures/generar_binarios.py`.
@@ -165,19 +223,34 @@ orquestador.py       recorrido, persistencia y CLI
 segmentador.py       fronteras de oración por idioma (pysbd + re-fusión)
 fragmentador.py      Fragmento, ConfigFragmentacion, cascada de tres capas y CLI
 extractores/
-    pdf.py           stub documentado
-    json_.py         stub documentado
-    tabular.py       stub documentado (csv + xlsx)
-    imagen.py        stub documentado (OCR)
-    pbf.py           stub documentado (mapas vectoriales)
-    texto.py         stub documentado (texto plano: .txt, .md)
+    comun.py         pila de encabezados, filtro de lenguaje natural, construcción del Documento
+    ocr.py           Tesseract, compartido por imagen y PDF escaneado
+    pdf.py           760 archivos: pdfplumber, jerarquía por tamaño de fuente, dos columnas
+    json_.py         964 archivos: artículos scrapeados, catálogos y GeoJSON
+    tabular.py       32 archivos: csv + xlsx, una fila por bloque atómico
+    imagen.py        9 archivos: metadata EXIF + OCR
+    pbf.py           73 archivos: tiles vectoriales, properties como registros
+    texto.py         1 archivo: texto plano y Markdown
 fixtures/            corpus sintético
-scripts/             herramientas fuera del pipeline (verificación contra el corpus real)
+base_documental/     corpus real de ADL (solo lectura, no se toca un byte)
+scripts/             herramientas fuera del pipeline (verificación y barrido)
 tests/               pytest
 ```
 
-Dependencias: `contrato` → `limpieza`. Los extractores dependen de ambos.
-`limpieza` no depende de nada del proyecto, así que se puede usar suelto.
+Dependencias: `contrato` → `limpieza`. Los extractores dependen de ambos y de
+`extractores.comun`. `limpieza` no depende de nada del proyecto, así que se
+puede usar suelto.
+
+### Qué extrae cada formato
+
+| Formato | Unidad de bloque | Jerarquía | Notas |
+|---|---|---|---|
+| `pdf` | párrafo | por tamaño de fuente | detecta dos columnas por el corredor vertical; cabeceras y pies repetidos se descartan |
+| `json` | párrafo | `title` → `sections[].heading` | reconoce el esquema de artículo del scraper; cae a recorrido genérico si no lo encuentra |
+| `csv` / `xlsx` | fila **atómica** | hoja (xlsx) | `columna: valor` en cada fila, para que se recupere sin la cabecera |
+| `pbf` | feature **atómica** | capa | solo `properties`; la geometría nunca entra al índice |
+| `texto` | párrafo | encabezados Markdown | párrafos por línea en blanco, no por salto de línea |
+| `imagen` | línea de OCR | — | metadata EXIF siempre; texto solo si hay Tesseract |
 
 ## El contrato
 
@@ -231,8 +304,14 @@ final del pipeline.
 
 ## Cómo añadir un extractor nuevo
 
-Los stubs ya traen la estrategia y la trampa principal de cada formato en su
-docstring. Léelo antes de empezar: está ahí para ahorrarte el descubrimiento.
+Los seis formatos del corpus ya están implementados; esto vale para uno nuevo.
+Cada módulo documenta en su docstring la estrategia y la trampa del formato:
+léelo antes de tocar nada parecido.
+
+**0. Usa `extractores/comun.py`.** `Jerarquia` lleva la pila de encabezados que
+`validar_documento` va a reconstruir y comparar; llevarla por tu cuenta produce
+documentos que no validan por un detalle de bookkeeping. `es_texto_natural`,
+`serializar_registro` y `construir_documento` cubren el resto.
 
 **1. Escribe primero las fixtures y las pruebas.** Añade a `fixtures/` al menos
 un archivo bien formado, uno con boilerplate y uno corrupto.
@@ -321,21 +400,15 @@ funcionales. Ambos caminos son deterministas.
 
 ## Pendiente
 
-- Extractores de PDF, JSON, CSV/XLSX, imagen, PBF y texto plano (stubs con
-  estrategia escrita). Con el corpus completo, los 1826 documentos salen con
-  `bloques=[]` y "extractor no implementado": esta etapa arregla el recorrido y
-  la identidad, no la extracción.
-- `.avif` necesita `pillow-avif-plugin` cuando se implemente el extractor de
-  imagen (1 archivo, F2-SWF-065).
-- **Validar la fragmentación sobre corpus real.** Bloqueado por lo anterior: sin
-  un extractor implementado no hay texto que fragmentar. Cuando lo haya, correr
-  `fragmentar_corpus` sobre `extraidos/` y comprobar los criterios de §8.2 del
-  spec: cero fragmentos por encima de 250 palabras salvo oraciones indivisibles
-  (< 0.5 %), cero textos vacíos, dos corridas con diff vacío y mediana entre 150
-  y 220 palabras.
-- **Ejecutar el barrido de configuraciones** (`scripts/barrido_fragmentacion.py`)
-  sobre ese corpus. La tabla no elige la configuración: elegirla exige medir
-  NDCG@10 y F1@3 contra un ground truth interno que aún no existe.
+- **Instalar Tesseract** con los idiomas `spa+eng+por`. Es lo único que falta
+  para cerrar la extracción: sin él, las 9 imágenes y el ~3 % de PDF escaneados
+  salen con `bloques=[]` y el motivo en `errores`. El código de OCR ya está
+  integrado y probado; basta con instalarlo y volver a extraer esos documentos.
 - **Elegir el encoder** y sustituir `estimar_tokens` por su tokenizador real.
   Bloquea la re-fragmentación del corpus completo, así que cuanto más tarde se
   cierre, más cara sale la re-corrida.
+- **Ejecutar el barrido de configuraciones** (`scripts/barrido_fragmentacion.py`)
+  sobre el corpus ya extraído. La tabla no elige la configuración: elegirla
+  exige medir NDCG@10 y F1@3 contra un ground truth interno que aún no existe.
+- **Construir ese ground truth**: 20–30 consultas etiquetadas a mano. Bloquea la
+  elección tanto del encoder como de la configuración de fragmentación.

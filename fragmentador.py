@@ -66,6 +66,18 @@ FACTOR_TOKENS_POR_PALABRA = 1.6
 # Ancho de los bins del histograma del reporte.
 ANCHO_BIN_HISTOGRAMA = 25
 
+# Bloques a partir de los que el CLI avisa antes de procesar un documento.
+# pysbd no es barato por bloque —compila una expresión regular nueva por cada
+# oración para ubicar su posición en el texto (ver segmentador.py)— y el atlas
+# de RESDAL trae 8319 bloques él solo: varios minutos de cómputo real que, sin
+# aviso, no se distinguen de un proceso colgado.
+UMBRAL_AVISO_BLOQUES = 1000
+
+# Cada cuántos documentos normales se imprime un avance. La inmensa mayoría del
+# corpus tarda milisegundos, así que un aviso por documento saturaría stderr
+# sin aportar nada.
+PROGRESO_CADA = 200
+
 
 def contar_palabras(texto: str) -> int:
     """Palabras separadas por espacios.
@@ -754,25 +766,36 @@ def fragmentar_corpus(
     corpus dan el mismo archivo byte a byte.
     """
     documentos = cargar_extraidos(entrada)
-    fragmentos, reporte = fragmentar_documentos(documentos, config)
+    fragmentos, reporte = fragmentar_documentos(documentos, config, on_progreso=_avisar_progreso)
     _escribir_salida(fragmentos, reporte, Path(salida))
     return reporte
 
 
 def fragmentar_documentos(
-    documentos: list[Documento], config: ConfigFragmentacion = CONFIG_POR_DEFECTO
+    documentos: list[Documento],
+    config: ConfigFragmentacion = CONFIG_POR_DEFECTO,
+    on_progreso: Callable[[int, int, Documento], None] | None = None,
 ) -> tuple[list[Fragmento], ReporteFragmentacion]:
     """Fragmenta una lista de documentos ya cargados, sin tocar el disco.
 
     Separada de :func:`fragmentar_corpus` porque el barrido de configuraciones
     (§8.3) prueba seis variantes sobre el mismo corpus y escribir seis copias de
     los fragmentos solo para calcular medianas es tiempo y disco tirados.
+
+    ``on_progreso``, si se pasa, se llama antes de cada documento con
+    ``(índice, total, documento)``. Existe para que el CLI pueda avisar en
+    documentos grandes (ver ``UMBRAL_AVISO_BLOQUES``) sin que esta función deje
+    de ser pura por defecto para quien la llama sin él, como el barrido.
     """
     fragmentos: list[Fragmento] = []
     sin_bloques: list[str] = []
     fusiones = partidos = 0
+    total = len(documentos)
 
-    for documento in documentos:
+    for indice, documento in enumerate(documentos, start=1):
+        if on_progreso is not None:
+            on_progreso(indice, total, documento)
+
         propios, estadisticas = _fragmentar_con_estadisticas(documento, config)
         if not propios:
             sin_bloques.append(_ruta_relativa(documento))
@@ -789,6 +812,19 @@ def fragmentar_documentos(
         config=config,
     )
     return fragmentos, reporte
+
+
+def _avisar_progreso(indice: int, total: int, documento: Documento) -> None:
+    """Avance a stderr: un aviso especial en documentos grandes, uno periódico en el resto."""
+    n_bloques = len(documento.bloques)
+    if n_bloques >= UMBRAL_AVISO_BLOQUES:
+        print(
+            f"  [{indice}/{total}] {documento.fuente}: {n_bloques} bloques, "
+            "puede tardar varios minutos en segmentarse",
+            file=sys.stderr,
+        )
+    elif indice % PROGRESO_CADA == 0:
+        print(f"  [{indice}/{total}] documentos fragmentados", file=sys.stderr)
 
 
 def cargar_extraidos(entrada: Path) -> list[Documento]:
