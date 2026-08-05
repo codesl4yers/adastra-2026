@@ -6,35 +6,45 @@ parte en `Fragmento` listos para codificar. **No** hay embeddings, indexación n
 recuperación: eso vive en capas posteriores y consume `fragmentos.jsonl`.
 
 Estado: todas las capas implementadas —contrato, limpieza, orquestador,
-extractores, segmentador y fragmentador—, con 545 pruebas y verificadas contra
-el corpus real de ADL.
+extractores, segmentador y fragmentador—, con 545 pruebas, y corrida completa
+sobre los 1826 archivos del corpus real de ADL: extracción, OCR, fragmentación
+y validación de contrato, las tres al 100 %, no sobre una muestra.
 
 ### Qué se ha verificado contra el corpus
 
-| Formato | Verificados | Bloques | Caracteres | Violaciones del contrato |
-|---|---:|---:|---:|---:|
-| `json` | 954 / 954 | 13.412 | 4,7 M | 0 |
-| `csv` | 26 / 26 | 38.558 | 17,6 M | 0 |
-| `pbf` | 73 / 73 | 11.979 | 5,5 M | 0 |
-| `xlsx` | 4 / 4 | 5.039 | 0,8 M | 0 |
-| `texto` | 1 / 1 | 1 | 12 K | 0 |
-| `imagen` | 9 / 9 | 0 | 0 | 0 (sin Tesseract) |
-| `pdf` | 70 / 759 | 40.675 | 9,1 M | 0 |
+`validar_documento` corrido sobre los 1826 documentos reales, no sobre una
+muestra ni sobre fixtures sintéticas:
 
-Todos los formatos salvo PDF están verificados al completo. Del PDF se verificó
-una muestra aleatoria con semilla fija más los cinco archivos más grandes del
-corpus; **la corrida sobre los 759 tarda ~70 minutos con 6 procesos** y es el
-paso que queda por lanzar (`scripts/verificar_corpus.py`).
+| Formato | Documentos | Con bloques | Bloques | Caracteres | Violaciones del contrato |
+|---|---:|---:|---:|---:|---:|
+| `pdf` | 759 | 757 | 522.971 | 90,7 M | 0 |
+| `json` | 954 | 953 | 13.412 | 4,7 M | 0 |
+| `csv` | 26 | 26 | 38.558 | 17,6 M | 0 |
+| `xlsx` | 4 | 4 | 5.039 | 0,8 M | 0 |
+| `pbf` | 73 | 73 | 11.979 | 5,5 M | 0 |
+| `texto` | 1 | 1 | 1 | 12 K | 0 |
+| `imagen` | 9 | 4 | 48 | 1,8 K | 0 |
+| **total** | **1826** | **1818** | **592.008** | **119,4 M** | **0** |
 
-Dos cosas que conviene saber antes de indexar: los 26 CSV aportan más texto que
-los 954 JSON juntos —17,6 M de caracteres frente a 4,7 M, aun con el truncado a
-5000 filas por archivo—, así que pesarán mucho en el índice; y entre el 5 y el
-11 % de los PDF vienen escaneados.
+Los 8 documentos sin bloques son legítimos, no bugs: 1 JSON de origen vacío
+(`el JSON es una lista vacía`), 2 PDF corruptos (`PdfminerException: No /Root
+object!`) y 5 imágenes donde Tesseract corrió pero no encontró texto fiable
+—son fotografías, no hay texto que reconocer—. Sumando los 7 CSV/XLSX
+truncados a 5000 filas por diseño (esos sí tienen bloques, solo que
+incompletos), quedan 15 documentos con algo anotado en `errores`; ninguno es
+un fallo del pipeline.
 
-El único hueco es el **OCR**: `pytesseract` está integrado, pero Tesseract es un
-binario del sistema y no está instalado. Sin él, las 9 imágenes y el ~3 % de PDF
-escaneados salen con `bloques=[]` y el motivo en `errores`; nada se pierde en
-silencio y basta con instalarlo y volver a extraer.
+Dos cosas que conviene saber antes de indexar: los 26 CSV aportan casi tanto
+texto como los 759 PDF —17,6 M de caracteres frente a 90,7 M, aun con el
+truncado a 5000 filas por archivo—, así que pesarán desproporcionadamente en
+el índice; y entre el 5 y el 11 % de los PDF vienen escaneados.
+
+**El OCR ya está operativo.** `pytesseract` + Tesseract (`spa+eng+por`)
+reconocen los PDF escaneados y las imágenes con texto real. En Windows, si el
+binario no aparece por PATH —el instalador no siempre lo agrega, o queda una
+entrada de una instalación anterior en otra carpeta—, `extractores/ocr.py`
+prueba antes de rendirse las rutas de instalación por defecto
+(`C:\Program Files\Tesseract-OCR\tesseract.exe` y su variante `(x86)`).
 
 No hay extractor de HTML ni entrada en `EXTRACTORES` para `.html`/`.htm`: el
 corpus real de ADL no trae archivos de ese formato.
@@ -49,6 +59,15 @@ python -m venv .venv
 # source .venv/bin/activate   # Linux / macOS
 pip install -r requirements.txt
 ```
+
+Para OCR (PDF escaneados e imágenes) hace falta además el binario de
+**Tesseract**, que no es instalable con `pip`: `pytesseract` solo es el
+envoltorio de Python. Instálalo con los idiomas `spa+eng+por` — en Windows,
+el [instalador de UB-Mannheim](https://github.com/UB-Mannheim/tesseract/wiki);
+en Linux, `apt install tesseract-ocr tesseract-ocr-spa tesseract-ocr-por`. Sin
+Tesseract el pipeline no se detiene: los documentos que lo necesitan salen con
+`bloques=[]` y el motivo en `errores`, y basta con instalarlo y volver a
+extraer (ver `--reintentar-errores` más abajo).
 
 ## Correr el pipeline
 
@@ -66,7 +85,8 @@ Opciones:
 | `--indice` | Ruta al `Indice_Datos_Codefest.xlsx` de ADL. Opcional. Con él, `doc_id`, `fenomeno` y `observatorio` salen del índice y solo se procesa lo que el índice lista. |
 | `--limpiar` | Borra los resultados de la corrida anterior antes de escribir. |
 | `--procesos` | Procesos de extracción en paralelo. El resultado es idéntico byte a byte al secuencial; solo cambia el tiempo. Sin este flag se calcula solo según la RAM libre en el momento de arrancar (ver abajo). |
-| `--reciclar-cada` | Documentos que procesa un worker antes de reciclarse (por defecto 25). |
+| `--reciclar-cada` | Documentos que procesa un worker antes de reciclar el pool (por defecto 25). |
+| `--reintentar-errores` | Reextrae solo los `doc_id` con error en el manifiesto de `--salida`; el resto no se toca. Requiere una corrida completa previa; incompatible con `--limpiar`. |
 
 Sobre el corpus completo, `--procesos` no es un lujo: los 760 PDF suman 2,9 GB
 y ~31.000 páginas, y el 99 % de ese tiempo está dentro de `pdfplumber`, no en
@@ -97,6 +117,17 @@ tanda—. Aun así, si la máquina tiene poca RAM libre o hay otros procesos
 compitiendo por ella, sigue siendo razonable fijar `--procesos` a mano y no
 por encima de 6: los tiempos por documento son muy desiguales, así que el
 reparto va de uno en uno.
+
+**`--reintentar-errores` evita repetir una corrida completa** cuando la causa
+de unos pocos errores ya se corrigió —el caso típico: Tesseract no estaba
+disponible en la corrida anterior—. Lee el manifiesto de `--salida`, junta los
+`doc_id` con `n_errores > 0`, reextrae solo esos y fusiona el resultado en el
+mismo manifiesto; el resto del corpus no se toca ni un byte:
+
+```bash
+python orquestador.py --entrada base_documental --salida extraidos \
+    --indice base_documental/Indice_Datos_Codefest.xlsx --reintentar-errores
+```
 
 El fenómeno de cada documento se resuelve con esta precedencia, de más a menos
 fiable:
@@ -147,6 +178,18 @@ python fragmentador.py --entrada extraidos --salida fragmentos
 Produce `fragmentos/fragmentos.jsonl` (una línea por fragmento, claves
 ordenadas) y `fragmentos/reporte_fragmentacion.json` (histograma de palabras,
 mediana, p95, atómicos, huérfanos fusionados y oraciones indivisibles).
+
+Sobre el corpus completo: **1826 documentos → 140.686 fragmentos**, mediana de
+123 palabras (p95: 234), 40.978 atómicos (filas de CSV/XLSX y features de PBF)
+y 2693 huérfanos fusionados. Tarda unos 10-15 minutos, casi todo dentro de
+`pysbd` —no hay paralelismo aquí, y no lo necesita salvo por un caso
+particular: el atlas de RESDAL trae **8319 bloques** él solo, y `pysbd`
+compila una expresión regular nueva por cada oración para ubicar su posición
+en el texto (ver `segmentador.py`), así que ese documento por sí solo puede
+tardar varios minutos. El CLI avisa antes de entrar en cualquier documento con
+1000 bloques o más, y cada 200 documentos en el resto (`UMBRAL_AVISO_BLOQUES`
+y `PROGRESO_CADA` en `fragmentador.py`) —sin eso, ese tramo se ve indistinguible
+de un proceso colgado.
 
 La estrategia es **híbrida estructural-oracional con unidades atómicas
 preservadas**: la estructura del documento fija fronteras que no se cruzan, y
@@ -200,7 +243,7 @@ sin descarga de modelos). Dos avisos:
 python -m pytest
 ```
 
-544 pruebas. Las cinco que exige el enunciado:
+545 pruebas. Las cinco que exige el enunciado:
 
 | Requisito | Dónde |
 |---|---|
@@ -400,10 +443,6 @@ funcionales. Ambos caminos son deterministas.
 
 ## Pendiente
 
-- **Instalar Tesseract** con los idiomas `spa+eng+por`. Es lo único que falta
-  para cerrar la extracción: sin él, las 9 imágenes y el ~3 % de PDF escaneados
-  salen con `bloques=[]` y el motivo en `errores`. El código de OCR ya está
-  integrado y probado; basta con instalarlo y volver a extraer esos documentos.
 - **Elegir el encoder** y sustituir `estimar_tokens` por su tokenizador real.
   Bloquea la re-fragmentación del corpus completo, así que cuanto más tarde se
   cierre, más cara sale la re-corrida.
@@ -412,3 +451,8 @@ funcionales. Ambos caminos son deterministas.
   exige medir NDCG@10 y F1@3 contra un ground truth interno que aún no existe.
 - **Construir ese ground truth**: 20–30 consultas etiquetadas a mano. Bloquea la
   elección tanto del encoder como de la configuración de fragmentación.
+- **Relanzar `scripts/verificar_corpus.py`** (el checklist formal de aceptación,
+  con su doble corrida completa para determinismo) desde que cambió la
+  paralelización del orquestador. Los mismos criterios se comprobaron a mano
+  contra la salida real más arriba —0 violaciones de contrato sobre los 1826
+  documentos—, pero el script en sí no se ha vuelto a correr de punta a punta.
