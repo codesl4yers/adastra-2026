@@ -17,6 +17,7 @@ from fragmentador import (
     contar_palabras,
     estimar_tokens,
     fragmentar,
+    fragmento_a_dict,
     cargar_extraidos,
     fragmentar_corpus,
     fragmentar_documentos,
@@ -149,6 +150,71 @@ def test_una_oracion_indivisible_sale_entera_en_su_propio_fragmento(documento_co
     assert fragmentos[0].n_oraciones == 1
 
 
+# --- pseudo-oraciones: cuando el segmentador no pudo segmentar ----------------
+#
+# En el corpus real hay celdas de CSV con comillas desbalanceadas que hacen que
+# pysbd devuelva 64 KB de texto como una sola "oración". El fragmentador la
+# respetaba —§3.3 le prohíbe cortar dentro de una oración— y emitía fragmentos
+# de hasta 8 995 palabras, violando el límite de 250 de §9.2.1. La salida es
+# distinguir una oración larga de verdad de una que trae fronteras dentro.
+
+
+def test_una_pseudo_oracion_se_reparte_por_sus_fronteras_internas():
+    """Si dentro hay puntuación terminal seguida de espacio, hay oraciones de
+    verdad ahí dentro: cortar por ellas no viola §3.3, lo cumple."""
+    from fragmentador import _repartir_pseudo_oracion
+
+    pegado = " ".join(f"La frase número {i} termina aquí." for i in range(60))
+
+    trozos = _repartir_pseudo_oracion(pegado, CONFIG_POR_DEFECTO)
+
+    assert len(trozos) == 60
+    assert all(contar_palabras(t) <= CONFIG_POR_DEFECTO.max_palabras for t in trozos)
+
+
+def test_una_oracion_legitima_larga_no_se_reparte():
+    """§3.3 no se negocia: sin fronteras internas no hay nada que cortar, por
+    grande que sea. Es el mismo caso que protege la prueba 7.13."""
+    from fragmentador import _repartir_pseudo_oracion
+
+    larga = "La oración larguísima dice " + " ".join(f"término{i}" for i in range(400)) + "."
+
+    assert _repartir_pseudo_oracion(larga, CONFIG_POR_DEFECTO) == [larga]
+
+
+def test_repartir_no_pierde_ni_anade_texto():
+    """El mismo invariante que el segmentador: la trazabilidad no se negocia."""
+    from fragmentador import _repartir_pseudo_oracion
+
+    pegado = " ".join(f"Registro {i} con su dato. Fuente {i}." for i in range(80))
+
+    assert " ".join(_repartir_pseudo_oracion(pegado, CONFIG_POR_DEFECTO)) == pegado
+
+
+def test_una_oracion_dentro_del_tope_no_se_toca():
+    """Repartir lo que ya cabe solo produciría fragmentos más pobres."""
+    from fragmentador import _repartir_pseudo_oracion
+
+    corta = "Primera frase. Segunda frase. Tercera frase."
+
+    assert _repartir_pseudo_oracion(corta, CONFIG_POR_DEFECTO) == [corta]
+
+
+def test_un_bloque_atomico_gigante_no_produce_fragmentos_fuera_de_norma(documento_con_bloques):
+    """El caso F1-AIINDEX-041-c0401: una fila de CSV con cientos de registros
+    concatenados. Ninguno de los fragmentos que salgan puede pasar de 250."""
+    fila = " ".join(
+        f"pmid: {30000000 + i} | title: Estudio número {i} sobre la materia." for i in range(300)
+    )
+    documento = documento_con_bloques(bloque(fila, "fila", atomico=True))
+
+    fragmentos = fragmentar(documento, CONFIG_POR_DEFECTO)
+
+    assert fragmentos
+    assert all(f.num_palabras <= 250 for f in fragmentos)
+    assert " ".join(f.texto for f in fragmentos) == fila
+
+
 def test_una_oracion_indivisible_se_reporta_como_violacion_de_tamano(documento_con_bloques):
     gigante = "La oración larguísima dice " + " ".join(f"término{i}" for i in range(400)) + "."
     documento = documento_con_bloques(bloque(gigante))
@@ -266,6 +332,67 @@ def test_un_encabezado_suelto_se_fusiona_con_el_cuerpo_que_le_sigue(documento_co
     assert len(fragmentos) == 1
     assert fragmentos[0].texto.startswith("Metodología")
     assert fragmentos[0].tipo_unidad == "prosa"
+
+
+def test_un_titulo_seguido_de_otro_titulo_no_queda_huerfano(documento_con_bloques):
+    """El patrón más común de los informes: H2, H5 y luego el texto. Con la
+    regla de "todo título abre sección", el H2 se quedaba solo en la suya y
+    salía como un fragmento de dos palabras. 13 516 títulos del corpus real
+    (29,4 %) caen en este caso."""
+    documento = documento_con_bloques(
+        bloque("1.1 Publications", "titulo", 2),
+        bloque("Overview", "titulo", 5, ruta=["1.1 Publications"]),
+        bloque(prosa(10), ruta=["1.1 Publications", "Overview"]),
+    )
+
+    fragmentos = fragmentar(documento, CONFIG_POR_DEFECTO)
+
+    assert [f.tipo_unidad for f in fragmentos] == ["prosa"]
+    assert fragmentos[0].texto.startswith("1.1 Publications Overview")
+
+
+def test_una_cadena_larga_de_titulos_viaja_con_su_cuerpo(documento_con_bloques):
+    documento = documento_con_bloques(
+        bloque("Parte I", "titulo", 1),
+        bloque("Capítulo 2", "titulo", 2, ruta=["Parte I"]),
+        bloque("Sección 3", "titulo", 3, ruta=["Parte I", "Capítulo 2"]),
+        bloque(prosa(10), ruta=["Parte I", "Capítulo 2", "Sección 3"]),
+    )
+
+    fragmentos = fragmentar(documento, CONFIG_POR_DEFECTO)
+
+    assert len(fragmentos) == 1
+    assert fragmentos[0].texto.startswith("Parte I Capítulo 2 Sección 3")
+
+
+def test_la_seccion_de_una_cadena_de_titulos_es_la_del_mas_profundo(documento_con_bloques):
+    """El breadcrumb tiene que situar al fragmento donde está su contenido."""
+    documento = documento_con_bloques(
+        bloque("1.1 Publications", "titulo", 2),
+        bloque("Overview", "titulo", 5, ruta=["1.1 Publications"]),
+        bloque(prosa(10), ruta=["1.1 Publications", "Overview"]),
+    )
+
+    fragmentos = fragmentar(documento, CONFIG_POR_DEFECTO)
+
+    assert fragmentos[0].seccion == ["1.1 Publications", "Overview"]
+
+
+def test_un_titulo_con_cuerpo_propio_sigue_abriendo_su_seccion(documento_con_bloques):
+    """La regla nueva no puede tragarse las fronteras de verdad: si el título
+    tiene cuerpo, el siguiente título abre sección aparte."""
+    documento = documento_con_bloques(
+        bloque("Metodología", "titulo", 1),
+        bloque(prosa(10), ruta=["Metodología"]),
+        bloque("Resultados", "titulo", 1),
+        bloque(prosa(10), ruta=["Resultados"]),
+    )
+
+    fragmentos = fragmentar(documento, CONFIG_POR_DEFECTO)
+
+    assert len(fragmentos) == 2
+    assert fragmentos[0].seccion == ["Metodología"]
+    assert fragmentos[1].seccion == ["Resultados"]
 
 
 def test_un_encabezado_sin_cuerpo_se_marca_como_huerfano(documento_con_bloques):
@@ -658,6 +785,38 @@ def test_el_cli_pasa_la_configuracion_al_algoritmo(corpus_extraido, tmp_path):
     assert len(lineas(estrechos)) > len(lineas(anchos))
 
 
+def test_el_cli_estima_los_tokens_por_defecto():
+    """Sin ``transformers`` instalado el fragmentador tiene que seguir corriendo:
+    el barrido de configuraciones no necesita conteos exactos."""
+    from fragmentador import _config_desde_args, _construir_parser, estimar_tokens
+
+    args = _construir_parser().parse_args(["--entrada", "e", "--salida", "s"])
+
+    assert _config_desde_args(args).contar_tokens is estimar_tokens
+
+
+def test_el_cli_puede_pedir_el_tokenizador_real():
+    """La corrida de entrega. Sin esta opción, cablear el tokenizador obligaría
+    a escribir un script en vez de usar el CLI que documenta el README."""
+    from fragmentador import _config_desde_args, _construir_parser, estimar_tokens
+
+    try:
+        from encoder import contar_tokens
+    except ImportError as error:  # pragma: no cover - entorno sin transformers
+        pytest.skip(f"encoder no disponible: {error}")
+
+    args = _construir_parser().parse_args(
+        ["--entrada", "e", "--salida", "s", "--tokenizador", "real"]
+    )
+    config = _config_desde_args(args)
+
+    assert config.contar_tokens is not estimar_tokens
+    try:
+        assert config.contar_tokens("informe anual") == contar_tokens("informe anual")
+    except Exception as error:  # noqa: BLE001 - sin red ni caché del checkpoint
+        pytest.skip(f"tokenizador de granite no disponible: {error}")
+
+
 def test_un_corpus_sin_fragmentos_no_revienta_los_percentiles(tmp_path, documento_con_bloques):
     entrada = tmp_path / "extraidos"
     entrada.mkdir()
@@ -671,3 +830,67 @@ def test_un_corpus_sin_fragmentos_no_revienta_los_percentiles(tmp_path, document
     assert reporte.n_fragmentos == 0
     assert reporte.mediana_palabras == 0
     assert reporte.p95_palabras == 0
+
+
+# --- datos apartados del texto -------------------------------------------------
+
+
+def test_el_fragmento_conserva_los_datos_de_su_fila(documento_con_bloques):
+    """Los identificadores salen del vector pero no del corpus (§3.4)."""
+    fila = bloque(
+        "title: Redes neuronales | journal: Nature",
+        tipo="fila",
+        atomico=True,
+        datos={"pmid": "11204229"},
+    )
+    fragmentos = fragmentar(documento_con_bloques(fila), CONFIG_POR_DEFECTO)
+
+    assert [f.datos for f in fragmentos] == [[{"pmid": "11204229"}]]
+
+
+def test_un_fragmento_que_agrupa_filas_conserva_los_datos_de_cada_una():
+    """Al agrupar registros cortos, atribuir un solo identificador mentiría."""
+    from conftest import bloque as _b
+
+    filas = [
+        _b(f"title: Estudio {n}", tipo="fila", atomico=True, datos={"pmid": str(n)})
+        for n in range(3)
+    ]
+    from contrato import Documento, calcular_doc_id
+
+    documento = Documento(
+        doc_id=calcular_doc_id("datos.csv"),
+        fuente="datos.csv",
+        formato="csv",
+        fenomeno=1,
+        idioma="es",
+        bloques=filas,
+        meta={},
+        errores=[],
+    )
+    fragmentos = fragmentar(documento, CONFIG_POR_DEFECTO)
+
+    assert len(fragmentos) == 1
+    assert fragmentos[0].datos == [{"pmid": "0"}, {"pmid": "1"}, {"pmid": "2"}]
+
+
+def test_la_prosa_no_lleva_datos(documento_con_bloques):
+    fragmentos = fragmentar(documento_con_bloques(bloque(prosa(3))), CONFIG_POR_DEFECTO)
+
+    assert all(f.datos == [] for f in fragmentos)
+
+
+def test_los_datos_llegan_al_jsonl(documento_con_bloques):
+    """Si no se serializan, nunca llegan a metadata.jsonl y se pierden."""
+    fila = bloque(
+        "title: Redes neuronales | journal: Nature",
+        tipo="fila",
+        atomico=True,
+        datos={"pmid": "11204229"},
+    )
+    fragmentos = fragmentar(documento_con_bloques(fila), CONFIG_POR_DEFECTO)
+
+    crudo = fragmento_a_dict(fragmentos[0])
+
+    assert crudo["datos"] == [{"pmid": "11204229"}]
+    assert json.loads(json.dumps(crudo))["datos"] == [{"pmid": "11204229"}]

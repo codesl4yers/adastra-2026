@@ -18,5 +18,15 @@ pytesseract>=0.3.10,<0.4
 # RAM disponible, para el valor por defecto de --procesos (orquestador.py)
 psutil>=5.9,<7
 
+# Capa de codificación e indexación (encoder.py, generador.py).
+# El jurado tiene que poder ejecutar generador.py y obtener el mismo índice, así
+# que las versiones van fijadas por línea menor. transformers >= 4.53 no es
+# opcional: ModernBERT necesita una versión reciente (§14.6 del addendum).
+transformers>=4.57,<5        # AutoTokenizer y AutoConfig del checkpoint
+torch>=2.4,<3                # inferencia en float32; sin CUDA basta
+sentence-transformers>=5.0,<6  # carga el modelo con su pooling CLS declarado
+faiss-cpu>=1.8,<2            # IndexFlatIP exacto, sin entrenamiento ni aleatoriedad
+numpy>=1.26,<3
+
 # Desarrollo
 pytest>=8.0

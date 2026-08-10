@@ -13,6 +13,11 @@ dependencies = [
     "pillow-avif-plugin>=1.4",
     "pytesseract>=0.3.10,<0.4",
     "psutil>=5.9,<7",
+    "transformers>=4.57,<5",
+    "torch>=2.4,<3",
+    "sentence-transformers>=5.0,<6",
+    "faiss-cpu>=1.8,<2",
+    "numpy>=1.26,<3",
 ]
 
 [project.optional-dependencies]
@@ -21,3 +26,6 @@ dev = ["pytest>=8.0"]
 [tool.pytest.ini_options]
 pythonpath = ["."]
 testpaths = ["tests"]
+markers = [
+    "integracion: necesita el checkpoint del encoder descargado (1,2 GB)",
+]

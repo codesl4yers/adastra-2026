@@ -151,7 +151,6 @@ activemq-data/
 
 # SageMath parsed files
 *.sage.py
-docs/
 .superpowers/
 # Environments
 .env
@@ -229,6 +228,16 @@ __marimo__/
 # comparar corridas, usa el manifiesto y el reporte de fragmentación.
 extraidos/
 fragmentos/
+indice/
+
+# entrega/ se ensambla con scripts/preparar_entrega.py a partir de indice/ y
+# del código de la raíz. Se versiona todo menos la base vectorial: son 585 MB
+# —412 el índice y 200 la metadata— y GitHub rechaza cualquier archivo de más
+# de 100 MB, así que un `git add .` dejaría el historial escrito y el push
+# roto. Se reconstruye con `preparar_entrega.py`; lo que no se puede
+# reconstruir es lo que se versiona.
+entrega/base_vectorial/
+entrega/__pycache__/
 
 
 .claude/

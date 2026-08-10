@@ -290,6 +290,364 @@ def test_un_pdf_escaneado_se_marca_para_ocr_en_meta(pdf_minimo, monkeypatch):
     assert pdf.extraer(pdf_minimo, fenomeno=1).meta["requiere_ocr"] is True
 
 
+# --- texto presente pero ilegible ---------------------------------------------
+#
+# Hay PDFs que sí tienen capa de texto y aun así no se pueden leer: si la fuente
+# embebida no trae tabla ToUnicode, pdfplumber devuelve "(cid:NN)" por carácter;
+# si el PDF dibuja cada letra como un objeto suelto, devuelve las letras
+# separadas por espacios. La densidad de caracteres por página no los detecta
+# —"(cid:47)" son nueve caracteres por letra, así que la densidad es altísima—,
+# y salían al índice como fragmentos de miles de tokens sin contenido legible.
+# En el corpus real: 1 783 fragmentos, el 5,3 % del coste de codificación, y un
+# solo documento de 179 páginas (F3-CEOBS-030) con el 93 % de todo ello.
+
+
+def linea_ilegible(texto: str) -> pdf.Linea:
+    return pdf.Linea(texto=texto, tamano=10.0, top=0.0, bottom=10.0, x0=0.0)
+
+
+def test_un_pdf_con_cid_sin_mapear_se_considera_ilegible():
+    paginas = [[linea_ilegible("(cid:47)(cid:76)(cid:86)(cid:87)(cid:3)(cid:82)(cid:73)")]]
+
+    assert pdf._texto_ilegible(paginas) is True
+
+
+def test_un_pdf_dibujado_letra_a_letra_se_considera_ilegible():
+    paginas = [[linea_ilegible("L i f e c y c l e c o s t e s t i m a t i o n r e q u i r e s")]]
+
+    assert pdf._texto_ilegible(paginas) is True
+
+
+def test_un_pdf_normal_no_se_considera_ilegible():
+    paginas = [
+        [linea_ilegible("El observatorio publicó su informe anual sobre capacidades.")],
+        [linea_ilegible("La red de sensores cubre el arco sur del continente.")],
+    ]
+
+    assert pdf._texto_ilegible(paginas) is False
+
+
+def test_unas_pocas_formulas_con_cid_no_bastan_para_ir_a_ocr():
+    """Un PDF legible con una fórmula en fuente rara no se manda a OCR: el
+    texto nativo es mejor que el OCR cuando el texto nativo está bien."""
+    normal = "El informe analiza la evolución del gasto durante la última década. "
+    paginas = [[linea_ilegible(normal * 12 + "(cid:12)(cid:34)")]]
+
+    assert pdf._texto_ilegible(paginas) is False
+
+
+def test_una_tabla_con_celdas_de_una_letra_no_va_a_ocr():
+    """Las tablas de los atlas traen columnas de una letra (Y/N, X). Mientras
+    quede prosa reconocible alrededor, el documento se lee bien."""
+    paginas = [
+        [linea_ilegible("El informe analiza la presencia de fuerzas armadas en la región.")],
+        [linea_ilegible("Cada ficha recoge el despliegue declarado por el país en el periodo.")],
+        [linea_ilegible("País Fuerza Y N X Argentina Y N X Brasil Y N X Chile Y N")],
+    ]
+
+    assert pdf._texto_ilegible(paginas) is False
+
+
+def test_un_pdf_con_capa_de_texto_ilegible_se_manda_a_ocr(pdf_minimo, monkeypatch):
+    """La densidad de caracteres por página no basta como criterio: un PDF con
+    CID tiene densidad altísima —nueve caracteres por letra— y aun así no se
+    puede leer."""
+    # Larga a propósito: con menos de MINIMO_CARACTERES_POR_PAGINA la mandaría
+    # a OCR el criterio de densidad y la prueba pasaría sin probar nada.
+    cid = "(cid:47)(cid:76)(cid:86)(cid:87)" * 8
+    assert len(cid) > pdf.MINIMO_CARACTERES_POR_PAGINA * 2
+    monkeypatch.setattr(
+        pdf, "lineas_del_documento", lambda _: [[pdf.Linea(cid, 10.0, 0.0, 10.0, 0.0)]]
+    )
+    monkeypatch.setattr(pdf.ocr, "hay_ocr", lambda: False)
+
+    documento = pdf.extraer(pdf_minimo, fenomeno=1)
+
+    assert documento.meta["requiere_ocr"] is True
+
+
+def test_un_pdf_legible_no_se_manda_a_ocr(pdf_minimo, monkeypatch):
+    """El control: con texto normal, el extractor no toca el OCR."""
+    monkeypatch.setattr(
+        pdf.ocr, "hay_ocr", lambda: pytest.fail("no debería consultar el OCR")
+    )
+
+    assert pdf.extraer(pdf_minimo, fenomeno=1).meta.get("requiere_ocr") is None
+
+
+def test_un_logotipo_multilingue_no_manda_el_documento_a_ocr():
+    """Caso real `F2-SWF-035`: la portada repite el nombre de la fundación en
+    cinco alfabetos, y los caracteres CJK y árabes cuentan como palabras de una
+    letra. El documento se lee perfectamente; mandarlo a OCR lo empeoraría."""
+    paginas = [
+        [linea_ilegible("FUNDACIÓN 安 全 世 界 基 金 会 FOUNDATION م SECURE ФОНД")],
+        [linea_ilegible("El informe examina la seguridad del entorno espacial en 2025.")],
+    ]
+
+    assert pdf._texto_ilegible(paginas) is False
+
+
+# --- OCR página a página -------------------------------------------------------
+#
+# Decidir por documento arreglaba una parte y estropeaba otra: `F2-CSIS-113` y
+# `F3-SIPRI-007` tienen la portada destrozada y el cuerpo perfectamente legible,
+# y el OCR pierde acentos ("análisis" sale "nalisis"). La decisión es por página:
+# texto nativo donde se puede leer, OCR solo donde no.
+
+
+def test_los_avisos_de_fuentes_de_pdfminer_no_ensucian_la_salida():
+    """`pdfminer` avisa por cada fuente cuyo descriptor no trae un FontBBox
+    parseable, y en una corrida del corpus eso son decenas de líneas en stderr
+    entre las que se pierden los errores de verdad. No afecta a la extracción:
+    pdfminer sigue adelante con un recuadro (0,0,0,0)."""
+    import logging
+
+    assert logging.getLogger("pdfminer").level >= logging.ERROR
+
+
+def paginas_mixtas():
+    """Una página legible y otra con la capa de texto rota."""
+    return [
+        [linea_ilegible("El observatorio publicó su informe anual sobre capacidades espaciales.")],
+        [linea_ilegible("(cid:47)(cid:76)(cid:86)(cid:87)(cid:3)(cid:82)(cid:73)" * 8)],
+    ]
+
+
+def ocr_de_prueba(monkeypatch, texto="Texto recuperado por el reconocimiento optico", confianza=93.0):
+    """Sustituye el reconocimiento real; devuelve la lista de páginas pedidas."""
+    pedidas = []
+
+    def texto_de_imagen(imagen):
+        pedidas.append(imagen)
+        return texto, confianza
+
+    monkeypatch.setattr(pdf.ocr, "hay_ocr", lambda: True)
+    monkeypatch.setattr(pdf.ocr, "version", lambda: "5.5.3")
+    monkeypatch.setattr(pdf.ocr, "texto_de_imagen", texto_de_imagen)
+    return pedidas
+
+
+def test_solo_las_paginas_ilegibles_pasan_por_el_ocr(pdf_minimo, monkeypatch):
+    """El corazón del cambio: una página rota no condena al documento entero."""
+    monkeypatch.setattr(pdf, "lineas_del_documento", lambda _: paginas_mixtas())
+    pedidas = ocr_de_prueba(monkeypatch)
+
+    documento = pdf.extraer(pdf_minimo, fenomeno=1)
+
+    assert len(pedidas) == 1, "solo la página ilegible debería rasterizarse"
+    assert documento.meta["paginas_ocr"] == [2]
+
+
+def test_el_texto_nativo_legible_sobrevive_intacto(pdf_minimo, monkeypatch):
+    """Lo que se lee bien no se toca: el OCR degradaría los acentos."""
+    monkeypatch.setattr(pdf, "lineas_del_documento", lambda _: paginas_mixtas())
+    ocr_de_prueba(monkeypatch)
+
+    textos = [b.texto for b in pdf.extraer(pdf_minimo, fenomeno=1).bloques if b]
+
+    assert any("informe anual sobre capacidades" in t for t in textos)
+    assert not any("(cid:" in t for t in textos)
+
+
+def test_el_texto_reconocido_reemplaza_al_ilegible(pdf_minimo, monkeypatch):
+    monkeypatch.setattr(pdf, "lineas_del_documento", lambda _: paginas_mixtas())
+    ocr_de_prueba(monkeypatch)
+
+    textos = [b.texto for b in pdf.extraer(pdf_minimo, fenomeno=1).bloques if b]
+
+    assert any("recuperado por el reconocimiento" in t for t in textos)
+
+
+def test_los_bloques_reconocidos_se_marcan_como_ocr(pdf_minimo, monkeypatch):
+    """El contrato tiene un tipo para esto; usarlo mantiene la trazabilidad."""
+    monkeypatch.setattr(pdf, "lineas_del_documento", lambda _: paginas_mixtas())
+    ocr_de_prueba(monkeypatch)
+
+    bloques = [b for b in pdf.extraer(pdf_minimo, fenomeno=1).bloques if b]
+    reconocidos = [b for b in bloques if "recuperado" in b.texto]
+
+    assert reconocidos and all(b.tipo == "ocr" for b in reconocidos)
+    assert all(b.pagina == 2 for b in reconocidos)
+
+
+def test_un_documento_legible_no_rasteriza_ninguna_pagina(pdf_minimo, monkeypatch):
+    """Rasterizar cuesta ~1 s por página: no se hace sin necesidad."""
+    pedidas = ocr_de_prueba(monkeypatch)
+
+    pdf.extraer(pdf_minimo, fenomeno=1)
+
+    assert pedidas == []
+
+
+def test_el_ocr_no_altera_la_jerarquia_de_titulos_del_texto_nativo(pdf_minimo, monkeypatch):
+    """Los niveles salen del tamaño de fuente. Las líneas del OCR no tienen
+    tamaño real, así que no pueden entrar en ese cálculo: si entraran,
+    desplazarían el tamaño del cuerpo y los títulos del documento cambiarían."""
+    cuerpo = [
+        pdf.Linea(f"Línea {i} del informe sobre el gasto regional del periodo.", 10.0, i * 12.0, i * 12.0 + 10, 50.0)
+        for i in range(6)
+    ]
+    # Dos páginas: las que tiene el PDF de la fixture. Simular más haría que
+    # `documento_pdf.pages[n]` se saliera del rango y el documento saldría
+    # fallido, con la prueba fallando por un motivo que no es el suyo.
+    nativas = [
+        [pdf.Linea("Capacidades estratégicas", 22.0, 0.0, 22.0, 50.0), *cuerpo],
+        [linea_ilegible("(cid:47)(cid:76)(cid:86)(cid:87)(cid:3)(cid:82)(cid:73)" * 8)],
+    ]
+    monkeypatch.setattr(pdf, "lineas_del_documento", lambda _: nativas)
+    # Muchas líneas reconocidas: si entraran en el cálculo, su tamaño ficticio
+    # sería la moda y pasaría a ser "el cuerpo", convirtiendo en título todo lo
+    # demás. Con menos líneas la prueba pasaría sin comprobar nada.
+    ocr_de_prueba(monkeypatch, texto="\n".join(f"renglón reconocido {i}" for i in range(10)))
+
+    bloques = [b for b in pdf.extraer(pdf_minimo, fenomeno=1).bloques if b]
+    titulos = [b for b in bloques if b.tipo == "titulo"]
+
+    assert [t.texto for t in titulos] == ["Capacidades estratégicas"]
+
+
+def test_una_pagina_sin_texto_de_un_documento_legible_no_se_rasteriza(pdf_minimo, monkeypatch):
+    """Portadas, separadores de capítulo y páginas de figuras aparecen casi
+    vacías en cualquier informe. Tratarlas como rotas mandaba a OCR 298 de los
+    759 PDFs del corpus —1 764 páginas, media hora— para recuperar, en el mejor
+    caso, el título de una portada. La falta de texto solo es señal de que hay
+    algo que reconocer cuando lo es del documento entero."""
+    monkeypatch.setattr(
+        pdf,
+        "lineas_del_documento",
+        lambda _: [
+            # Bastante texto para que la media del documento supere el mínimo
+            # por página: si no, el documento entero parecería escaneado y la
+            # prueba pasaría por el motivo equivocado.
+            [
+                linea_ilegible(
+                    "El observatorio publicó su informe anual sobre capacidades "
+                    "espaciales de la región durante el año pasado, con atención "
+                    "a los lanzamientos orbitales y a la vigilancia del entorno."
+                )
+            ],
+            [],  # página en blanco: un separador de capítulo
+        ],
+    )
+    pedidas = ocr_de_prueba(monkeypatch)
+
+    documento = pdf.extraer(pdf_minimo, fenomeno=1)
+
+    assert pedidas == []
+    assert documento.meta.get("requiere_ocr") is None
+
+
+def test_un_documento_entero_sin_capa_de_texto_si_va_a_ocr(pdf_minimo, monkeypatch):
+    """El caso clásico del escaneado: ninguna página tiene texto, y ahí la
+    ausencia sí significa que hay que reconocer."""
+    monkeypatch.setattr(pdf, "lineas_del_documento", lambda _: [[], []])
+    pedidas = ocr_de_prueba(monkeypatch)
+
+    documento = pdf.extraer(pdf_minimo, fenomeno=1)
+
+    assert len(pedidas) == 2
+    assert documento.meta["paginas_ocr"] == [1, 2]
+
+
+def test_una_pagina_rota_se_reconoce_aunque_el_documento_se_lea_bien(pdf_minimo, monkeypatch):
+    """El otro lado del ajuste: el texto roto sí se juzga página a página."""
+    monkeypatch.setattr(pdf, "lineas_del_documento", lambda _: paginas_mixtas())
+    pedidas = ocr_de_prueba(monkeypatch)
+
+    pdf.extraer(pdf_minimo, fenomeno=1)
+
+    assert len(pedidas) == 1
+
+
+def test_no_se_reemplaza_texto_nativo_por_un_ocr_mas_pobre(pdf_minimo, monkeypatch):
+    """Caso real, página 64 de `F1-AIINDEX-014`: texto chino perfectamente
+    legible conviviendo con las etiquetas rotadas de un gráfico, que salen
+    letra a letra y disparan el criterio de ilegibilidad. El diagnóstico es
+    correcto —parte de esa página no se puede leer— pero el OCR solo devuelve
+    los porcentajes del gráfico: 605 caracteres de contenido se convertirían en
+    85 de ruido. Detectar que una página está rota no basta; hay que comprobar
+    que el reconocimiento mejora lo que había."""
+    chino = "第一章：研究与开发 1.3标志性人工智能模型 重点: 模型训练会面临数据枯竭 事实准确性 资料来源"
+    etiquetas = " ".join("C S C S T A T A t F I T M F F R S T P")
+    monkeypatch.setattr(
+        pdf,
+        "lineas_del_documento",
+        lambda _: [
+            [linea_ilegible(f"{chino} {etiquetas}")],
+            [linea_ilegible("Página legible con texto corriente del informe anual publicado.")],
+        ],
+    )
+    ocr_de_prueba(monkeypatch, texto="100% 89.50% 80% 75.40%")
+
+    documento = pdf.extraer(pdf_minimo, fenomeno=1)
+    textos = [b.texto for b in documento.bloques if b]
+
+    assert any("第一章" in t for t in textos), "el texto chino no puede perderse"
+    assert not any("89.50%" in t for t in textos)
+    assert documento.meta.get("paginas_ocr") is None
+
+
+def test_el_ocr_si_reemplaza_una_pagina_que_solo_tiene_cid(pdf_minimo, monkeypatch):
+    """El contrapunto: el CID abulta mucho en caracteres —nueve por letra— pero
+    no es contenido. Comparar longitudes en bruto dejaría sin reconocer justo
+    las páginas que más lo necesitan."""
+    monkeypatch.setattr(
+        pdf,
+        "lineas_del_documento",
+        lambda _: [
+            [linea_ilegible("(cid:47)(cid:76)(cid:86)(cid:87)(cid:3)(cid:82)(cid:73)" * 20)],
+            [linea_ilegible("Página legible con texto corriente del informe anual publicado.")],
+        ],
+    )
+    ocr_de_prueba(monkeypatch, texto="List of Images and Tables")
+
+    documento = pdf.extraer(pdf_minimo, fenomeno=1)
+    textos = [b.texto for b in documento.bloques if b]
+
+    assert any("List of Images" in t for t in textos)
+    assert not any("(cid:" in t for t in textos)
+
+
+def test_si_el_ocr_esta_pero_no_mejora_no_se_reporta_que_falta(pdf_minimo, monkeypatch):
+    """Que no se reconociera ninguna página tiene dos causas muy distintas: que
+    falte Tesseract, o que el OCR no mejorara lo que ya había. Confundirlas
+    llena el reporte de corrida con 40 documentos mandando a instalar algo que
+    ya está instalado, y esconde el estado real del corpus."""
+    chino = "第一章：研究与开发 1.3标志性人工智能模型 重点: 模型训练会面临数据枯竭 事实准确性 资料来源"
+    etiquetas = " ".join("C S C S T A T A t F I T M F F R S T P")
+    monkeypatch.setattr(
+        pdf,
+        "lineas_del_documento",
+        lambda _: [
+            [linea_ilegible(f"{chino} {etiquetas}")],
+            [linea_ilegible("Página legible con texto corriente del informe anual publicado.")],
+        ],
+    )
+    ocr_de_prueba(monkeypatch, texto="100%")  # menos contenido que el nativo
+
+    documento = pdf.extraer(pdf_minimo, fenomeno=1)
+
+    assert not any("sin OCR disponible" in e for e in documento.errores)
+    assert documento.meta["paginas_sin_recuperar"] == [1]
+
+
+def test_sin_tesseract_las_paginas_ilegibles_se_registran(pdf_minimo, monkeypatch):
+    """Sin OCR no se puede arreglar, pero sí dejar constancia para una corrida
+    posterior en vez de indexar la basura en silencio."""
+    monkeypatch.setattr(pdf, "lineas_del_documento", lambda _: paginas_mixtas())
+    monkeypatch.setattr(pdf.ocr, "hay_ocr", lambda: False)
+
+    documento = pdf.extraer(pdf_minimo, fenomeno=1)
+
+    assert documento.meta["requiere_ocr"] is True
+    assert any("ocr" in e.lower() for e in documento.errores)
+
+
+def test_un_documento_sin_lineas_no_es_ilegible_sino_escaneado():
+    """Sin texto no hay nada que juzgar: de eso se ocupa _parece_escaneado."""
+    assert pdf._texto_ilegible([[], []]) is False
+
+
 def test_las_palabras_de_una_pagina_no_sobreviven_a_la_pagina(pdf_minimo):
     """Materializar todas las páginas antes de procesar agota la memoria.
 

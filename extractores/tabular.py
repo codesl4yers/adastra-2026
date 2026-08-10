@@ -33,6 +33,7 @@ from __future__ import annotations
 import csv
 import datetime
 import io
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -59,6 +60,46 @@ MAXIMO_FILAS = 5000
 # Muestra que se le pasa al Sniffer. Con más no acierta más y con archivos de
 # 1 MB leerlo entero para adivinar una coma es tiempo tirado.
 MUESTRA_SNIFFER = 8192
+
+
+@dataclass(frozen=True)
+class EsquemaTabular:
+    """Qué columnas de un export conocido merecen entrar al vector.
+
+    Se identifica por la **cabecera**, no por el nombre del archivo: el nombre
+    cambia entre descargas y la cabecera es el export en sí. La firma es un
+    subconjunto requerido para tolerar la columna de índice sin nombre que
+    algunos exports traen y otros no.
+    """
+
+    nombre: str
+    firma: frozenset[str]
+    indexables: tuple[str, ...]
+    """En el orden en que se emiten. El resto de columnas va a metadata."""
+
+
+# Los exports bibliográficos son el caso extremo del corpus: 264.264 filas
+# entre siete archivos, y en cada una más de la mitad del texto son
+# identificadores —PMID, DOI, PMCID, NIHMS ID— que no aportan al embedding y
+# diluyen el título, que es lo único que se puede recuperar por semejanza.
+# Se declaran a mano y no se infieren: §4.2 exige determinismo, y una heurística
+# que decida "esto parece un identificador" falla en silencio con un export
+# nuevo. Una cabecera que no case con ningún esquema se indexa entera, como
+# siempre.
+ESQUEMAS: tuple[EsquemaTabular, ...] = (
+    EsquemaTabular(
+        nombre="pubmed",
+        firma=frozenset(
+            {"PMID", "Title", "Authors", "Citation", "Journal/Book", "Publication Year"}
+        ),
+        indexables=("Title", "Authors", "Journal/Book", "Publication Year"),
+    ),
+    EsquemaTabular(
+        nombre="litcovid",
+        firma=frozenset({"pmid", "title", "journal"}),
+        indexables=("title", "journal"),
+    ),
+)
 
 
 def extraer(path: Path, fenomeno: int) -> Documento:
@@ -97,15 +138,21 @@ def _extraer_csv(path: Path, fenomeno: int) -> Documento:
     cabecera = [normalizar_texto(celda) for celda in filas[0]] if filas else []
 
     jerarquia = Jerarquia()
-    textos, truncadas = _textos_de_filas(filas[1:], cabecera)
-    bloques: list[Bloque | None] = [jerarquia.fila(texto) for texto in textos]
+    esquema = esquema_de(cabecera)
+    registros, truncadas = _textos_de_filas(filas[1:], cabecera, esquema=esquema)
+    bloques: list[Bloque | None] = [
+        jerarquia.fila(texto, datos=datos) for texto, datos in registros
+    ]
 
     meta: dict[str, Any] = {
         "columnas": cabecera,
         "delimitador": delimitador,
         "codificacion": codificacion,
-        "n_filas": len(textos),
+        "n_filas": len(registros),
     }
+    if esquema is not None:
+        meta["esquema"] = esquema.nombre
+        meta["columnas_indexadas"] = list(esquema.indexables)
     return _documento(path, "csv", fenomeno, bloques, meta, truncadas)
 
 
@@ -155,6 +202,7 @@ def _extraer_xlsx(path: Path, fenomeno: int) -> Documento:
         jerarquia = Jerarquia()
         bloques: list[Bloque | None] = []
         columnas: dict[str, list[str]] = {}
+        esquemas: dict[str, str] = {}
         truncadas = 0
         restantes = MAXIMO_FILAS
 
@@ -167,18 +215,23 @@ def _extraer_xlsx(path: Path, fenomeno: int) -> Documento:
                 continue
 
             cabecera = [normalizar_texto(celda) for celda in filas[0]]
-            textos, sobrantes = _textos_de_filas(filas[1:], cabecera, tope=restantes)
+            esquema = esquema_de(cabecera)
+            registros, sobrantes = _textos_de_filas(
+                filas[1:], cabecera, tope=restantes, esquema=esquema
+            )
             truncadas += sobrantes
-            if not textos:
+            if not registros:
                 continue
 
             # El título de la hoja se emite solo si tiene filas debajo, y antes
             # que ellas: una hoja vacía dejaría un bloque que solo dice "Datos",
             # y emitirlo después dejaría a las filas fuera de su propia sección.
             columnas[nombre] = cabecera
+            if esquema is not None:
+                esquemas[nombre] = esquema.nombre
             bloques.append(jerarquia.titulo(nombre, 1))
-            bloques.extend(jerarquia.fila(texto) for texto in textos)
-            restantes -= len(textos)
+            bloques.extend(jerarquia.fila(texto, datos=datos) for texto, datos in registros)
+            restantes -= len(registros)
     finally:
         libro.close()
 
@@ -187,6 +240,8 @@ def _extraer_xlsx(path: Path, fenomeno: int) -> Documento:
         "hojas": list(columnas),
         "n_filas": sum(1 for bloque in bloques if bloque is not None and bloque.tipo == "fila"),
     }
+    if esquemas:
+        meta["esquema"] = esquemas
     return _documento(path, "xlsx", fenomeno, bloques, meta, truncadas)
 
 
@@ -210,29 +265,72 @@ def _celda(valor: Any) -> str:
 # --- común ----------------------------------------------------------------------
 
 
+def esquema_de(cabecera: list[str]) -> EsquemaTabular | None:
+    """El esquema declarado que reconoce esta cabecera, o ``None``.
+
+    Se compara contra las columnas con nombre: la columna de índice sin
+    cabecera que exporta pandas está en cuatro de los cinco CSV de PubMed y
+    ausente en el quinto, y no debería partir el esquema en dos.
+    """
+    presentes = {normalizar_texto(str(columna)) for columna in cabecera}
+    for esquema in ESQUEMAS:
+        if esquema.firma <= presentes:
+            return esquema
+    return None
+
+
 def _textos_de_filas(
-    filas: list[list[str]], cabecera: list[str], tope: int = MAXIMO_FILAS
-) -> tuple[list[str], int]:
+    filas: list[list[str]],
+    cabecera: list[str],
+    tope: int = MAXIMO_FILAS,
+    esquema: EsquemaTabular | None = None,
+) -> tuple[list[tuple[str, dict[str, str]]], int]:
     """Serializa las filas con contenido. Devuelve también cuántas se dejaron fuera.
 
-    Serializar antes de construir bloques no es un rodeo: en XLSX hay que saber
-    si una hoja tiene filas **antes** de emitir su título, o el título se emite
-    igualmente y las filas acaban con un breadcrumb que no coincide con la pila
-    de encabezados.
+    Cada fila sale como ``(texto, descartados)``: lo que se indexa y lo que el
+    esquema apartó. Serializar antes de construir bloques no es un rodeo: en
+    XLSX hay que saber si una hoja tiene filas **antes** de emitir su título, o
+    el título se emite igualmente y las filas acaban con un breadcrumb que no
+    coincide con la pila de encabezados.
     """
-    textos: list[str] = []
+    registros: list[tuple[str, dict[str, str]]] = []
     truncadas = 0
 
     for fila in filas:
-        texto = serializar_registro(_pares(cabecera, fila))
+        indexables, descartados = _repartir(list(_pares(cabecera, fila)), esquema)
+        texto = serializar_registro(indexables)
         if not texto:
             continue
-        if len(textos) >= tope:
+        if len(registros) >= tope:
             truncadas += 1
             continue
-        textos.append(texto)
+        registros.append((texto, descartados))
 
-    return textos, truncadas
+    return registros, truncadas
+
+
+def _repartir(
+    pares: list[tuple[str, str]], esquema: EsquemaTabular | None
+) -> tuple[list[tuple[str, str]], dict[str, str]]:
+    """Separa los pares en los que van al vector y los que van a metadata.
+
+    Sin esquema declarado no se descarta nada: una cabecera que nadie reconoce
+    se indexa entera, que es el comportamiento que había antes de que
+    existieran los esquemas.
+    """
+    if esquema is None:
+        return pares, {}
+
+    valores = dict(pares)
+    indexables = [
+        (columna, valores[columna]) for columna in esquema.indexables if columna in valores
+    ]
+    descartados = {
+        columna: valor
+        for columna, valor in pares
+        if columna not in esquema.indexables and normalizar_texto(str(valor))
+    }
+    return indexables, descartados
 
 
 def _pares(cabecera: list[str], fila: list[str]):

@@ -246,3 +246,19 @@ def test_reconstruye_un_documento_sin_bloques():
 def test_un_dict_sin_los_campos_del_contrato_lanza_value_error():
     with pytest.raises(ValueError, match="campos"):
         documento_desde_dict({"doc_id": "x", "fuente": "y.pdf"})
+
+
+def test_datos_del_bloque_deben_ser_texto():
+    """Un valor no textual en datos llega tal cual a metadata.jsonl."""
+    fila = Bloque("pais: Colombia", "fila", None, [], None, True, {"PMID": 11204229})
+
+    violaciones = validar_documento(documento_minimo(bloques=[fila]))
+
+    assert any("datos" in v for v in violaciones)
+
+
+def test_un_bloque_sin_datos_es_valido():
+    """El campo es opcional: en un PDF no hay nada que apartar del texto."""
+    fila = Bloque("pais: Colombia", "fila", None, [], None, True)
+
+    assert validar_documento(documento_minimo(bloques=[fila])) == []

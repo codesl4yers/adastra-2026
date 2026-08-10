@@ -209,3 +209,63 @@ def test_un_dataset_enorme_se_trunca_y_lo_registra(tmp_path):
     assert len(documento.bloques) == tabular.MAXIMO_FILAS
     assert documento.meta["filas_truncadas"] == 50
     assert documento.errores != []
+
+
+# --- lista blanca de campos indexables ------------------------------------------
+
+CABECERA_PUBMED = [
+    "", "PMID", "Title", "Authors", "Citation", "First Author",
+    "Journal/Book", "Publication Year", "Create Date", "PMCID", "NIHMS ID", "DOI",
+]
+FILA_PUBMED = [
+    "0", "11204229",
+    "Artificial neural networks in liquid chromatography",
+    "Loukas YL.", "J Chromatogr A. 2000 Dec 29;904(2):119-29.", "Loukas YL",
+    "J Chromatogr A", "2000", "2001/02/24", "PMC123", "NIHMS456",
+    "10.1016/s0021-9673(00)00923-7",
+]
+
+
+def test_los_identificadores_no_entran_al_texto_del_vector(tmp_path):
+    """PMID, DOI y compañía diluyen el título sin aportar nada recuperable."""
+    ruta = escribir_csv(tmp_path, cabecera=CABECERA_PUBMED, filas=[FILA_PUBMED])
+
+    documento = tabular.extraer(ruta, fenomeno=1)
+
+    assert documento.bloques[0].texto == (
+        "Title: Artificial neural networks in liquid chromatography | "
+        "Authors: Loukas YL. | Journal/Book: J Chromatogr A | Publication Year: 2000"
+    )
+
+
+def test_los_identificadores_descartados_siguen_accesibles(tmp_path):
+    """Salen del vector, no del corpus: §3.4 admite campos extra de metadata."""
+    ruta = escribir_csv(tmp_path, cabecera=CABECERA_PUBMED, filas=[FILA_PUBMED])
+
+    documento = tabular.extraer(ruta, fenomeno=1)
+
+    assert documento.bloques[0].datos["PMID"] == "11204229"
+    assert documento.bloques[0].datos["DOI"] == "10.1016/s0021-9673(00)00923-7"
+
+
+def test_una_cabecera_desconocida_se_indexa_entera(tmp_path):
+    """Sin esquema declarado no se descarta nada: fallar en silencio sería peor."""
+    documento = tabular.extraer(escribir_csv(tmp_path), fenomeno=3)
+
+    assert documento.bloques[0].datos == {}
+    assert "pais: Colombia" in documento.bloques[0].texto
+
+
+def test_el_export_de_litcovid_tambien_aparta_su_identificador(tmp_path):
+    ruta = escribir_csv(
+        tmp_path,
+        cabecera=["pmid", "title", "journal"],
+        filas=[["32634855", "Clinical observations in the very elderly", "Geriatr Gerontol Int"]],
+    )
+
+    documento = tabular.extraer(ruta, fenomeno=1)
+
+    assert documento.bloques[0].texto == (
+        "title: Clinical observations in the very elderly | journal: Geriatr Gerontol Int"
+    )
+    assert documento.bloques[0].datos == {"pmid": "32634855"}

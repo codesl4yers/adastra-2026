@@ -573,6 +573,24 @@ def test_el_reporte_lista_los_archivos_sin_extractor(tmp_path):
     assert [d.fuente for d in documentos] == ["pagina.txt"]
 
 
+def test_los_archivos_de_sistema_no_se_reportan_como_formato_sin_extractor(tmp_path):
+    """El corpus de ADL viene de un Mac y trae un `.DS_Store` por carpeta: nueve
+    en total. No son documentos que falte soportar, son metadatos del Finder, y
+    listarlos junto a los formatos sin extractor esconde los que sí importan."""
+    entrada = tmp_path / "entrada"
+    (entrada / "sub").mkdir(parents=True)
+    (entrada / "pagina.txt").write_text("Hola", "utf-8")
+    (entrada / ".DS_Store").write_bytes(b"\x00\x00\x00\x01Bud1")
+    (entrada / "sub" / ".DS_Store").write_bytes(b"\x00\x00\x00\x01Bud1")
+    (entrada / "Thumbs.db").write_bytes(b"basura de miniaturas")
+    (entrada / "presentacion.docx").write_bytes(b"PK\x03\x04 falso")
+
+    documentos, reporte = procesar_corpus(entrada, tmp_path / "salida")
+
+    assert reporte.sin_extractor == ["presentacion.docx"]
+    assert [d.fuente for d in documentos] == ["pagina.txt"]
+
+
 def test_el_reporte_lista_las_entradas_huerfanas_del_indice(tmp_path, indice_minimo):
     entrada = tmp_path / "entrada"
     entrada.mkdir()
