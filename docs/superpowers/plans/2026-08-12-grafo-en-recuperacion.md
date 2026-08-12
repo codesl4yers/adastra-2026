@@ -20,7 +20,7 @@ arrastrada por `generador_grafo.py`.
 **Spec:** `docs/superpowers/specs/2026-08-12-grafo-en-recuperacion-design.md`
 
 **Depende de:** `2026-08-12-evaluador-y-top-k.md`, que debe estar completo. Sin
-`scripts/evaluar.py` no hay forma de decidir si estos flags se quedan encendidos,
+`auxiliar/scripts/evaluar.py` no hay forma de decidir si estos flags se quedan encendidos,
 y encenderlos sin medir es exactamente lo que este plan evita.
 
 ## Restricciones globales
@@ -45,53 +45,44 @@ y encenderlos sin medir es exactamente lo que este plan evita.
 
 | Archivo | Responsabilidad | Acción |
 |---|---|---|
-| `generador_grafo.py` | NER, gazetteer y grafo (del compañero) | mover de `entrega/`, sin tocar |
+| `generador_grafo.py` | NER, gazetteer y grafo (del compañero) | ya en la raíz, no se toca |
 | `generador.py` | expansión, reordenamiento y sus flags | modificar |
-| `requirements.txt` | `networkx` | modificar |
-| `tests/test_grafo_en_recuperacion.py` | pruebas de las dos piezas | crear |
+| `requirements.txt` | `networkx` | ya incluido |
+| `auxiliar/tests/test_grafo_en_recuperacion.py` | pruebas de las dos piezas | crear |
 | `docs/decisiones/grafo-en-la-recuperacion.md` | la decisión y sus números | crear |
 
 ---
 
-## Tarea 1: subir `generador_grafo.py` a la raíz
+## Tarea 1: prueba de humo del componente del grafo
+
+> **Los pasos de movimiento de esta tarea ya están hechos.** La reorganización
+> del repositorio (commits `aaedc58` y `6fa5959`) subió `generador_grafo.py` a
+> la raíz y dejó `requirements.txt` con `networkx>=3.0,<4`, porque el
+> `requirements.txt` de `entrega/` era superconjunto del de la raíz. Ya no
+> existe `entrega/`: la raíz **es** el entregable.
+>
+> Queda solo la prueba de humo, que sigue haciendo falta: nada en la suite
+> comprueba hoy que el componente se importe ni que el gazetteer cargue.
 
 **Archivos:**
-- Mover: `entrega/generador_grafo.py` → `generador_grafo.py`
-- Modificar: `requirements.txt`
-- Prueba: `tests/test_grafo_en_recuperacion.py` (crear)
+- Prueba: `auxiliar/tests/test_grafo_en_recuperacion.py` (crear)
 
 **Interfaces:**
 - Consume: nada.
 - Produce: `generador_grafo` importable desde la raíz, con `extraer_entidades`,
   `GAZETTEER` y `Entidad`. Todas las tareas siguientes dependen de ello.
 
-- [ ] **Paso 1: mover el archivo**
+- [ ] **Paso 1: comprobar que `networkx` está instalado**
 
 ```bash
-git mv entrega/generador_grafo.py generador_grafo.py
+python -c "import networkx; print(networkx.__version__)"
 ```
 
-Si `git mv` falla porque el archivo no está versionado, `mv` normal. **No se
-edita ni una línea del contenido.**
+Si falla: `pip install "networkx>=3.0,<4"`. Ya está en `requirements.txt`.
 
-- [ ] **Paso 2: añadir NetworkX a requirements**
+- [ ] **Paso 2: escribir la prueba de humo**
 
-En `requirements.txt` de la raíz, junto al resto de dependencias:
-
-```
-networkx>=3.0,<4
-```
-
-Y la misma línea en `pyproject.toml`, dentro de `dependencies`, para que las dos
-listas no se contradigan:
-
-```python
-    "networkx>=3.0,<4",
-```
-
-- [ ] **Paso 3: escribir la prueba de humo**
-
-`tests/test_grafo_en_recuperacion.py`, archivo nuevo:
+`auxiliar/tests/test_grafo_en_recuperacion.py`, archivo nuevo:
 
 ```python
 """Pruebas de la entrada del grafo de conocimiento en la recuperación.
@@ -108,7 +99,7 @@ from generador import Candidato
 
 
 def test_el_componente_del_grafo_se_importa_desde_la_raiz():
-    """Vive en la raíz como fuente; entrega/ es la copia, como el resto."""
+    """Vive en la raíz: es parte del entregable, no una herramienta."""
     from generador_grafo import GAZETTEER, extraer_entidades
 
     assert len(GAZETTEER) > 100
@@ -127,30 +118,19 @@ def test_el_gazetteer_unifica_una_entidad_entre_idiomas():
     assert "artificial intelligence" in GAZETTEER["inteligencia artificial"][1]
 ```
 
-- [ ] **Paso 4: correr las pruebas**
+- [ ] **Paso 3: correr las pruebas**
 
 ```bash
-python -m pytest tests/test_grafo_en_recuperacion.py -v
+python -m pytest auxiliar/tests/test_grafo_en_recuperacion.py -v
 ```
 
-Esperado: 2 passed. Si falla con `ModuleNotFoundError: networkx`, instalar:
-`pip install "networkx>=3.0,<4"`.
+Esperado: 2 passed.
 
-- [ ] **Paso 5: comprobar que la copia de entrega sigue en pie**
-
-```bash
-ls entrega/generador_grafo.py 2>/dev/null || echo "falta la copia en entrega/"
-```
-
-Esperado: `falta la copia en entrega/`. Es correcto por ahora — la copia la
-repone `scripts/preparar_entrega.py` al preparar el entregable. Anotar que ese
-script tendrá que incluir `generador_grafo.py` en su lista.
-
-- [ ] **Paso 6: commit** *(condicional)*
+- [ ] **Paso 4: commit** *(condicional)*
 
 ```bash
-git add generador_grafo.py requirements.txt pyproject.toml tests/test_grafo_en_recuperacion.py
-git commit -m "chore: generador_grafo.py pasa a la raíz como fuente"
+git add auxiliar/tests/test_grafo_en_recuperacion.py
+git commit -m "test: prueba de humo del componente de grafo"
 ```
 
 ---
@@ -159,7 +139,7 @@ git commit -m "chore: generador_grafo.py pasa a la raíz como fuente"
 
 **Archivos:**
 - Modificar: `generador.py` (junto a `_codificar_consultas`, línea 478)
-- Prueba: `tests/test_grafo_en_recuperacion.py`
+- Prueba: `auxiliar/tests/test_grafo_en_recuperacion.py`
 
 **Interfaces:**
 - Consume: `generador_grafo` de la tarea 1.
@@ -169,7 +149,7 @@ git commit -m "chore: generador_grafo.py pasa a la raíz como fuente"
 
 - [ ] **Paso 1: escribir las pruebas que fallan**
 
-Añadir a `tests/test_grafo_en_recuperacion.py`. El doble del reconocedor imita lo
+Añadir a `auxiliar/tests/test_grafo_en_recuperacion.py`. El doble del reconocedor imita lo
 justo de la dataclass `Entidad`: `nombre` y `origen`.
 
 ```python
@@ -268,7 +248,7 @@ Añadir `expandir_consulta` al import de `generador`.
 - [ ] **Paso 2: correr y verificar que fallan**
 
 ```bash
-python -m pytest tests/test_grafo_en_recuperacion.py -k expan -v
+python -m pytest auxiliar/tests/test_grafo_en_recuperacion.py -k expan -v
 ```
 
 Esperado: `ImportError: cannot import name 'expandir_consulta'`.
@@ -318,7 +298,7 @@ un `set` lo haría variar entre corridas.
 - [ ] **Paso 4: correr y verificar que pasan**
 
 ```bash
-python -m pytest tests/test_grafo_en_recuperacion.py -v
+python -m pytest auxiliar/tests/test_grafo_en_recuperacion.py -v
 ```
 
 Esperado: 8 passed.
@@ -342,7 +322,7 @@ no está cargando y hay que parar antes de seguir.
 - [ ] **Paso 6: commit** *(condicional)*
 
 ```bash
-git add generador.py tests/test_grafo_en_recuperacion.py
+git add generador.py auxiliar/tests/test_grafo_en_recuperacion.py
 git commit -m "feat: expansión de consulta con el gazetteer multilingüe"
 ```
 
@@ -354,7 +334,7 @@ git commit -m "feat: expansión de consulta con el gazetteer multilingüe"
 - Modificar: `generador.py` — `_codificar_consultas` (478), `responder_consultas`
   (371 y 425), `ReporteConsultas` (356), `_construir_parser` (760), `_responder`
   (852)
-- Prueba: `tests/test_grafo_en_recuperacion.py`
+- Prueba: `auxiliar/tests/test_grafo_en_recuperacion.py`
 
 **Interfaces:**
 - Consume: `expandir_consulta` de la tarea 2.
@@ -416,9 +396,9 @@ def test_la_cli_acepta_la_expansion():
     assert parser.parse_args(["--expandir-consulta"]).expandir_consulta is True
 ```
 
-Estas pruebas necesitan los helpers de `tests/test_generador.py`
+Estas pruebas necesitan los helpers de `auxiliar/tests/test_generador.py`
 (`codificador`, `indice_de_cuatro`, `leer_resultados`, `CONFIG_PRUEBA`). Moverlos
-a `tests/conftest.py` como fixtures compartidas **no** entra aquí: se importan
+a `auxiliar/tests/conftest.py` como fixtures compartidas **no** entra aquí: se importan
 desde el módulo de prueba, que es lo que ya hace `test_generador.py` con
 `conftest.bloque`:
 
@@ -429,7 +409,7 @@ from test_generador import CONFIG_PRUEBA, codificador, indice_de_cuatro, leer_re
 - [ ] **Paso 2: correr y verificar que fallan**
 
 ```bash
-python -m pytest tests/test_grafo_en_recuperacion.py -k "flag or original or expandidas or cli" -v
+python -m pytest auxiliar/tests/test_grafo_en_recuperacion.py -k "flag or original or expandidas or cli" -v
 ```
 
 Esperado: `TypeError: responder_consultas() got an unexpected keyword argument
@@ -531,7 +511,7 @@ prueba existente la llamaba directamente, ajustarla — una búsqueda de
 - [ ] **Paso 7: commit** *(condicional)*
 
 ```bash
-git add generador.py tests/test_grafo_en_recuperacion.py
+git add generador.py auxiliar/tests/test_grafo_en_recuperacion.py
 git commit -m "feat: --expandir-consulta"
 ```
 
@@ -542,7 +522,7 @@ git commit -m "feat: --expandir-consulta"
 **Archivos:**
 - Modificar: `generador.py` — `Candidato` (336), `Recuperado` (345),
   `agregar_por_documento` (526), función nueva junto a ella
-- Prueba: `tests/test_grafo_en_recuperacion.py`
+- Prueba: `auxiliar/tests/test_grafo_en_recuperacion.py`
 
 **Interfaces:**
 - Consume: `Candidato` y `generador_grafo`.
@@ -637,7 +617,7 @@ def test_un_candidato_muy_abajo_con_mucho_solape_remonta():
 - [ ] **Paso 2: correr y verificar que fallan**
 
 ```bash
-python -m pytest tests/test_grafo_en_recuperacion.py -k "solape or reordenar or coseno or remonta" -v
+python -m pytest auxiliar/tests/test_grafo_en_recuperacion.py -k "solape or reordenar or coseno or remonta" -v
 ```
 
 Esperado: `ImportError: cannot import name 'reordenar_por_entidades'`.
@@ -752,7 +732,7 @@ def reordenar_por_entidades(
 - [ ] **Paso 5: correr y verificar que pasan**
 
 ```bash
-python -m pytest tests/test_grafo_en_recuperacion.py -v
+python -m pytest auxiliar/tests/test_grafo_en_recuperacion.py -v
 ```
 
 Esperado: 14 passed.
@@ -760,7 +740,7 @@ Esperado: 14 passed.
 - [ ] **Paso 6: commit** *(condicional)*
 
 ```bash
-git add generador.py tests/test_grafo_en_recuperacion.py
+git add generador.py auxiliar/tests/test_grafo_en_recuperacion.py
 git commit -m "feat: reordenamiento del top-k por solape de entidades (RRF)"
 ```
 
@@ -771,7 +751,7 @@ git commit -m "feat: reordenamiento del top-k por solape de entidades (RRF)"
 **Archivos:**
 - Modificar: `generador.py` — `responder_consultas` (bucle, 437),
   `registro_de_resultado` (557), `ReporteConsultas` (356), parser y `_responder`
-- Prueba: `tests/test_grafo_en_recuperacion.py`
+- Prueba: `auxiliar/tests/test_grafo_en_recuperacion.py`
 
 **Interfaces:**
 - Consume: `reordenar_por_entidades` y `score_denso` de la tarea 4.
@@ -823,7 +803,7 @@ def test_la_cli_acepta_el_reordenamiento():
 - [ ] **Paso 2: correr y verificar que fallan**
 
 ```bash
-python -m pytest tests/test_grafo_en_recuperacion.py -k "identico or coseno_aparte or cli_acepta_el_reor" -v
+python -m pytest auxiliar/tests/test_grafo_en_recuperacion.py -k "identico or coseno_aparte or cli_acepta_el_reor" -v
 ```
 
 Esperado: `TypeError: responder_consultas() got an unexpected keyword argument
@@ -923,7 +903,7 @@ correcto, el esquema cambió—.
 - [ ] **Paso 7: commit** *(condicional)*
 
 ```bash
-git add generador.py tests/test_grafo_en_recuperacion.py
+git add generador.py auxiliar/tests/test_grafo_en_recuperacion.py
 git commit -m "feat: --reordenar-entidades"
 ```
 
@@ -941,7 +921,7 @@ encoder más que para eso mismo. **Ninguna reconstruye el índice.**
 - [ ] **Paso 1: correr las cuatro combinaciones**
 
 ```bash
-BASE="python generador.py --indice indice --consultas base_documental/Extracto_Preguntas_50_v2.pdf --top-fragmentos 10"
+BASE="python generador.py --indice base_vectorial/encoder_granite-embedding-311m-multilingual-r2 --consultas base_documental/Extracto_Preguntas_50_v2.pdf --top-fragmentos 10"
 
 $BASE --resultados /tmp/base.jsonl
 $BASE --resultados /tmp/expansion.jsonl  --expandir-consulta
@@ -956,7 +936,7 @@ En Windows, usar el directorio de trabajo temporal en lugar de `/tmp`.
 ```bash
 for r in base expansion reorden ambas; do
   echo "== $r"
-  python scripts/evaluar.py --resultados /tmp/$r.jsonl --ground ground/ground_truth.json
+  python auxiliar/scripts/evaluar.py --resultados /tmp/$r.jsonl --ground auxiliar/ground/ground_truth.json
 done
 ```
 
@@ -971,28 +951,28 @@ resultado, y se escribe igual.
 - [ ] **Paso 4: dejar el entregable con la combinación ganadora**
 
 ```bash
-python generador.py --indice indice \
+python generador.py --indice base_vectorial/encoder_granite-embedding-311m-multilingual-r2 \
     --consultas base_documental/Extracto_Preguntas_50_v2.pdf \
-    --resultados entrega/resultados.jsonl \
+    --resultados resultados.jsonl \
     --top-fragmentos 10 <flags ganadores>
 ```
 
 - [ ] **Paso 5: verificar el piso**
 
 ```bash
-python scripts/evaluar.py --resultados entrega/resultados.jsonl \
-    --ground ground/ground_truth.json
+python auxiliar/scripts/evaluar.py --resultados resultados.jsonl \
+    --ground auxiliar/ground/ground_truth.json
 ```
 
 Esperado: los mismos números que la corrida ganadora del paso 2.
 
 ---
 
-## Tarea 7: la bitácora y la sincronización de `entrega/`
+## Tarea 7: la bitácora
 
 **Archivos:**
 - Crear: `docs/decisiones/grafo-en-la-recuperacion.md`
-- Modificar: `README.md`, `scripts/preparar_entrega.py`
+- Modificar: `README.md`, `auxiliar/scripts/preparar_entrega.py`
 
 - [ ] **Paso 1: escribir el doc de decisión**
 
@@ -1003,39 +983,21 @@ qué RRF y no un peso calibrado; el problema del score de §5.1 del spec y cómo
 resolvió; el riesgo de homogeneización (26 expansiones distintas sobre 50); y
 **la tabla de las cuatro corridas**, incluida la combinación descartada.
 
-- [ ] **Paso 2: añadir `generador_grafo.py` a la preparación de la entrega**
-
-En `scripts/preparar_entrega.py`, incluir `generador_grafo.py` en la lista de
-módulos que se copian a `entrega/`, junto a `contrato.py` y los demás.
-
-- [ ] **Paso 3: resincronizar `entrega/`**
-
-Los seis módulos copiados están desincronizados con la raíz desde la poda de
-comentarios. Correr la preparación y comprobar:
-
-```bash
-for f in contrato.py encoder.py fragmentador.py generador.py limpieza.py segmentador.py generador_grafo.py; do
-  diff -q "$f" "entrega/$f" >/dev/null 2>&1 && echo "OK       $f" || echo "DISTINTO $f"
-done
-```
-
-Esperado: siete `OK`.
-
-- [ ] **Paso 4: actualizar el README**
+- [ ] **Paso 2: actualizar el README**
 
 Las dos opciones nuevas en la tabla de `generador.py`, el grafo en la sección de
 estructura, y `grafo-en-la-recuperacion.md` en la tabla de «Dónde está el porqué».
 
-- [ ] **Paso 5: correr la suite completa**
+- [ ] **Paso 3: correr la suite completa**
 
 ```bash
 python -m pytest
 ```
 
-- [ ] **Paso 6: commit** *(condicional)*
+- [ ] **Paso 4: commit** *(condicional)*
 
 ```bash
-git add README.md docs/ scripts/preparar_entrega.py entrega/
+git add README.md docs/
 git commit -m "docs: el grafo en la recuperación, con sus números"
 ```
 
@@ -1073,5 +1035,5 @@ firma en las siguientes.
 2. La tarea 5 añade `score_denso` a todos los documentos del entregable, también
    cuando vale `null`. Cualquier prueba que compare un documento completo como
    dict fallará, y debe actualizarse: el esquema cambió a propósito.
-3. La tarea 1 deja `entrega/generador_grafo.py` inexistente hasta la tarea 7. Si
+3. La tarea 1 deja `generador_grafo.py` inexistente hasta la tarea 7. Si
    hubiera que entregar entre medias, falta ese archivo.

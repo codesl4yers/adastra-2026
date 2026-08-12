@@ -41,8 +41,8 @@ Entra:
 
 - `expandir_consulta`, tras `--expandir-consulta`.
 - `reordenar_por_entidades` con fusión RRF, tras `--reordenar-entidades`.
-- `generador_grafo.py` sube a la raíz; `entrega/` pasa a ser copia.
-- `networkx` entra en el `requirements.txt` de la raíz.
+- `generador_grafo.py` en la raíz y `networkx` en `requirements.txt`: **ya hecho**
+  por la reorganización del repositorio.
 
 **No entra la expansión por vecindario del GraphML.** Son 100.171 aristas sobre
 24.893 nodos y el 84 % son `relacionado_con`, así que el vecindario de una
@@ -54,10 +54,9 @@ conocimiento.
 
 ## 3. Dónde vive el código
 
-`generador_grafo.py` pasa a la raíz como fuente, y `entrega/` lo recibe como
-copia igual que `contrato.py`, `encoder.py` y los demás. La alternativa —que la
-raíz importe desde `entrega/` manipulando `sys.path`— invierte la dirección de
-dependencia de todo el repo.
+`generador_grafo.py` vive en la raíz, junto al resto del pipeline entregable.
+Las herramientas que lo construyen están en `auxiliar/`, y la dirección de
+dependencia va siempre de `auxiliar/` hacia la raíz, nunca al revés.
 
 El archivo **no se modifica**: se usa como biblioteca. Importa `networkx` a nivel
 de módulo aunque el NER no lo necesite, así que `networkx>=3.0,<4` (BSD-3-Clause)
@@ -180,7 +179,7 @@ denso no cambiaría cuáles son los diez.
 ## 6. Cómo se decide si se queda
 
 Las dos piezas van tras flags apagables **para poder medir las cuatro
-combinaciones** con `scripts/evaluar.py` y quedarse con la que gane:
+combinaciones** con `auxiliar/scripts/evaluar.py` y quedarse con la que gane:
 
 | Corrida | Flags |
 |---|---|

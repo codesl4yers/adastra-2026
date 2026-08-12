@@ -10,7 +10,7 @@ emitir el top-10 de fragmentos que NDCG@10 necesita para no tener techo.
 
 **Arquitectura:** dos piezas independientes. `generador.py` gana una función pura
 de corte (`mejores_fragmentos`) y un campo `fragmentos[]` en cada línea del
-entregable, sin tocar `documentos[]`. `scripts/evaluar.py` es un script puro que
+entregable, sin tocar `documentos[]`. `auxiliar/scripts/evaluar.py` es un script puro que
 lee `resultados.jsonl` y `ground_truth.json` y no importa ni torch ni faiss.
 
 **Stack:** Python 3.11+, pytest, biblioteca estándar. El evaluador no añade
@@ -43,13 +43,13 @@ dependencias.
 | Archivo | Responsabilidad | Acción |
 |---|---|---|
 | `generador.py` | corte del top-k y campo `fragmentos[]` | modificar |
-| `scripts/evaluar.py` | métricas contra el ground truth | crear |
-| `tests/test_generador.py` | pruebas del corte y del registro | modificar |
-| `tests/test_evaluar.py` | pruebas de F1, NDCG, techo y validaciones | crear |
+| `auxiliar/scripts/evaluar.py` | métricas contra el ground truth | crear |
+| `auxiliar/tests/test_generador.py` | pruebas del corte y del registro | modificar |
+| `auxiliar/tests/test_evaluar.py` | pruebas de F1, NDCG, techo y validaciones | crear |
 | `docs/decisiones/recuperacion-y-entregable.md` | §7 y §10 nuevos | modificar |
 | `README.md` | CLI nueva, evaluador, ficha técnica | modificar |
 
-`scripts/preparar_entrega.py` **no se toca**: copia `resultados.jsonl` tal cual y
+`auxiliar/scripts/preparar_entrega.py` **no se toca**: copia `resultados.jsonl` tal cual y
 cuenta líneas, así que el campo nuevo le es transparente (comprobado).
 
 ---
@@ -59,7 +59,7 @@ cuenta líneas, así que el campo nuevo le es transparente (comprobado).
 **Archivos:**
 - Modificar: `generador.py` (constante junto a `TOP_DOCUMENTOS`, línea 65; función
   junto a `agregar_por_documento`, línea 526)
-- Prueba: `tests/test_generador.py` (sección «consultas: agregación y
+- Prueba: `auxiliar/tests/test_generador.py` (sección «consultas: agregación y
   post-filtros», tras `test_el_duplicado_que_sobrevive_es_el_de_mejor_score`)
 
 **Interfaces:**
@@ -70,7 +70,7 @@ cuenta líneas, así que el campo nuevo le es transparente (comprobado).
 
 - [ ] **Paso 1: escribir las pruebas que fallan**
 
-En `tests/test_generador.py`, tras
+En `auxiliar/tests/test_generador.py`, tras
 `test_el_duplicado_que_sobrevive_es_el_de_mejor_score`. El helper `candidato(...)`
 ya existe en el archivo (línea 686) y se reutiliza tal cual:
 
@@ -107,7 +107,7 @@ en orden alfabético.
 - [ ] **Paso 2: correr las pruebas y verificar que fallan**
 
 ```bash
-python -m pytest tests/test_generador.py -k mejores_fragmentos -v
+python -m pytest auxiliar/tests/test_generador.py -k mejores_fragmentos -v
 ```
 
 Esperado: `ImportError: cannot import name 'mejores_fragmentos' from 'generador'`.
@@ -141,7 +141,7 @@ def mejores_fragmentos(candidatos: list[Candidato], top: int) -> list[Candidato]
 - [ ] **Paso 4: correr las pruebas y verificar que pasan**
 
 ```bash
-python -m pytest tests/test_generador.py -k mejores_fragmentos -v
+python -m pytest auxiliar/tests/test_generador.py -k mejores_fragmentos -v
 ```
 
 Esperado: 4 passed.
@@ -149,7 +149,7 @@ Esperado: 4 passed.
 - [ ] **Paso 5: commit** *(solo si el usuario lo pidió; ver restricciones)*
 
 ```bash
-git add generador.py tests/test_generador.py
+git add generador.py auxiliar/tests/test_generador.py
 git commit -m "feat: corte del top-k de fragmentos para NDCG@10"
 ```
 
@@ -160,7 +160,7 @@ git commit -m "feat: corte del top-k de fragmentos para NDCG@10"
 **Archivos:**
 - Modificar: `generador.py` — `registro_de_resultado` (línea 557) y
   `responder_consultas` (línea 371, bucle de consultas en 437-465)
-- Prueba: `tests/test_generador.py` (sección «consultas: el entregable», tras
+- Prueba: `auxiliar/tests/test_generador.py` (sección «consultas: el entregable», tras
   `test_el_entregable_no_da_mas_documentos_de_los_pedidos`, línea 591)
 
 **Interfaces:**
@@ -236,7 +236,7 @@ def test_el_top_de_documentos_no_cambia_por_emitir_fragmentos(indice_de_cuatro, 
 - [ ] **Paso 2: correr las pruebas y verificar que fallan**
 
 ```bash
-python -m pytest tests/test_generador.py -k "fragmentos and entregable or chunk_id or ordenados_por_score" -v
+python -m pytest auxiliar/tests/test_generador.py -k "fragmentos and entregable or chunk_id or ordenados_por_score" -v
 ```
 
 Esperado: `TypeError: responder_consultas() got an unexpected keyword argument
@@ -339,7 +339,7 @@ Y declarar la lista junto a `incompletas` (línea 432):
 - [ ] **Paso 5: correr las pruebas y verificar que pasan**
 
 ```bash
-python -m pytest tests/test_generador.py -v
+python -m pytest auxiliar/tests/test_generador.py -v
 ```
 
 Esperado: todas verdes. `fragmentos_cortos` todavía no viaja en el reporte —eso es
@@ -348,7 +348,7 @@ la tarea 3—; aquí solo se acumula.
 - [ ] **Paso 6: commit** *(condicional)*
 
 ```bash
-git add generador.py tests/test_generador.py
+git add generador.py auxiliar/tests/test_generador.py
 git commit -m "feat: el entregable emite el top-10 de fragmentos"
 ```
 
@@ -360,7 +360,7 @@ git commit -m "feat: el entregable emite el top-10 de fragmentos"
 - Modificar: `generador.py` — `ReporteConsultas` (línea 356), retorno de
   `responder_consultas` (línea 470), `_construir_parser` (línea 760),
   `_responder` (línea 852)
-- Prueba: `tests/test_generador.py` (sección «consultas: el entregable»)
+- Prueba: `auxiliar/tests/test_generador.py` (sección «consultas: el entregable»)
 
 **Interfaces:**
 - Consume: `top_fragmentos` de la tarea 2.
@@ -409,7 +409,7 @@ Añadir `TOP_FRAGMENTOS` y `_construir_parser` al bloque `from generador import 
 - [ ] **Paso 2: correr las pruebas y verificar que fallan**
 
 ```bash
-python -m pytest tests/test_generador.py -k "reporte_registra_cuantos or no_llena_el_top or cli_acepta" -v
+python -m pytest auxiliar/tests/test_generador.py -k "reporte_registra_cuantos or no_llena_el_top or cli_acepta" -v
 ```
 
 Esperado: `AttributeError: 'ReporteConsultas' object has no attribute
@@ -495,7 +495,7 @@ Esperado: 685 + las nuevas, todas verdes.
 - [ ] **Paso 7: commit** *(condicional)*
 
 ```bash
-git add generador.py tests/test_generador.py
+git add generador.py auxiliar/tests/test_generador.py
 git commit -m "feat: --top-fragmentos y su aviso en el reporte"
 ```
 
@@ -504,8 +504,8 @@ git commit -m "feat: --top-fragmentos y su aviso en el reporte"
 ## Tarea 4: `f1_en_k`
 
 **Archivos:**
-- Crear: `scripts/evaluar.py`
-- Crear: `tests/test_evaluar.py`
+- Crear: `auxiliar/scripts/evaluar.py`
+- Crear: `auxiliar/tests/test_evaluar.py`
 
 **Interfaces:**
 - Consume: nada.
@@ -514,7 +514,7 @@ git commit -m "feat: --top-fragmentos y su aviso en el reporte"
 
 - [ ] **Paso 1: escribir las pruebas que fallan**
 
-`tests/test_evaluar.py`, archivo nuevo. Los valores están calculados a mano: una
+`auxiliar/tests/test_evaluar.py`, archivo nuevo. Los valores están calculados a mano: una
 implementación que se prueba contra sí misma no prueba nada.
 
 ```python
@@ -573,14 +573,14 @@ def test_sin_relevantes_el_f1_es_cero():
 - [ ] **Paso 2: correr las pruebas y verificar que fallan**
 
 ```bash
-python -m pytest tests/test_evaluar.py -v
+python -m pytest auxiliar/tests/test_evaluar.py -v
 ```
 
 Esperado: `ModuleNotFoundError: No module named 'scripts.evaluar'`.
 
 - [ ] **Paso 3: crear el script con la primera función**
 
-`scripts/evaluar.py`. La cabecera de `sys.path` copia la de
+`auxiliar/scripts/evaluar.py`. La cabecera de `sys.path` copia la de
 `verificar_cobertura.py`, que es cómo el resto de scripts importan la raíz:
 
 ```python
@@ -594,8 +594,8 @@ Qué mide cada número y por qué manda el NDCG binario:
 
 Uso::
 
-    python scripts/evaluar.py --resultados entrega/resultados.jsonl \
-        --ground ground/ground_truth.json [--detalle]
+    python auxiliar/scripts/evaluar.py --resultados resultados.jsonl \
+        --ground auxiliar/ground/ground_truth.json [--detalle]
 """
 
 from __future__ import annotations
@@ -636,7 +636,7 @@ def f1_en_k(predichos: list[str], relevantes: set[str], k: int) -> float:
 - [ ] **Paso 4: correr las pruebas y verificar que pasan**
 
 ```bash
-python -m pytest tests/test_evaluar.py -v
+python -m pytest auxiliar/tests/test_evaluar.py -v
 ```
 
 Esperado: 7 passed.
@@ -644,7 +644,7 @@ Esperado: 7 passed.
 - [ ] **Paso 5: commit** *(condicional)*
 
 ```bash
-git add scripts/evaluar.py tests/test_evaluar.py
+git add auxiliar/scripts/evaluar.py auxiliar/tests/test_evaluar.py
 git commit -m "feat: F1@k del evaluador"
 ```
 
@@ -653,8 +653,8 @@ git commit -m "feat: F1@k del evaluador"
 ## Tarea 5: `ndcg_en_k`
 
 **Archivos:**
-- Modificar: `scripts/evaluar.py`
-- Modificar: `tests/test_evaluar.py`
+- Modificar: `auxiliar/scripts/evaluar.py`
+- Modificar: `auxiliar/tests/test_evaluar.py`
 
 **Interfaces:**
 - Consume: nada de tareas previas.
@@ -663,7 +663,7 @@ git commit -m "feat: F1@k del evaluador"
 
 - [ ] **Paso 1: escribir las pruebas que fallan**
 
-Añadir a `tests/test_evaluar.py`, y `ndcg_en_k` al import:
+Añadir a `auxiliar/tests/test_evaluar.py`, y `ndcg_en_k` al import:
 
 ```python
 def test_los_relevantes_en_cabeza_dan_ndcg_uno():
@@ -719,14 +719,14 @@ def test_el_ideal_no_pasa_de_k():
 - [ ] **Paso 2: correr las pruebas y verificar que fallan**
 
 ```bash
-python -m pytest tests/test_evaluar.py -k ndcg -v
+python -m pytest auxiliar/tests/test_evaluar.py -k ndcg -v
 ```
 
 Esperado: `ImportError: cannot import name 'ndcg_en_k'`.
 
 - [ ] **Paso 3: implementar**
 
-En `scripts/evaluar.py`, tras `f1_en_k`:
+En `auxiliar/scripts/evaluar.py`, tras `f1_en_k`:
 
 ```python
 def ndcg_en_k(predichos: list[str], ganancias: dict[str, float], k: int) -> float:
@@ -753,7 +753,7 @@ def ndcg_en_k(predichos: list[str], ganancias: dict[str, float], k: int) -> floa
 - [ ] **Paso 4: correr las pruebas y verificar que pasan**
 
 ```bash
-python -m pytest tests/test_evaluar.py -v
+python -m pytest auxiliar/tests/test_evaluar.py -v
 ```
 
 Esperado: 14 passed.
@@ -761,7 +761,7 @@ Esperado: 14 passed.
 - [ ] **Paso 5: commit** *(condicional)*
 
 ```bash
-git add scripts/evaluar.py tests/test_evaluar.py
+git add auxiliar/scripts/evaluar.py auxiliar/tests/test_evaluar.py
 git commit -m "feat: NDCG@k del evaluador"
 ```
 
@@ -770,8 +770,8 @@ git commit -m "feat: NDCG@k del evaluador"
 ## Tarea 6: cargar el ground truth y calcular el techo
 
 **Archivos:**
-- Modificar: `scripts/evaluar.py`
-- Modificar: `tests/test_evaluar.py`
+- Modificar: `auxiliar/scripts/evaluar.py`
+- Modificar: `auxiliar/tests/test_evaluar.py`
 
 **Interfaces:**
 - Consume: nada.
@@ -782,7 +782,7 @@ git commit -m "feat: NDCG@k del evaluador"
 
 - [ ] **Paso 1: escribir las pruebas que fallan**
 
-Añadir a `tests/test_evaluar.py` un helper y las pruebas. El helper escribe un
+Añadir a `auxiliar/tests/test_evaluar.py` un helper y las pruebas. El helper escribe un
 ground truth con la forma real del archivo de ADL:
 
 ```python
@@ -863,14 +863,14 @@ Añadir al import: `ConsultaEtiquetada`, `cargar_ground`, `doc_id_de`, `techo_f1
 - [ ] **Paso 2: correr las pruebas y verificar que fallan**
 
 ```bash
-python -m pytest tests/test_evaluar.py -k "doc_id or ground or techo" -v
+python -m pytest auxiliar/tests/test_evaluar.py -k "doc_id or ground or techo" -v
 ```
 
 Esperado: `ImportError: cannot import name 'doc_id_de'`.
 
 - [ ] **Paso 3: implementar**
 
-En `scripts/evaluar.py`, tras los imports y antes de `f1_en_k`:
+En `auxiliar/scripts/evaluar.py`, tras los imports y antes de `f1_en_k`:
 
 ```python
 # Los chunk_id del corpus son <doc_id>-c<4 dígitos>. Se comprueba en vez de
@@ -938,7 +938,7 @@ def techo_f1(relevantes: int, k: int) -> float:
 - [ ] **Paso 4: correr las pruebas y verificar que pasan**
 
 ```bash
-python -m pytest tests/test_evaluar.py -v
+python -m pytest auxiliar/tests/test_evaluar.py -v
 ```
 
 Esperado: 21 passed.
@@ -946,7 +946,7 @@ Esperado: 21 passed.
 - [ ] **Paso 5: comprobar contra el ground truth real**
 
 ```bash
-python -c "import sys; sys.path.insert(0,'.'); from scripts.evaluar import cargar_ground, techo_f1; g=cargar_ground('ground/ground_truth.json'); print(len(g), round(sum(techo_f1(len(c.documentos),3) for c in g)/len(g),4))"
+python -c "import sys; sys.path.insert(0,'.'); from scripts.evaluar import cargar_ground, techo_f1; g=cargar_ground('auxiliar/ground/ground_truth.json'); print(len(g), round(sum(techo_f1(len(c.documentos),3) for c in g)/len(g),4))"
 ```
 
 Esperado: `50 0.7989`. Si el techo no da 0,7989, el ground truth cambió desde el
@@ -955,7 +955,7 @@ diseño y hay que revisar el spec antes de seguir.
 - [ ] **Paso 6: commit** *(condicional)*
 
 ```bash
-git add scripts/evaluar.py tests/test_evaluar.py
+git add auxiliar/scripts/evaluar.py auxiliar/tests/test_evaluar.py
 git commit -m "feat: carga del ground truth y techo de F1@3"
 ```
 
@@ -964,8 +964,8 @@ git commit -m "feat: carga del ground truth y techo de F1@3"
 ## Tarea 7: el script y su salida
 
 **Archivos:**
-- Modificar: `scripts/evaluar.py`
-- Modificar: `tests/test_evaluar.py`
+- Modificar: `auxiliar/scripts/evaluar.py`
+- Modificar: `auxiliar/tests/test_evaluar.py`
 
 **Interfaces:**
 - Consume: `f1_en_k`, `ndcg_en_k`, `cargar_ground`, `techo_f1`,
@@ -1101,14 +1101,14 @@ Añadir al import: `cargar_resultados`, `evaluar`, `main`.
 - [ ] **Paso 2: correr las pruebas y verificar que fallan**
 
 ```bash
-python -m pytest tests/test_evaluar.py -k "perfecto or falta or ignoran or sin_fragmentos or repetido or main" -v
+python -m pytest auxiliar/tests/test_evaluar.py -k "perfecto or falta or ignoran or sin_fragmentos or repetido or main" -v
 ```
 
 Esperado: `ImportError: cannot import name 'cargar_resultados'`.
 
 - [ ] **Paso 3: implementar la carga de resultados**
 
-En `scripts/evaluar.py`, tras `cargar_ground`:
+En `auxiliar/scripts/evaluar.py`, tras `cargar_ground`:
 
 ```python
 def cargar_resultados(ruta: Path) -> dict[str, dict]:
@@ -1287,19 +1287,19 @@ Esperado: todo verde.
 - [ ] **Paso 7: commit** *(condicional)*
 
 ```bash
-git add scripts/evaluar.py tests/test_evaluar.py
-git commit -m "feat: scripts/evaluar.py mide F1@3 y NDCG@10"
+git add auxiliar/scripts/evaluar.py auxiliar/tests/test_evaluar.py
+git commit -m "feat: auxiliar/scripts/evaluar.py mide F1@3 y NDCG@10"
 ```
 
 ---
 
 ## Tarea 8: la corrida real
 
-**Archivos:** ninguno de código. Produce `entrega/resultados.jsonl` con
+**Archivos:** ninguno de código. Produce `resultados.jsonl` con
 `fragmentos[]` y los números de las métricas.
 
 **Interfaces:**
-- Consume: `--top-fragmentos` (tarea 3) y `scripts/evaluar.py` (tarea 7).
+- Consume: `--top-fragmentos` (tarea 3) y `auxiliar/scripts/evaluar.py` (tarea 7).
 - Produce: las cifras que la tarea 9 escribe en la bitácora.
 
 **Requisitos:** carga `indice/index.faiss` (412 MB) y el checkpoint del encoder,
@@ -1309,7 +1309,7 @@ reconstruye.**
 - [ ] **Paso 1: guardar el entregable actual**
 
 ```bash
-cp entrega/resultados.jsonl entrega/resultados.anterior.jsonl
+cp resultados.jsonl resultados.anterior.jsonl
 ```
 
 Es la referencia con la que se comprueba que `documentos[]` no cambió.
@@ -1317,13 +1317,13 @@ Es la referencia con la que se comprueba que `documentos[]` no cambió.
 - [ ] **Paso 2: re-correr solo la fase de respuesta**
 
 ```bash
-python generador.py --indice indice \
+python generador.py --indice base_vectorial/encoder_granite-embedding-311m-multilingual-r2 \
     --consultas base_documental/Extracto_Preguntas_50_v2.pdf \
-    --resultados entrega/resultados.jsonl \
+    --resultados resultados.jsonl \
     --top-fragmentos 10
 ```
 
-Esperado: `50 consultas respondidas en entrega/resultados.jsonl` y, por stderr, el
+Esperado: `50 consultas respondidas en resultados.jsonl` y, por stderr, el
 resumen del índice. Si aparece el AVISO de consultas sin 10 fragmentos, anotarlo:
 esas tienen techo en NDCG@10.
 
@@ -1332,10 +1332,10 @@ esas tienen techo en NDCG@10.
 ```bash
 python -c "
 import json
-a=[json.loads(l)['documentos'] for l in open('entrega/resultados.anterior.jsonl',encoding='utf-8')]
-b=[json.loads(l)['documentos'] for l in open('entrega/resultados.jsonl',encoding='utf-8')]
+a=[json.loads(l)['documentos'] for l in open('resultados.anterior.jsonl',encoding='utf-8')]
+b=[json.loads(l)['documentos'] for l in open('resultados.jsonl',encoding='utf-8')]
 print('identicos' if a==b else 'CAMBIARON')
-n=[len(json.loads(l).get('fragmentos',[])) for l in open('entrega/resultados.jsonl',encoding='utf-8')]
+n=[len(json.loads(l).get('fragmentos',[])) for l in open('resultados.jsonl',encoding='utf-8')]
 print('fragmentos por consulta:', min(n), '-', max(n))
 "
 ```
@@ -1347,8 +1347,8 @@ comparación con la corrida anterior.
 - [ ] **Paso 4: medir**
 
 ```bash
-python scripts/evaluar.py --resultados entrega/resultados.jsonl \
-    --ground ground/ground_truth.json
+python auxiliar/scripts/evaluar.py --resultados resultados.jsonl \
+    --ground auxiliar/ground/ground_truth.json
 ```
 
 Anotar los cuatro números: F1@3, su techo, NDCG@10 binario y graduado.
@@ -1356,8 +1356,8 @@ Anotar los cuatro números: F1@3, su techo, NDCG@10 binario y graduado.
 - [ ] **Paso 5: mirar las peores consultas**
 
 ```bash
-python scripts/evaluar.py --resultados entrega/resultados.jsonl \
-    --ground ground/ground_truth.json --detalle
+python auxiliar/scripts/evaluar.py --resultados resultados.jsonl \
+    --ground auxiliar/ground/ground_truth.json --detalle
 ```
 
 Anotar las consultas con F1 en 0,0: son las que no acertaron ni un documento y
@@ -1367,13 +1367,13 @@ diagnóstico para decidir después.
 - [ ] **Paso 6: borrar la copia de seguridad**
 
 ```bash
-rm entrega/resultados.anterior.jsonl
+rm resultados.anterior.jsonl
 ```
 
 - [ ] **Paso 7: commit** *(condicional)*
 
 ```bash
-git add entrega/resultados.jsonl
+git add resultados.jsonl
 git commit -m "chore: entregable con el top-10 de fragmentos"
 ```
 
@@ -1401,7 +1401,7 @@ que con 3 ítems el NDCG@10 tenía un techo de 0,7227 y por eso se añadió.
 
 Sección nueva «La medición», al final del archivo, con:
 
-- qué mide `scripts/evaluar.py` y por qué es un script puro sobre artefactos
+- qué mide `auxiliar/scripts/evaluar.py` y por qué es un script puro sobre artefactos
   (evalúa cualquier `resultados.jsonl`, así se comparan configuraciones);
 - por qué el binario es el que se reporta y el graduado es diagnóstico;
 - por qué se imprime el techo de F1@3, con el 0,7989 de este ground truth y su

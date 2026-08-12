@@ -22,7 +22,7 @@ relevantes por consulta y ganancia binaria, `DCG(3)/IDCG(5)`—. Se pierden 27
 puntos de la métrica aunque las tres sean perfectas. Con 10 ítems el techo sube
 a 1,0.
 
-Y no hay con qué medir: `ground/ground_truth.json` existe desde el 11 de agosto y
+Y no hay con qué medir: `auxiliar/ground/ground_truth.json` existe desde el 11 de agosto y
 nada lo lee. Cualquier decisión posterior —reranking, híbrido, el grafo de
 conocimiento— se toma a ciegas mientras no haya línea base.
 
@@ -31,7 +31,7 @@ conocimiento— se toma a ciegas mientras no haya línea base.
 Entra:
 
 - `generador.py`: top-k de fragmentos en el entregable, con opción de CLI.
-- `scripts/evaluar.py`: F1@3 y NDCG@10 contra el ground truth.
+- `auxiliar/scripts/evaluar.py`: F1@3 y NDCG@10 contra el ground truth.
 - Pruebas de las dos piezas.
 - Bitácora y README.
 
@@ -110,11 +110,11 @@ holgado; el aviso está para el día que deje de estarlo.
 
 `--top` sigue siendo el top-3 de documentos y no cambia de valor por defecto.
 
-## 5. `scripts/evaluar.py`
+## 5. `auxiliar/scripts/evaluar.py`
 
 ```bash
-python scripts/evaluar.py --resultados entrega/resultados.jsonl \
-                          --ground ground/ground_truth.json [--detalle]
+python auxiliar/scripts/evaluar.py --resultados resultados.jsonl \
+                          --ground auxiliar/ground/ground_truth.json [--detalle]
 ```
 
 Script puro sobre artefactos, como `verificar_cobertura.py`: no importa `torch`
@@ -211,7 +211,7 @@ con 1 es `verificar_cobertura.py`, que comprueba un piso.
 Rojo antes que verde, y las métricas con números calculados a mano —una
 implementación de NDCG que se prueba contra sí misma no prueba nada—.
 
-`tests/test_evaluar.py`:
+`auxiliar/tests/test_evaluar.py`:
 
 - F1@3: acierto perfecto, cero aciertos, aciertos parciales, lista más corta que
   `k`, y el caso `k > |relevantes|`.
@@ -221,7 +221,7 @@ implementación de NDCG que se prueba contra sí misma no prueba nada—.
 - El techo: una consulta con 5 documentos relevantes da 0,75.
 - Los cuatro casos de §5.4.
 
-`tests/test_generador.py` amplía: el corte a `top`, `top=0`, menos candidatos que
+`auxiliar/tests/test_generador.py` amplía: el corte a `top`, `top=0`, menos candidatos que
 `top`, y que `fragmentos[]` sale ordenado y con los campos de §3.
 
 ## 7. Bitácora
