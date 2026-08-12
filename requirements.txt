@@ -28,5 +28,15 @@ sentence-transformers>=5.0,<6  # carga el modelo con su pooling CLS declarado
 faiss-cpu>=1.8,<2            # IndexFlatIP exacto, sin entrenamiento ni aleatoriedad
 numpy>=1.26,<3
 
+# Grafo de conocimiento, componente bonus (§7): generador_grafo.py
+# (archivo autocontenido: léxico de dominio + NER + RE + construccion).
+# Es la ÚNICA dependencia de terceros del componente. El NER y la extracción
+# de relaciones son código propio del equipo, sin modelos preentrenados: la
+# organización confirmó que no se admite software con licencia CC BY-NC-SA 4.0,
+# lo que descarta los NER/RE multilingües habituales (WikiNEuRal, REBEL), y los
+# modelos spaCy de español (GPL-3.0) y portugués (CC BY-SA 4.0) quedan fuera de
+# la preferencia Apache / MIT / CC BY del reto.
+networkx>=3.0,<4             # BSD-3-Clause; solo serializa el grafo a GraphML
+
 # Desarrollo
 pytest>=8.0

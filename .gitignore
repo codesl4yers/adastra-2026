@@ -236,8 +236,8 @@ indice/
 # de 100 MB, así que un `git add .` dejaría el historial escrito y el push
 # roto. Se reconstruye con `preparar_entrega.py`; lo que no se puede
 # reconstruir es lo que se versiona.
-entrega/base_vectorial/
-entrega/__pycache__/
+base_vectorial/
+
 
 
 .claude/
