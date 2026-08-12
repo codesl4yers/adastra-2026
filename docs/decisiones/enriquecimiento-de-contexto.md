@@ -1,7 +1,12 @@
 # Decisión — Enriquecimiento de contexto antes de codificar
 
 CODEFEST Ad Astra 2026 · Etapa 1 · 5 ago 2026
-Estado: **implementada y verificada** sobre el corpus completo (140 686 fragmentos).
+Estado: **implementada y verificada** sobre el corpus completo. Las medidas de §4
+son de la corrida de 140 686 fragmentos (estimación de tokens); la corrida
+vigente son 134 317 fragmentos con el tokenizador real y la cobertura del
+prefijo no cambia, porque depende de la metadata del documento y no del tamaño
+del fragmento. La ablación de §6 sigue sin hacer, pero ya no está bloqueada: el
+ground truth existe (`ground/ground_truth.json`).
 
 ---
 
@@ -25,9 +30,9 @@ de su contexto documental**:
   `texto_enriquecido` **no se serializa a `metadata.jsonl`**: lo que se le
   reporta al jurado es el texto original del documento.
 
-Implementación: `fragmentador.py:698` (`_prefijo_de_contexto`) y
-`fragmentador.py:685` (composición del campo). El uso está en
-`generador.py`, que codifica `texto_enriquecido` y escribe la metadata sin él.
+Implementación: `_prefijo_de_contexto` y `_construir_fragmento` en
+`fragmentador.py`. El uso está en `generador.py`, que codifica
+`texto_enriquecido` y escribe la metadata sin él.
 
 ## 2. Por qué es legal
 
@@ -71,8 +76,8 @@ Sobre la salida real del fragmentador (`fragmentos/fragmentos.jsonl`,
 
 El coste es de ~14 tokens por fragmento, un 5,8 % del tamaño mediano. No es
 gratis, y por eso el presupuesto de tokens del empaquetado **descuenta el
-prefijo antes de llenar el fragmento** (`fragmentador.py:717`,
-`_presupuesto_de_tokens`): sin ese descuento, un fragmento al borde del tope
+prefijo antes de llenar el fragmento** (`_presupuesto_de_tokens` en
+`fragmentador.py`): sin ese descuento, un fragmento al borde del tope
 entraría al encoder por encima de su límite y se truncaría en silencio, que es
 la trampa §14.3 del addendum del encoder.
 
@@ -100,23 +105,27 @@ puede empeorar la precisión dentro de un documento aunque mejore la
 recuperación entre documentos. Con p95 de 35 tokens sobre un fragmento mediano
 de 247, la proporción es baja, pero no es cero.
 
-La decisión de mantenerlo es **provisional hasta la ablación**: en cuanto exista
-el ground truth interno de 20–30 consultas (§15.2 del addendum), se mide
-NDCG@10 y F1@3 con y sin prefijo, misma configuración de chunking y mismo
-encoder. Es una re-corrida del generador sobre el mismo `fragmentos.jsonl`,
+La decisión de mantenerlo es **provisional hasta la ablación**. El ground truth
+interno que la bloqueaba ya existe —50 consultas etiquetadas, cinco fragmentos
+por consulta, `ground/ground_truth.json`—, así que la medición está pendiente de
+lanzar y no de construir: NDCG@10 y F1@3 con y sin prefijo, misma configuración
+de chunking y mismo encoder. Es una re-corrida del generador sobre el mismo `fragmentos.jsonl`,
 porque el campo `texto` no cambia: basta codificar `texto` en vez de
 `texto_enriquecido`. Si el prefijo no aporta, se quita y se documenta.
 
 ## 7. Verificación en código
 
+Se referencian por nombre y no por número de línea: el número caduca en el
+primer refactor y manda a leer otra cosa.
+
 | Qué se garantiza | Prueba |
 |---|---|
-| El prefijo nunca altera el texto reportado | `tests/test_fragmentador.py:166` |
-| Sin metadata de contexto, `texto_enriquecido == texto` | `tests/test_fragmentador.py:186` |
-| `texto_enriquecido` termina siempre en `texto` (invariante del validador) | `fragmentador.py:321` |
-| Lo que se codifica es `texto_enriquecido`, no `texto` | `tests/test_generador.py:176` |
-| `metadata.jsonl` no lleva `texto_enriquecido` | `tests/test_generador.py:163` |
-| El prefijo del encoder (si el modelo lo pidiera) se aplica al codificar, no al fragmentar | `tests/test_generador.py:192` |
+| El prefijo nunca altera el texto reportado | `test_el_texto_conserva_el_original_y_el_prefijo_vive_aparte` |
+| Sin metadata de contexto, `texto_enriquecido == texto` | `test_sin_metadata_de_contexto_el_texto_enriquecido_es_el_texto` |
+| `texto_enriquecido` termina siempre en `texto` (invariante del validador) | `fragmentador._violaciones_de_texto` |
+| Lo que se codifica es `texto_enriquecido`, no `texto` | `test_se_codifica_el_texto_enriquecido_y_no_el_texto` |
+| `metadata.jsonl` no lleva `texto_enriquecido` | `test_la_metadata_no_lleva_el_texto_enriquecido` |
+| El prefijo del encoder (si el modelo lo pidiera) se aplica al codificar, no al fragmentar | `test_el_prefijo_del_encoder_se_aplica_al_codificar` |
 
 ## 8. Párrafo para el informe técnico
 

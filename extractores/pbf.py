@@ -1,37 +1,15 @@
-"""Extractor de tiles vectoriales (.pbf, .mvt).
+"""Extractor de tiles vectoriales (.pbf, .mvt): 73 archivos de Amazon Underworld.
 
-Ojo con el nombre: ``.pbf`` designa dos formatos distintos que se leen con
-librerías distintas, y lo primero que hace este extractor es distinguirlos.
+``.pbf`` designa dos formatos distintos, y lo primero que hace el extractor es
+distinguirlos: los tiles de Mapbox, que sí lee, y los volcados de OpenStreetMap,
+que necesitan ``osmium`` y se reportan como no soportados.
 
-- **Mapbox Vector Tile**: un tile de mapa. Se lee con ``mapbox-vector-tile``.
-  Trae capas, cada una con features que llevan ``properties``. Son los 73
-  archivos del corpus, todos de Amazon Underworld.
-- **OpenStreetMap PBF** (``.osm.pbf``): un volcado de OSM en Protocol Buffers.
-  Necesita ``osmium`` y no está en el corpus, así que se detecta por su cabecera
-  y se reporta en vez de intentar leerlo con la librería equivocada, que daría
-  un error incomprensible.
+Se indexan las **propiedades** de cada feature —topónimos, clasificación
+administrativa, presencia de grupos armados— como registros atómicos. La
+geometría nunca entra al índice, y el ``bbox`` sale del ``z/x/y`` de la ruta
+porque las coordenadas internas del tile son relativas a él.
 
-Qué se indexa
--------------
-Las **propiedades**, no la geometría: los topónimos, la clasificación
-administrativa y, en este corpus, qué grupo armado tiene presencia en cada
-municipio. Cada feature es un bloque atómico, igual que una fila de CSV: es un
-registro completo y partirlo rompe la correspondencia ``clave: valor``.
-
-Las propiedades cuyo valor es una **negación** (``FALSO``, ``false``, ``0``) se
-descartan. En este corpus cada municipio trae una docena de banderas de las que
-casi todas son falsas: repetir "au_eln: FALSO" en 250 features no distingue nada
-y desplaza del vector al contenido que sí discrimina.
-
-Las dos trampas
----------------
-1. Un tile casi no contiene lenguaje natural: son coordenadas codificadas en
-   delta. Convertirlo a texto plano produce megabytes de ruido numérico que
-   destruyen la recuperación. La geometría no entra al índice.
-2. Las coordenadas de un tile son **relativas al propio tile**, no geográficas.
-   Derivar lat/lon de ellas sin cuidado da datos que parecen razonables y son
-   falsos. Por eso el ``bbox`` se calcula del tile ``z/x/y`` —que es exacto por
-   definición— y no de las geometrías.
+Detalle y descartes: ``docs/decisiones/extraccion-por-formato.md`` §6.
 """
 
 from __future__ import annotations
@@ -49,14 +27,14 @@ FORMATO = "pbf"
 
 EXTENSIONES = (".pbf", ".mvt")
 
-# Valores que expresan ausencia. Un vector lleno de negaciones no discrimina.
+# Valores que expresan ausencia: se descartan, porque cada municipio trae una
+# docena de banderas y repetir "au_eln: FALSO" en 250 features no discrimina.
 VALORES_NEGATIVOS = frozenset({"falso", "false", "no", "0", "none", "null", "nao", "não"})
 
-# Cabecera de un volcado de OpenStreetMap: bloque "OSMHeader" en los primeros bytes.
+# Cabecera de un volcado de OpenStreetMap, en los primeros bytes.
 _MARCA_OSM = b"OSMHeader"
 
-# Tope de features por tile. Los tiles del corpus rondan las 250; uno de
-# 100.000 puntos sería ruido, no contenido.
+# Tope de features por tile. Los del corpus rondan las 250.
 MAXIMO_FEATURES = 5000
 
 _NUMERO = re.compile(r"^\d+$")
@@ -125,9 +103,8 @@ def extraer(path: Path, fenomeno: int) -> Documento:
 def _bloques_de_tile(tile: dict, meta: dict[str, Any]) -> tuple[list[Bloque | None], int]:
     """Una capa, una sección; una feature, un registro atómico.
 
-    Las capas se recorren ordenadas por nombre y las features por su ``fid``:
-    el orden en que la librería las devuelve no está garantizado entre
-    versiones, y sin ordenar la salida deja de ser reproducible.
+    Capas y features se recorren ordenadas: el orden que devuelve la librería no
+    está garantizado entre versiones.
     """
     jerarquia = Jerarquia()
     bloques: list[Bloque | None] = []
@@ -156,11 +133,8 @@ def _bloques_de_tile(tile: dict, meta: dict[str, Any]) -> tuple[list[Bloque | No
 
 
 def _ordenadas(features: list) -> list:
-    """Ordena por ``fid`` cuando lo hay; si no, conserva el orden del archivo.
-
-    El ``id`` que expone la librería vale 0 en todos los features de este
-    corpus, así que no sirve para desempatar.
-    """
+    """Ordena por ``fid`` cuando lo hay; si no, conserva el orden del archivo. El
+    ``id`` de la librería vale 0 en todos los features de este corpus."""
     return sorted(
         features,
         key=lambda feature: _clave_de_orden(feature.get("properties", {})),
@@ -202,11 +176,10 @@ def _es_util(clave: Any, valor: Any) -> bool:
 
 
 def _metadata_del_tile(path: Path) -> dict[str, Any]:
-    """Deduce ``z/x/y`` de la ruta y calcula el bounding box exacto del tile.
+    """Deduce ``z/x/y`` de la ruta (``.../{z}/{x}/{y}.pbf``) y calcula el bbox.
 
-    La convención de los directorios de tiles es ``.../{z}/{x}/{y}.pbf``. En
-    este corpus el nombre del archivo lleva un prefijo de observatorio
-    (``AMAZONUW_3.pbf``), así que la ``y`` se busca entre los dígitos del nombre.
+    En este corpus el nombre lleva un prefijo de observatorio (``AMAZONUW_3.pbf``),
+    así que la ``y`` se busca entre los dígitos del nombre.
     """
     zoom, tile_x, tile_y = _coordenadas_del_tile(path)
     if zoom is None:
@@ -233,12 +206,7 @@ def _coordenadas_del_tile(path: Path) -> tuple[int | None, int | None, int | Non
 
 
 def _bbox_de_tile(zoom: int, tile_x: int, tile_y: int) -> list[float]:
-    """Bounding box geográfico del tile en la proyección Web Mercator.
-
-    Se calcula del ``z/x/y`` y no de las geometrías porque así es exacto por
-    definición: las coordenadas internas del tile están en su propio sistema y
-    convertirlas mal produce datos espaciales verosímiles y equivocados.
-    """
+    """Bounding box geográfico del tile en Web Mercator, exacto por definición."""
     total = 2**zoom
     oeste = tile_x / total * 360.0 - 180.0
     este = (tile_x + 1) / total * 360.0 - 180.0

@@ -1,15 +1,10 @@
 """Comprueba que todo documento del inventario de ADL tiene vectores en el índice.
 
-Es la verificación de piso de la entrega. El emparejamiento del jurado es por
-``fuente`` (§10.2.1), así que un documento sin un solo vector no puede aparecer
-en el top-3 de ninguna consulta: no es que recupere mal, es que es imposible
-que recupere. Y nada más en el pipeline lo detecta —un extractor que falla en
-silencio produce un ``Documento`` válido con cero bloques, el fragmentador
-produce cero fragmentos y el generador no echa de menos lo que nunca llegó—.
+Es la verificación de piso de la entrega: un documento sin un solo vector no
+puede aparecer en el top-3 de ninguna consulta, y nada más en el pipeline lo
+detecta. Empareja por ``doc_id`` y no por ``fuente``, que se repite.
 
-Se empareja por ``doc_id`` y no por ``fuente`` porque 59 nombres de archivo se
-repiten en el corpus: con el nombre, un documento cubierto taparía el hueco de
-otro que comparte nombre y el informe daría por buena una cobertura que no es.
+Ver ``docs/decisiones/recuperacion-y-entregable.md`` §8.
 
 Uso::
 
@@ -31,8 +26,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from indice import EntradaIndice, cargar_indice  # noqa: E402
 
-# Cuántos huecos se listan antes de resumir. Con el corpus entero fuera del
-# índice, volcar 1826 líneas al terminal esconde el resto del diagnóstico.
+# Huecos que se listan antes de resumir: volcar 1826 esconde el diagnóstico.
 MAXIMO_LISTADO = 40
 
 
@@ -57,11 +51,7 @@ def doc_ids_con_vectores(metadata: Path) -> set[str]:
 def documentos_sin_vectores(
     entradas: dict[str, EntradaIndice], metadata: Path
 ) -> list[EntradaIndice]:
-    """Las entradas del inventario que no tienen ni un vector en el índice.
-
-    Conserva el orden del inventario: dos corridas sobre el mismo par de
-    archivos tienen que dar el mismo informe.
-    """
+    """Las entradas del inventario sin un solo vector, en el orden del inventario."""
     presentes = doc_ids_con_vectores(metadata)
     return [entrada for entrada in entradas.values() if entrada.doc_id not in presentes]
 

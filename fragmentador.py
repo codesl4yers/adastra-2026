@@ -1,29 +1,20 @@
 """Convierte cada ``Documento`` extraído en fragmentos listos para codificar.
 
-Estrategia: **híbrida estructural-oracional con unidades atómicas preservadas**.
-La estructura del documento define fronteras que no se cruzan; dentro de cada
-frontera, el empaquetado de oraciones completas hace el trabajo real. Las tres
-capas van en cascada, no en pasadas independientes:
+Estrategia híbrida estructural-oracional, en cascada de tres capas:
 
-1. **Secciones** (§4.1): un encabezado de nivel ``<= nivel_frontera`` o un
-   cambio de breadcrumb abre sección. La página **no** es frontera: en PDF los
-   párrafos fluyen de una página a la siguiente.
-2. **Empaquetado** (§4.2): se acumulan oraciones completas hasta
-   ``objetivo_palabras``, con tope duro simultáneo de ``max_palabras`` y
-   ``max_tokens``. Ningún corte cae dentro de una oración, que es el requisito
-   obligatorio de §3.3 del enunciado.
-3. **Solape** (§4.3): cada fragmento repite las últimas oraciones del anterior
-   de su misma sección. Mínimo por diseño: dos fragmentos casi idénticos
-   compiten por los mismos puestos del top-10 y gastan cupos de NDCG@10.
+1. **Secciones**: un encabezado o un cambio de breadcrumb abre sección. La
+   página no es frontera.
+2. **Empaquetado**: oraciones completas hasta ``objetivo_palabras``, con tope
+   duro simultáneo de palabras y de tokens. Ningún corte cae dentro de una
+   oración (§3.3 del enunciado).
+3. **Solape**: cada fragmento repite la cola del anterior de su misma sección.
 
-Las filas de datasets y los elementos de mapas vectoriales (``atomico=True``,
-~103 archivos del corpus) van por un cuarto camino: no se parten ni se fusionan
-con prosa vecina, porque un registro partido pierde la correspondencia
-``columna: valor`` y un registro fusionado con otro produce un vector que no
-representa fielmente a ninguno de los dos.
+Los bloques ``atomico`` —filas de datasets, features de mapas— van por su propio
+camino: no se parten ni se mezclan con prosa vecina.
 
-Este módulo expone funciones puras; la única escritura a disco está en
-:func:`fragmentar_corpus` y en el CLI (§1.6).
+Funciones puras; la única escritura a disco está en :func:`fragmentar_corpus`.
+El porqué de cada capa y de sus parámetros está en
+``docs/specs/spec-fragmentador.md`` y en ``docs/decisiones/``.
 
 Uso::
 
@@ -60,49 +51,29 @@ NOMBRE_MANIFIESTO = "manifiesto.jsonl"
 TIPOS_UNIDAD: tuple[str, ...] = ("prosa", "atomico", "titulo_huerfano")
 
 # Frontera de oración dentro de lo que el segmentador devolvió como una sola.
-# Incluye el punto ideográfico porque el corpus trae secciones en chino dentro
-# de informes del AI Index. Ver :func:`_repartir_pseudo_oracion`.
+# El punto ideográfico está porque el corpus trae secciones en chino.
 _FRONTERA_INTERNA = re.compile(r"(?<=[.!?。])\s+")
 
-# Un token por cada 0,625 palabras. Es la estimación conservadora que usa el
-# pipeline mientras no haya encoder elegido (§6.2): sobreestima, que es el error
-# seguro —un fragmento más corto de lo necesario no se trunca en el encoder—.
+# Factor de la estimación de tokens. No es conservador sobre este corpus: la
+# entrega se fragmenta con el tokenizador real (docs/decisiones/conteo-de-tokens.md).
 FACTOR_TOKENS_POR_PALABRA = 1.6
 
-# Ancho de los bins del histograma del reporte.
 ANCHO_BIN_HISTOGRAMA = 25
 
-# Bloques a partir de los que el CLI avisa antes de procesar un documento.
-# pysbd no es barato por bloque —compila una expresión regular nueva por cada
-# oración para ubicar su posición en el texto (ver segmentador.py)— y el atlas
-# de RESDAL trae 8319 bloques él solo: varios minutos de cómputo real que, sin
-# aviso, no se distinguen de un proceso colgado.
+# Avisos de avance: uno por documento grande (pysbd tarda minutos con miles de
+# bloques) y uno periódico en el resto.
 UMBRAL_AVISO_BLOQUES = 1000
-
-# Cada cuántos documentos normales se imprime un avance. La inmensa mayoría del
-# corpus tarda milisegundos, así que un aviso por documento saturaría stderr
-# sin aportar nada.
 PROGRESO_CADA = 200
 
 
 def contar_palabras(texto: str) -> int:
-    """Palabras separadas por espacios.
-
-    ``split()`` sin argumentos y no una expresión regular: el texto ya viene
-    normalizado por :func:`limpieza.normalizar_texto`, así que los separadores
-    son espacios simples y cualquier otra definición solo añadiría formas de
-    que dos corridas cuenten distinto.
-    """
+    """Palabras separadas por espacios, sobre texto ya normalizado."""
     return len(texto.split())
 
 
 def estimar_tokens(texto: str) -> int:
-    """Estimación de tokens mientras no haya encoder elegido (§6.2).
-
-    En cuanto se fije el modelo hay que sustituirla por su ``AutoTokenizer`` y
-    **re-fragmentar el corpus completo**: los ``num_tokens`` estimados no son
-    válidos para la entrega.
-    """
+    """Estimación de tokens. Para la entrega se usa el tokenizador real del
+    encoder (``encoder.config_fragmentacion_con_tokenizador``)."""
     return math.ceil(contar_palabras(texto) * FACTOR_TOKENS_POR_PALABRA)
 
 
@@ -110,44 +81,24 @@ def estimar_tokens(texto: str) -> int:
 class ConfigFragmentacion:
     """Todos los parámetros del algoritmo, en un solo objeto.
 
-    No hay constantes mágicas sueltas en el cuerpo de las funciones a propósito:
-    el informe técnico tiene que poder citar la configuración exacta y la fase
-    de evaluación tiene que poder barrer variantes sin editar código.
+    Sin constantes sueltas en el cuerpo de las funciones: el informe tiene que
+    poder citar la configuración exacta y el barrido, variarla sin tocar código.
     """
 
-    objetivo_palabras: int = 190
-    """Tamaño al que apunta el empaquetado."""
+    objetivo_palabras: int = 190  # tamaño al que apunta el empaquetado
+    max_palabras: int = 240       # tope duro; margen sobre las 250 de §9.2.1
+    max_tokens: int = 450         # tope duro; margen sobre las 512 típicas
+    min_palabras: int = 40        # por debajo, el fragmento se fusiona (§4.4)
+    oraciones_solape: int = 1     # 0 desactiva el solape
+    nivel_frontera: int = 6       # encabezados de nivel <= N abren sección
+    respetar_atomicos: bool = True  # False empaqueta las filas como prosa
 
-    max_palabras: int = 240
-    """Tope duro. Margen de 10 sobre el límite de 250 de §9.2.1 del enunciado."""
-
-    max_tokens: int = 450
-    """Tope duro. Margen sobre el límite típico de 512 del encoder."""
-
-    min_palabras: int = 40
-    """Por debajo de esto un fragmento se considera huérfano y se fusiona (§4.4)."""
-
-    oraciones_solape: int = 1
-    """Oraciones que cada fragmento repite del anterior. 0 desactiva el solape."""
-
-    nivel_frontera: int = 6
-    """Los encabezados de nivel ``<= N`` abren sección nueva."""
-
-    respetar_atomicos: bool = True
-    """Si es ``False``, las filas se empaquetan como prosa. Solo para el barrido."""
-
+    # Inyectable para poder pasar del estimador al tokenizador real del encoder.
     contar_tokens: Callable[[str], int] = field(default=estimar_tokens)
-    """Contador de tokens del encoder. Inyectable justamente para poder
-    cambiarlo por el tokenizador real sin tocar el algoritmo (§6.2)."""
 
-    separador_registro: str = " · "
-    """Separa registros atómicos agrupados. No parte ninguno: los concatena."""
-
-    separador_contexto: str = " · "
-    """Separa los campos del prefijo de :attr:`Fragmento.texto_enriquecido`."""
-
-    separador_breadcrumb: str = " > "
-    """Separa los niveles de sección dentro de ese prefijo."""
+    separador_registro: str = " · "    # entre registros atómicos agrupados
+    separador_contexto: str = " · "    # entre campos del prefijo de contexto
+    separador_breadcrumb: str = " > "  # entre niveles de sección de ese prefijo
 
 
 CONFIG_POR_DEFECTO = ConfigFragmentacion()
@@ -158,52 +109,31 @@ class Fragmento:
     """Una unidad indexable. Los ocho primeros campos son la Tabla 1 del enunciado."""
 
     doc_id: str
-    chunk_id: str
-    """``{doc_id}-c{posicion:04d}``. Único dentro del documento."""
-
-    fuente: str
-    """Copiado del ``Documento`` sin tocar: es el campo de emparejamiento con el
-    ground truth del jurado (§10.2.1), y por eso es inmutable."""
-
+    chunk_id: str    # {doc_id}-c{posicion:04d}, único dentro del documento
+    fuente: str      # copiado del Documento sin tocar
     formato: str
     fenomeno: int
-    posicion: int
-    """Empieza en 0 y es contigua dentro del documento."""
-
-    num_tokens: int
-    """Contado sobre :attr:`texto` con ``config.contar_tokens``."""
-
-    texto: str
-    """El texto original, sin modificaciones. El enriquecimiento vive aparte."""
+    posicion: int    # desde 0 y contigua dentro del documento
+    num_tokens: int  # contado sobre `texto` con config.contar_tokens
+    texto: str       # el original, sin modificaciones
 
     # --- campos adicionales, permitidos por §3.4 del enunciado ---------------
 
-    texto_enriquecido: str
-    """Lo que se pasa al encoder. **No se serializa a metadata.jsonl.**"""
-
+    texto_enriquecido: str  # lo que ve el encoder; no va a metadata.jsonl
     idioma: str
     observatorio: str | None
     ruta_relativa: str
-    seccion: list[str]
-    """Breadcrumb heredado del bloque."""
-
-    pagina: int | None
-    """Página del primer bloque que aporta texto al fragmento."""
-
+    seccion: list[str]     # breadcrumb heredado del bloque
+    pagina: int | None     # la del primer bloque que aporta texto
     num_palabras: int
-    tipo_unidad: str
-    """Uno de :data:`TIPOS_UNIDAD`."""
-
+    tipo_unidad: str       # uno de TIPOS_UNIDAD
     tiene_solape: bool
     n_oraciones: int
 
+    # Lo que el extractor apartó del texto, un dict por registro de origen. Es
+    # lista porque un fragmento puede agrupar varios registros y elegir uno solo
+    # sería atribuirle a un texto el identificador de otro.
     datos: list[dict[str, str]] = field(default_factory=list)
-    """Campos que el extractor apartó del texto, uno por registro de origen.
-
-    Es una lista y no un dict porque un fragmento puede agrupar varios
-    registros cortos (``_agrupar_registros``): con un solo dict habría que
-    elegir de qué fila queda el PMID, y elegir sería atribuirle a un texto el
-    identificador de otro. Vacía en todo lo que no sea tabular."""
 
 
 @dataclass(frozen=True)
@@ -212,38 +142,23 @@ class ReporteFragmentacion:
 
     n_documentos: int
     n_fragmentos: int
-    documentos_sin_bloques: list[str]
-    """Rutas relativas. No es un error: un PDF corrupto produce cero fragmentos."""
-
+    documentos_sin_bloques: list[str]  # no es un error: un PDF corrupto da cero
     fragmentos_por_formato: dict[str, int]
-    histograma_palabras: dict[str, int]
-    """Bins de 25 palabras. La mediana debería caer entre 150 y 220 (§8.2)."""
-
+    histograma_palabras: dict[str, int]  # bins de 25; la mediana debe caer en 150-220
     mediana_palabras: int
-    """Una mediana muy por debajo del objetivo indica empaquetado en falso."""
-
     p95_palabras: int
-    """Cola alta de la distribución. Es lo que roza el límite de 250."""
-
-    n_oraciones_unicas: int
-    """Fragmentos de una sola oración. Muchos significan empaquetado en falso."""
-
+    n_oraciones_unicas: int  # muchos significan empaquetado en falso
     n_atomicos: int
     n_huerfanos_fusionados: int
-    n_indivisibles: int
-    """Oraciones que exceden el tope por sí solas. Deben ser < 0.5% (§8.2); si
-    son más, casi seguro está fallando el segmentador."""
-
+    n_indivisibles: int      # oraciones que exceden el tope solas; deben ser < 0,5 %
     n_atomicos_partidos: int
-    """Registros que hubo que partir por exceder el tope de 250 palabras (§5)."""
 
 
 # --- estructuras internas -----------------------------------------------------
 
 
+# Oraciones, si arrastra solape, tipo de unidad y datos apartados.
 _Grupo = tuple[list["_Oracion"], bool, str, list[dict[str, str]]]
-"""Lo que produce cada capa de agrupación: oraciones, si arrastra solape, qué
-tipo de unidad es y los datos apartados de los registros que lo componen."""
 
 
 @dataclass(frozen=True)
@@ -265,7 +180,7 @@ class _Seccion:
 
     @property
     def sin_cuerpo(self) -> bool:
-        """``True`` si solo tiene títulos, es decir, si aún no tiene contenido."""
+        """``True`` si solo tiene títulos: aún no tiene contenido."""
         return all(bloque.tipo == "titulo" for bloque in self.bloques)
 
 
@@ -275,7 +190,7 @@ class _Seccion:
 def fragmentar(
     documento: Documento, config: ConfigFragmentacion = CONFIG_POR_DEFECTO
 ) -> list[Fragmento]:
-    """Fragmenta un documento. Nunca lanza: un documento sin texto da ``[]`` (§1.5)."""
+    """Fragmenta un documento. Nunca lanza: uno sin texto da ``[]``."""
     fragmentos, _ = _fragmentar_con_estadisticas(documento, config)
     return fragmentos
 
@@ -283,12 +198,7 @@ def fragmentar(
 def validar_fragmento(
     frag: Fragmento, config: ConfigFragmentacion = CONFIG_POR_DEFECTO
 ) -> list[str]:
-    """Devuelve los invariantes que viola ``frag``; lista vacía si está limpio.
-
-    Sigue el patrón de :func:`contrato.validar_documento`: informa y no lanza,
-    para que una corrida sobre 1826 documentos pueda reportar todo lo que está
-    mal de una vez en lugar de morir en el primero.
-    """
+    """Devuelve los invariantes que viola ``frag``; vacía si está limpio. No lanza."""
     violaciones: list[str] = []
 
     if not isinstance(frag.fuente, str) or not frag.fuente.strip():
@@ -376,7 +286,7 @@ def _violaciones_de_texto(frag: Fragmento, config: ConfigFragmentacion) -> list[
 
 
 def chunk_id_de(doc_id: str, posicion: int) -> str:
-    """Identificador del fragmento. Cuatro dígitos ordenan bien hasta 9999."""
+    """Identificador del fragmento. Cuatro dígitos para que ordene como texto."""
     return f"{doc_id}-c{posicion:04d}"
 
 
@@ -386,11 +296,10 @@ def chunk_id_de(doc_id: str, posicion: int) -> str:
 def _fragmentar_con_estadisticas(
     documento: Documento, config: ConfigFragmentacion
 ) -> tuple[list[Fragmento], dict[str, int]]:
-    """Igual que :func:`fragmentar`, pero contando lo que el reporte necesita.
+    """Igual que :func:`fragmentar`, contando lo que el reporte necesita.
 
-    Los contadores se llevan aquí y no se recalculan después porque "cuántos
-    huérfanos se fusionaron" no se puede deducir mirando el resultado: la
-    evidencia se pierde al fusionar.
+    Los contadores se llevan aquí porque "cuántos huérfanos se fusionaron" no se
+    puede deducir del resultado: la evidencia se pierde al fusionar.
     """
     estadisticas = {"huerfanos_fusionados": 0, "atomicos_partidos": 0}
 
@@ -429,13 +338,9 @@ def _fragmentar_con_estadisticas(
 def _agrupar_secciones(bloques: list[Bloque], config: ConfigFragmentacion) -> list[_Seccion]:
     """Capa 1: reparte los bloques en secciones que el empaquetado no cruzará.
 
-    La comparación de breadcrumbs se hace contra el **ancla** de la sección
-    abierta y por prefijo, no por igualdad. Con igualdad, un título de nivel 1 y
-    el párrafo que cuelga de él caerían en secciones distintas —el título lleva
-    ``ruta=[]`` y el párrafo ``ruta=["Título"]``— y §4.4 no podría fusionar
-    nunca un encabezado con su cuerpo. Por prefijo, además, ``nivel_frontera``
-    sigue significando algo: un subtítulo por debajo de la frontera extiende el
-    ancla en vez de romperla.
+    Los breadcrumbs se comparan contra el ancla de la sección abierta **por
+    prefijo**, no por igualdad: con igualdad, un título y el párrafo que cuelga
+    de él caerían en secciones distintas y nunca podrían fusionarse.
     """
     secciones: list[_Seccion] = []
     ancla: list[str] = []
@@ -451,12 +356,8 @@ def _agrupar_secciones(bloques: list[Bloque], config: ConfigFragmentacion) -> li
             or efectiva[: len(ancla)] != ancla
         )
 
-        # §4.4: un título solo abre sección si la anterior ya tiene cuerpo. Sin
-        # esta condición, la cadena "H2 > H5 > texto" —el patrón más común de
-        # un informe— dejaba al H2 solo en su sección, y la fusión de huérfanos
-        # no podía rescatarlo porque fusiona *dentro* de una sección. Eran
-        # 13 516 títulos del corpus real, el 29 % de todos, saliendo como
-        # fragmentos de dos palabras que compiten por los puestos del top-10.
+        # Un título solo abre sección si la anterior ya tiene cuerpo, o la cadena
+        # "H2 > H5 > texto" deja al H2 huérfano (fragmentos-fuera-de-norma.md §2).
         acumula_titulo = (  # noqa: E501 - la condición se lee mejor entera
             abre_seccion
             and bloque.tipo == "titulo"
@@ -466,9 +367,7 @@ def _agrupar_secciones(bloques: list[Bloque], config: ConfigFragmentacion) -> li
         )
 
         if acumula_titulo:
-            # El ancla y el breadcrumb siguen al título más profundo de la
-            # cadena: ahí es donde va a colgar el contenido que llegue después,
-            # y es lo que hace que encaje por prefijo en esta misma sección.
+            # El ancla sigue al título más profundo: ahí colgará el contenido.
             ancla = efectiva
             secciones[-1].breadcrumb = list(efectiva)
         elif abre_seccion:
@@ -481,11 +380,8 @@ def _agrupar_secciones(bloques: list[Bloque], config: ConfigFragmentacion) -> li
 
 
 def _ruta_efectiva(bloque: Bloque) -> list[str]:
-    """Breadcrumb del bloque incluyéndose a sí mismo si es un título.
-
-    Un título no cuelga de sí mismo en ``ruta``, pero sí abre la sección que su
-    cuerpo habitará, así que su ruta efectiva es la de sus hijos.
-    """
+    """Breadcrumb del bloque, incluyéndose a sí mismo si es un título: un título
+    abre la sección que su cuerpo habitará, así que su ruta es la de sus hijos."""
     if bloque.tipo == "titulo":
         return [*bloque.ruta, bloque.texto]
     return list(bloque.ruta)
@@ -533,12 +429,10 @@ def _grupos_atomicos(
     presupuesto: int,
     estadisticas: dict[str, int],
 ) -> list[_Grupo]:
-    """§5: cada registro completo es una unidad; nunca se parte por conveniencia.
+    """§5: cada registro completo es una unidad.
 
-    Solo se parte cuando el registro por sí solo supera el tope de 250 palabras
-    del enunciado, que no es negociable. Los registros muy cortos —una celda con
-    un número— se agrupan con sus contiguos: eso es agrupación de registros
-    enteros, no partición.
+    Solo se parte si por sí solo supera el tope de palabras. Los muy cortos se
+    agrupan con sus contiguos, que es agrupar registros enteros, no partirlos.
     """
     grupos: list[_Grupo] = []
 
@@ -548,9 +442,8 @@ def _grupos_atomicos(
         if not oraciones:
             continue
 
-        # Los datos salen de los bloques y no de las oraciones porque el texto
-        # de los registros ya viene unido: partirlo en oraciones pierde la
-        # correspondencia con la fila de la que salió cada una.
+        # De los bloques y no de las oraciones: el texto ya viene unido y
+        # segmentarlo pierde la correspondencia con la fila de origen.
         datos = [dict(b.datos) for b in registros if b.datos]
 
         if contar_palabras(texto) <= config.max_palabras:
@@ -591,22 +484,10 @@ def _agrupar_registros(bloques: list[Bloque], config: ConfigFragmentacion) -> li
 def _repartir_pseudo_oracion(texto: str, config: ConfigFragmentacion) -> list[str]:
     """Parte una "oración" que se pasa de tamaño y trae fronteras dentro.
 
-    El segmentador falla en un caso concreto del corpus: una comilla
-    desbalanceada dentro de una celda de CSV —``title: Hot Zones" for
-    Otolaryngologists``, de un CSV mal escapado— hace que pysbd trate el resto
-    del texto como una cita y devuelva 64 KB en una sola pieza. El fragmentador
-    la respetaba, porque §3.3 le prohíbe cortar dentro de una oración, y emitía
-    fragmentos de hasta 8 995 palabras: 1 343 fragmentos por encima del límite
-    de 250 de §9.2.1.
-
-    La salida al conflicto entre los dos requisitos es no tratarlos como
-    equivalentes: si dentro del texto hay puntuación terminal seguida de
-    espacio, **esas son oraciones de verdad** que el segmentador no supo ver, y
-    cortar por ellas cumple §3.3 en vez de violarlo. Si no las hay —una oración
-    larga de verdad, o texto sin puntuación como el chino— no se toca nada y el
-    fragmento sale grande, como hasta ahora.
-
-    Conserva el texto exacto: ``" ".join(resultado) == texto``.
+    Si hay puntuación terminal seguida de espacio, son oraciones que el
+    segmentador no supo ver y cortar por ellas cumple §3.3 en vez de violarlo;
+    si no las hay, no se toca nada. Conserva el texto: ``" ".join(r) == texto``.
+    El caso que lo motivó está en ``docs/decisiones/fragmentos-fuera-de-norma.md`` §3.
     """
     if contar_palabras(texto) <= config.max_palabras:
         return [texto]
@@ -620,12 +501,8 @@ def _repartir_pseudo_oracion(texto: str, config: ConfigFragmentacion) -> list[st
 def _oraciones_de(
     bloques: Iterable[Bloque], idioma: str, config: ConfigFragmentacion
 ) -> list[_Oracion]:
-    """Segmenta bloque a bloque, nunca el texto concatenado de la sección.
-
-    Concatenar antes de segmentar dejaría que el final de un párrafo sin punto
-    se pegue al principio del siguiente, inventando una oración que no está en
-    el documento.
-    """
+    """Segmenta bloque a bloque, nunca el texto concatenado de la sección:
+    concatenar antes inventa oraciones que no están en el documento."""
     oraciones: list[_Oracion] = []
     for bloque in bloques:
         for texto in _segmentar(bloque.texto, idioma, config):
@@ -659,8 +536,7 @@ def _empaquetar(
     """Capa 2: acumula oraciones completas hasta el objetivo, con dos topes duros.
 
     Una oración que por sí sola pasa de ``max_palabras`` sale como fragmento
-    propio: no se trunca, no se parte y no se descarta (§3.3). Se registra
-    después como violación de tamaño con el motivo "oración indivisible".
+    propio: no se trunca, no se parte y no se descarta (§3.3).
     """
     grupos: list[list[_Oracion]] = []
     actual: list[_Oracion] = []
@@ -683,10 +559,7 @@ def _fusionar_huerfanos(
 ) -> tuple[list[list[_Oracion]], int]:
     """§4.4: un fragmento por debajo de ``min_palabras`` se fusiona con un vecino.
 
-    Hacia adelante por defecto y hacia atrás si es el último. Un encabezado
-    suelto sin cuerpo detrás es basura semántica en el índice: un vector que
-    solo dice "Metodología" contamina el ranking de cualquier consulta sobre
-    metodología.
+    Hacia adelante por defecto y hacia atrás si es el último.
     """
     resultado = [list(grupo) for grupo in grupos]
     fusiones = 0
@@ -715,11 +588,10 @@ def _fusionar_huerfanos(
 
 
 def _cabe(oraciones: list[_Oracion], config: ConfigFragmentacion, presupuesto: int) -> bool:
-    """Los dos topes son simultáneos: manda el que se alcance primero (§2.1).
+    """Los dos topes son simultáneos: manda el que se alcance primero.
 
-    Lo comprueban por igual el empaquetado, la fusión de huérfanos y el solape.
-    Un solo sitio que se olvide del tope de tokens basta para que un fragmento
-    llegue al encoder y se trunque en silencio.
+    Lo usan el empaquetado, la fusión de huérfanos y el solape: un solo sitio que
+    se olvide del tope de tokens basta para que el encoder trunque en silencio.
     """
     return (
         _palabras(oraciones) <= config.max_palabras
@@ -732,10 +604,8 @@ def _aplicar_solape(
 ) -> list[tuple[list[_Oracion], bool]]:
     """Capa 3: cada fragmento arranca repitiendo la cola del anterior.
 
-    El solape se toma del contenido **propio** del fragmento anterior, no del
-    que ya arrastraba, para que una oración no se propague en cadena por toda la
-    sección. Y si no cabe dentro de los topes, se omite: el tope manda sobre el
-    solape.
+    Se toma del contenido propio del anterior, no del que ya arrastraba, para que
+    una oración no se propague en cadena. Si no cabe, se omite: manda el tope.
     """
     if config.oraciones_solape <= 0 or len(grupos) < 2:
         return [(grupo, False) for grupo in grupos]
@@ -792,13 +662,9 @@ def _construir_fragmento(
 def _prefijo_de_contexto(
     documento: Documento, seccion: list[str], config: ConfigFragmentacion
 ) -> str:
-    """§6.3: observatorio, título del documento y breadcrumb de secciones.
+    """Observatorio, título del documento y breadcrumb, por delante del texto.
 
-    Un fragmento de la página 40 de un informe que dice "el crecimiento fue del
-    12%" no es recuperable sin saber de qué informe y de qué sección viene. El
-    prefijo le devuelve ese contexto al vector sin tocar lo que se reporta al
-    jurado. Es legal: no interviene ningún decoder, es concatenación de metadata
-    que ya existía.
+    Ver ``docs/decisiones/enriquecimiento-de-contexto.md``.
     """
     partes = [
         _meta(documento, "observatorio"),
@@ -811,10 +677,8 @@ def _prefijo_de_contexto(
 def _presupuesto_de_tokens(prefijo: str, config: ConfigFragmentacion) -> int:
     """Tokens que le quedan al texto una vez descontado el prefijo.
 
-    Lo que entra al encoder es ``texto_enriquecido``, así que el tope de
-    ``max_tokens`` se le aplica a él. Descontar el prefijo aquí es lo que evita
-    el truncamiento silencioso de §14.3 del addendum del encoder: el tokenizador
-    corta sin avisar y el fragmento se indexa incompleto.
+    Lo que entra al encoder es ``texto_enriquecido``, así que el tope se le
+    aplica a él; sin descontarlo, el tokenizador trunca sin avisar.
     """
     if not prefijo:
         return config.max_tokens
@@ -852,13 +716,8 @@ def _palabras(oraciones: list[_Oracion]) -> int:
 def fragmentar_corpus(
     entrada: Path, salida: Path, config: ConfigFragmentacion = CONFIG_POR_DEFECTO
 ) -> ReporteFragmentacion:
-    """Fragmenta todos los ``Documento`` de ``entrada`` y escribe la salida.
-
-    ``entrada`` es el ``extraidos/`` que deja el orquestador. Produce
-    ``fragmentos.jsonl`` —una línea por fragmento, en orden de documento y
-    posición— y ``reporte_fragmentacion.json``. Dos corridas sobre el mismo
-    corpus dan el mismo archivo byte a byte.
-    """
+    """Fragmenta el ``extraidos/`` de ``entrada`` y escribe ``fragmentos.jsonl``
+    y ``reporte_fragmentacion.json``. Dos corridas dan los mismos bytes."""
     documentos = cargar_extraidos(entrada)
     fragmentos, reporte = fragmentar_documentos(documentos, config, on_progreso=_avisar_progreso)
     _escribir_salida(fragmentos, reporte, Path(salida))
@@ -872,14 +731,9 @@ def fragmentar_documentos(
 ) -> tuple[list[Fragmento], ReporteFragmentacion]:
     """Fragmenta una lista de documentos ya cargados, sin tocar el disco.
 
-    Separada de :func:`fragmentar_corpus` porque el barrido de configuraciones
-    (§8.3) prueba seis variantes sobre el mismo corpus y escribir seis copias de
-    los fragmentos solo para calcular medianas es tiempo y disco tirados.
-
-    ``on_progreso``, si se pasa, se llama antes de cada documento con
-    ``(índice, total, documento)``. Existe para que el CLI pueda avisar en
-    documentos grandes (ver ``UMBRAL_AVISO_BLOQUES``) sin que esta función deje
-    de ser pura por defecto para quien la llama sin él, como el barrido.
+    Existe aparte para el barrido de configuraciones, que prueba seis variantes
+    sobre el mismo corpus. ``on_progreso`` se llama antes de cada documento con
+    ``(índice, total, documento)``; sin él la función no imprime nada.
     """
     fragmentos: list[Fragmento] = []
     sin_bloques: list[str] = []
@@ -909,7 +763,7 @@ def fragmentar_documentos(
 
 
 def _avisar_progreso(indice: int, total: int, documento: Documento) -> None:
-    """Avance a stderr: un aviso especial en documentos grandes, uno periódico en el resto."""
+    """Avance a stderr: aviso propio en documentos grandes, periódico en el resto."""
     n_bloques = len(documento.bloques)
     if n_bloques >= UMBRAL_AVISO_BLOQUES:
         print(
@@ -924,10 +778,8 @@ def _avisar_progreso(indice: int, total: int, documento: Documento) -> None:
 def cargar_extraidos(entrada: Path) -> list[Documento]:
     """Lee los ``Documento`` que dejó el orquestador, en orden estable.
 
-    Se recorre en el orden del manifiesto cuando existe —que es el orden por
-    ``(fuente, ruta_relativa)``— y por nombre de archivo cuando no. El orden
-    importa: fija el orden de las líneas de ``fragmentos.jsonl`` y con él el
-    diff entre corridas.
+    En el orden del manifiesto cuando existe, y por nombre de archivo cuando no:
+    ese orden es el de las líneas de ``fragmentos.jsonl``.
     """
     entrada = Path(entrada)
     if not entrada.is_dir():
@@ -992,11 +844,7 @@ def _contar(valores: Iterable[str]) -> dict[str, int]:
 def _percentil(ordenados: list[int], porcentaje: int) -> int:
     """Percentil por rango más cercano sobre una lista ya ordenada.
 
-    Sin interpolación y sin dependencias: devuelve siempre un valor que existe
-    en los datos, que es lo que quiere leer alguien que compara dos
-    configuraciones en la tabla del §8.3. Un corpus sin fragmentos da 0 en vez
-    de reventar: es el caso real de un directorio de extraídos donde todos los
-    extractores son todavía stubs.
+    Sin interpolar: devuelve un valor que existe en los datos. Sin fragmentos, 0.
     """
     if not ordenados:
         return 0
@@ -1007,9 +855,8 @@ def _percentil(ordenados: list[int], porcentaje: int) -> int:
 def _histograma(valores: Iterable[int]) -> dict[str, int]:
     """Bins de 25 palabras.
 
-    Las claves llevan ceros a la izquierda ("0175-0199") para que ordenen igual
-    como texto que como número: el reporte se serializa con ``sort_keys`` y sin
-    el relleno "100-124" quedaría antes que "25-49".
+    Las claves llevan ceros a la izquierda para que ordenen igual como texto que
+    como número: el reporte se serializa con ``sort_keys``.
     """
     conteo: dict[str, int] = {}
     for valor in valores:
@@ -1099,8 +946,7 @@ def _config_desde_args(args: argparse.Namespace) -> ConfigFragmentacion:
     """Traduce los argumentos a la configuración del algoritmo.
 
     Separada de :func:`main` para poder comprobar en una prueba qué contador de
-    tokens acaba usando cada opción: es la diferencia entre una corrida válida
-    para la entrega y una que no lo es, y no se nota mirando la salida.
+    tokens usa cada opción: no se nota mirando la salida.
     """
     config = ConfigFragmentacion(
         objetivo_palabras=args.objetivo_palabras,
@@ -1113,8 +959,8 @@ def _config_desde_args(args: argparse.Namespace) -> ConfigFragmentacion:
     )
 
     if args.tokenizador == "real":
-        # Import local: `fragmentador` no depende de `encoder`, que arrastra
-        # transformers. La dependencia va en un solo sentido.
+        # Import local: la dependencia con `encoder` va en un solo sentido, y así
+        # el módulo sigue funcionando sin transformers instalado.
         from encoder import config_fragmentacion_con_tokenizador
 
         return config_fragmentacion_con_tokenizador(base=config)

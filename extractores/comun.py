@@ -1,17 +1,9 @@
-"""Piezas que comparten los extractores.
+"""Piezas que comparten los extractores: la pila de encabezados, los filtros de
+lo que no es texto indexable y la construcción del ``Documento``.
 
-Tres cosas se repetían en PDF, JSON y texto plano, y las tres son fáciles de
-implementar mal de forma distinta en cada sitio:
-
-- **La pila de encabezados.** ``contrato.validar_documento`` reconstruye la
-  jerarquía y compara la ``ruta`` de cada bloque con los ancestros vigentes. Un
-  extractor que lleve la pila por su cuenta acaba produciendo documentos que no
-  validan por un detalle de bookkeeping. :class:`Jerarquia` la lleva una sola vez.
-- **Qué es lenguaje natural.** Un identificador, una URL o un timestamp indexados
-  como si fueran prosa ensucian el índice sin aportar nada recuperable.
-- **Cómo se arma el ``Documento``**, incluida la detección de idioma.
-
-Este módulo no lee archivos: trabaja con cadenas y bloques ya extraídos.
+No lee archivos: trabaja con cadenas y bloques ya extraídos. Llevar la pila de
+encabezados por cuenta propia en cada extractor produce documentos que no validan,
+así que :class:`Jerarquia` la lleva una sola vez.
 """
 
 from __future__ import annotations
@@ -28,14 +20,10 @@ from contrato import (
 )
 from limpieza import detectar_idioma, normalizar_texto
 
-# Caracteres de texto que se examinan para detectar el idioma. Con más no se
-# acierta más y el corpus tiene documentos de cientos de miles de caracteres.
 CARACTERES_PARA_IDIOMA = 4000
-
 IDIOMA_POR_DEFECTO = "es"
 
-# Un valor que casa con alguno de estos *por completo* no es lenguaje natural.
-# Se ancla el patrón entero a propósito: una URL suelta es ruido, pero una URL
+# Los patrones se anclan enteros a propósito: una URL suelta es ruido, pero
 # dentro de una frase es parte de la frase y descartarla se llevaría el párrafo.
 _NO_TEXTUALES: tuple[re.Pattern[str], ...] = (
     re.compile(r"^(?:https?://|www\.)\S+$", re.IGNORECASE),
@@ -52,8 +40,7 @@ _NO_TEXTUALES: tuple[re.Pattern[str], ...] = (
 # Al menos una letra: sin esto, "· · ·" pasaría el filtro de longitud.
 _TIENE_LETRA = re.compile(r"[^\W\d_]", re.UNICODE)
 
-# Ruido que no aporta ni acompañado de su columna. Es un filtro más laxo que
-# :func:`es_texto_natural` a propósito: en un registro el valor viaja pegado a
+# Más laxo que _NO_TEXTUALES a propósito: en un registro el valor viaja pegado a
 # su clave, así que "year: 2026" sí se recupera y "url: https://…" no.
 _OPACOS: tuple[re.Pattern[str], ...] = (
     re.compile(r"^(?:https?://|www\.)\S+$", re.IGNORECASE),
@@ -63,16 +50,15 @@ _OPACOS: tuple[re.Pattern[str], ...] = (
     re.compile(r"^\S*/\S*\.\w{2,5}$"),  # ruta de archivo
 )
 
+# Separa los pares "columna: valor" dentro de un registro.
 SEPARADOR_CAMPOS = " | "
-"""Separa los pares ``columna: valor`` dentro de un registro."""
 
 
 def es_texto_natural(valor: Any) -> bool:
     """``True`` si el valor merece indexarse como texto.
 
-    El criterio es deliberadamente permisivo con las frases y estricto con los
-    valores sueltos: en el corpus, ``"Inminencia"`` es el tipo de una alerta y
-    vale; ``"91689"`` es su identificador interno y no.
+    Permisivo con las frases y estricto con los valores sueltos: "Inminencia" es
+    el tipo de una alerta y vale; "91689" es su identificador y no.
     """
     if not isinstance(valor, str):
         return False
@@ -85,11 +71,9 @@ def es_texto_natural(valor: Any) -> bool:
 
 
 def es_valor_opaco(valor: Any) -> bool:
-    """``True`` si el valor no aporta nada ni siquiera acompañado de su columna.
+    """``True`` si el valor no aporta nada ni acompañado de su columna.
 
-    Complementa a :func:`es_texto_natural`, que juzga texto suelto. Aquí se
-    conservan números y fechas: ``"year: 2026"`` es recuperable, ``"2026"`` a
-    secas no.
+    A diferencia de :func:`es_texto_natural`, conserva números y fechas.
     """
     limpio = normalizar_texto(valor) if isinstance(valor, str) else str(valor).strip()
     if not limpio:
@@ -100,13 +84,8 @@ def es_valor_opaco(valor: Any) -> bool:
 def serializar_registro(pares) -> str:
     """Convierte pares ``(columna, valor)`` en el texto de un bloque ``fila``.
 
-    Repetir el nombre de la columna en cada fila es redundante para un humano,
-    pero es lo que hace que la fila se recupere sola, sin la cabecera como
-    contexto: el vector de "país: Colombia | año: 2026" dice qué es cada cosa,
-    el de "Colombia | 2026" no.
-
-    Conserva el orden recibido —el de la cabecera— porque reordenar cambiaría
-    el texto entre corridas.
+    El nombre de la columna se repite en cada fila para que la fila se recupere
+    sola, sin la cabecera como contexto. Conserva el orden recibido.
     """
     campos = [
         f"{normalizar_texto(str(columna))}: {normalizar_texto(str(valor))}"
@@ -119,14 +98,9 @@ def serializar_registro(pares) -> str:
 class Jerarquia:
     """Lleva la pila de encabezados y construye bloques con la ruta correcta.
 
-    Un título de nivel N cierra todos los de nivel ``>= N`` que estuvieran
-    abiertos, que es exactamente la regla que verifica
-    ``contrato._violaciones_de_jerarquia``. Construir los bloques desde aquí es
-    lo que garantiza que el documento valide.
-
-    Los constructores devuelven ``None`` cuando el texto queda vacío tras
-    normalizar, porque el contrato prohíbe bloques vacíos.
-    :func:`construir_documento` los filtra.
+    Un título de nivel N cierra todos los de nivel ``>= N``, que es la regla que
+    verifica el contrato. Los constructores devuelven ``None`` cuando el texto
+    queda vacío al normalizar; :func:`construir_documento` los filtra.
     """
 
     def __init__(self) -> None:
@@ -172,9 +146,7 @@ class Jerarquia:
     ) -> Bloque | None:
         """Un registro completo: no se parte ni se fusiona con sus vecinos.
 
-        ``datos`` recoge los campos del registro que no entran al texto —los
-        identificadores— para que sigan viajando con la fila sin pesar en el
-        vector.
+        ``datos`` recoge los campos que no entran al texto pero siguen viajando.
         """
         return self._simple(texto, "fila", pagina=pagina, atomico=True, datos=datos)
 
@@ -212,10 +184,8 @@ def construir_documento(
 ) -> Documento:
     """Ensambla el ``Documento`` y detecta su idioma.
 
-    ``doc_id`` sale del nombre del archivo porque el extractor no sabe nada del
-    índice de ADL. El orquestador lo sustituye después por el ``DOC_ID`` oficial
-    (``orquestador._con_identidad``); ponerlo aquí solo sirve para que el
-    documento sea válido por sí mismo.
+    El ``doc_id`` sale del nombre porque el extractor no sabe nada del índice de
+    ADL; el orquestador lo sustituye después por el oficial.
     """
     utiles = [bloque for bloque in bloques if bloque is not None]
     return Documento(
@@ -231,12 +201,8 @@ def construir_documento(
 
 
 def _idioma_de(bloques: list[Bloque]) -> str:
-    """Idioma predominante, mirando solo el principio del documento.
-
-    Se recorta a :data:`CARACTERES_PARA_IDIOMA` por velocidad: el detector no
-    acierta más con un informe entero que con sus primeras páginas, y el corpus
-    tiene documentos de cientos de miles de caracteres.
-    """
+    """Idioma predominante, mirando solo el principio del documento: el detector
+    no acierta más con un informe entero que con sus primeras páginas."""
     if not bloques:
         return IDIOMA_POR_DEFECTO
 
@@ -259,12 +225,7 @@ def documento_fallido(
     motivo: str,
     meta: dict[str, Any] | None = None,
 ) -> Documento:
-    """Documento válido que representa una extracción que no se pudo hacer.
-
-    Ningún extractor propaga excepciones: un archivo corrupto produce esto y el
-    pipeline sigue (§1.5 del spec). El motivo viaja en ``errores`` para que el
-    reporte del orquestador pueda listarlo en vez de perderlo.
-    """
+    """Documento válido que representa una extracción que no se pudo hacer."""
     return construir_documento(
         fuente=fuente,
         formato=formato,

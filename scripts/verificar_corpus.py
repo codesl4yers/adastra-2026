@@ -30,33 +30,24 @@ ESPERADO_POR_FENOMENO = {1: 459, 2: 479, 3: 888}
 ESPERADO_NOMBRES_AMBIGUOS = 59
 ESPERADO_ARCHIVOS_AMBIGUOS = 186
 
-# 9 archivos ".DS_Store" (residuo que macOS Finder deja en cualquier carpeta
-# que se navegue) más 1 ".zip" de 3.1 GB (empaquetado del corpus completo, no
-# un documento individual de la entrega). Que ninguno de los 10 tenga
-# extractor registrado es lo correcto y lo deseable: no son documentos de
-# ADL, son ruido del sistema de archivos y un archivo contenedor. No es una
-# tolerancia arbitraria ni un fallo pendiente de arreglar.
+# 9 ".DS_Store" y el .zip de 3,1 GB con el corpus empaquetado. Que ninguno tenga
+# extractor es lo correcto: no son documentos de ADL.
 ESPERADO_SIN_EXTRACTOR = 10
 
 
 def _forzar_utf8(flujo):
     """Evita que un ``print`` con tildes reviente al redirigir la salida.
 
-    La consola de Windows suele hablar en una página de códigos que no cubre
-    los acentos del español (cp1252, cp850...). Mientras se imprime a una
-    consola interactiva, Python suele arreglárselas; en cuanto la salida se
-    redirige a un archivo o a una tubería, el códec cambia y un simple
+    Redirigida a un archivo, la consola de Windows cambia de códec y un
     ``print("fenómeno")`` puede lanzar ``UnicodeEncodeError`` a mitad de la
-    verificación. Reconfigurar a UTF-8 con reemplazo de lo no representable
-    hace que el script nunca aborte por esto, aquí ni en la consola de quien
-    lo corra.
+    verificación.
     """
     reconfigure = getattr(flujo, "reconfigure", None)
     if reconfigure is not None:
         try:
             reconfigure(encoding="utf-8", errors="replace")
         except (ValueError, OSError):
-            pass  # Flujo que no admite reconfigurar (p. ej. ya cerrado): seguir sin romper.
+            pass  # flujo que no admite reconfigurar: seguir sin romper
 
 
 def comprobar(titulo: str, obtenido, esperado) -> bool:

@@ -2,6 +2,13 @@
 
 CODEFEST Ad Astra 2026 · Etapa 1 · v1.0 · 4 ago 2026
 
+> **Este spec es la foto del 4 ago 2026 y no se reescribe.** Es el documento de
+> partida de la capa, no el estado vigente: cuando se redactó no había ni un
+> extractor implementado ni encoder elegido. Lo que cambió después está en
+> `docs/decisiones/` —conteo de tokens, enriquecimiento de contexto, fragmentos
+> fuera de norma— y el estado actual, en el README. Donde el spec y una decisión
+> posterior se contradigan, manda la decisión.
+
 **Objetivo.** Convertir cada `Documento` de `extraidos/` en una lista de
 `Fragmento` lista para codificar, respetando la completitud lingüística (§3.3
 del enunciado), el límite de 250 palabras (§9.2.1) y los ocho campos de
@@ -286,6 +293,12 @@ ConfigFragmentacion.contar_tokens: Callable[[str], int]
 En cuanto se elija el encoder, se cambia por su `AutoTokenizer` y **se
 re-fragmenta el corpus completo**: los `num_tokens` estimados no son válidos
 para la entrega.
+
+> **Corregido el 5 ago 2026: la estimación no era conservadora.** Medida contra
+> el tokenizador de granite, la mediana real del corpus es de 1,77 tokens por
+> palabra —3,50 en tiles vectoriales y 2,81 en datos tabulares— y el 8,2 % de
+> los fragmentos excedía el tope de 450. Ver
+> `docs/decisiones/conteo-de-tokens.md`.
 
 Esto es una dependencia real hacia atrás. Conviene cerrar la elección del
 encoder antes de dar por terminada esta capa, porque un modelo de contexto largo

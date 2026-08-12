@@ -1,0 +1,1816 @@
+[
+  {
+    "question_id": "q001",
+    "question": "¿Cómo está transformando la inteligencia artificial la capacidad de los Estados para prevenir, detectar y contrarrestar amenazas NBQR?",
+    "relevant_chunks": [
+      {
+        "rank": 1,
+        "chunk_id": "F1-CSET-110-c0029",
+        "source_file": "CSET_center-for-security-and-emerging-technology-6.pdf",
+        "excerpt": "Protect against AI-enabled biological risks There are concerns that AI could exacerbate biological risks, for example by making it easier for a non-expert to produce a biological weapon or by enabling the creation of more severe or targeted pathogens and toxins. We recommend the following steps to"
+      },
+      {
+        "rank": 2,
+        "chunk_id": "F1-CSET-034-c0137",
+        "source_file": "CSET_center-for-security-and-emerging-technology-23.pdf",
+        "excerpt": "Our ASL-3 capability threshold for CBRN (Chemical, Biological, Radiological, and Nuclear) weapons measures the ability to significantly help individuals or groups with basic technical backgrounds (e.g. undergraduate STEM degrees) to create/obtain and deploy CBRN weapons. We primarily focus on"
+      },
+      {
+        "rank": 3,
+        "chunk_id": "F1-CSET-061-c0048",
+        "source_file": "CSET_center-for-security-and-emerging-technology-34.pdf",
+        "excerpt": "CBRN-3: The ability to significantly assist individuals or groups with basic STEM backgrounds in obtaining, producing, or deploying CBRN weapons. 20 We assess this by comparing what potential attackers could achieve with full model access versus 2023-level online resources, assuming they have"
+      },
+      {
+        "rank": 4,
+        "chunk_id": "F1-CSET-061-c0012",
+        "source_file": "CSET_center-for-security-and-emerging-technology-34.pdf",
+        "excerpt": "Capability Thresholds and their corresponding Required Safeguards. The Required Safeguards for each Capability Threshold are intended to mitigate risk from a model with such capabilities to acceptable levels. In developing these standards, we have weighed the risks and benefits of frontier model"
+      },
+      {
+        "rank": 5,
+        "chunk_id": "F1-CSET-034-c0142",
+        "source_file": "CSET_center-for-security-and-emerging-technology-23.pdf",
+        "excerpt": "We do not currently run specific evaluations on chemical risks internally in favor of prioritizing biological risks. We do implement some mitigations for chemical risks and we inform our views via chemical risk analysis performed by the UK AI Security Institute and the US AI Safety Institute."
+      }
+    ],
+    "notes": "El corpus trata el vinculo IA-NBQR sobre todo desde el riesgo de que los modelos faciliten el desarrollo de armas QBRN y desde las salvaguardas para evitarlo; no hay fragmentos sobre sistemas de IA usados por los Estados para deteccion y respuesta NBQR en campo."
+  },
+  {
+    "question_id": "q002",
+    "question": "¿Cómo están empleando los sistemas no tripulados potenciados por IA para aumentar la efectividad de las operaciones militares?",
+    "relevant_chunks": [
+      {
+        "rank": 1,
+        "chunk_id": "F1-CSET-097-c0029",
+        "source_file": "CSET_center-for-security-and-emerging-technology-5.pdf",
+        "excerpt": "artificial intelligence is playing a crucial role in advancing UAV autonomy. 52 Modern Chinese drones are being developed to execute three primary modes of intelligent combat: autonomous missions, multi-UAV swarm coordination, and human-machine collaborative operations. The increasing use of"
+      },
+      {
+        "rank": 2,
+        "chunk_id": "F1-DAIO-030-c0050",
+        "source_file": "DAIO_study2529-guarding-the-alliances-eastern-frontiers-lipka-wernik-dziegiel.pdf",
+        "excerpt": "deployment of unmanned systems supported by AI on an unprecedented scale, particularly in geospatial and imagery intelligence as well as the use of AI in BMS to support planning, in fire control systems, to monitor and detect disinformation, and data analysis 99 AI-enhanced assets help Ukraine"
+      },
+      {
+        "rank": 3,
+        "chunk_id": "F1-DAIO-033-c0056",
+        "source_file": "DAIO_study2632-from-laggard-to-potential-regional-innovator-raluca-csernatoni.pdf",
+        "excerpt": "Romania is gradually fielding AI for unmanned systems, counter-unmanned systems solutions and air defence: Unmanned Systems The Romanian Navy has acquired the V-BAT surveillance drone from U.S. manufacturer Shield AI in a deal worth approximately USD30M. This uncrewed aerial system (UAS) is"
+      },
+      {
+        "rank": 4,
+        "chunk_id": "F1-DAIO-018-c0050",
+        "source_file": "DAIO_study2316-cautious-data-driven-evolution-sami-jaervinen.pdf",
+        "excerpt": "manned-unmanned teaming (MUM- T). Part of the Future Combat Air System (FCAS), the MUM-T project achieved a major milestone in a Multi-Domain Flight Demo held in Rovajärvi, Finland in the summer of 2022: in Europe’s first large-scale multi-domain flight demo, two fighter jets, one helicopter and"
+      },
+      {
+        "rank": 5,
+        "chunk_id": "F1-CSET-097-c0025",
+        "source_file": "CSET_center-for-security-and-emerging-technology-5.pdf",
+        "excerpt": "China has laid out an ambitious roadmap for UAV development. According to the Aviation Industry Corporation of China’s (AVIC) White Paper on UAV Systems Development published in 2018, the country aims to establish a comprehensive, high-end UAV system by 2025. This system will feature breakthroughs"
+      }
+    ]
+  },
+  {
+    "question_id": "q003",
+    "question": "¿Qué lecciones dejan los conflictos recientes sobre el empleo de inteligencia artificial en operaciones militares?",
+    "relevant_chunks": [
+      {
+        "rank": 1,
+        "chunk_id": "F3-SIPRI-001-c0019",
+        "source_file": "SIPRI_0226-milai-procurement-260216.pdf",
+        "excerpt": "The reported use of AI in recent conflicts reinforces the view that military AI is central to the conduct of modern warfare—although the lack of precise information makes it difficult to evaluate the impact of the technology. In the 2020 armed conflict in the NagornoKarabakh region, Azerbaijan used"
+      },
+      {
+        "rank": 2,
+        "chunk_id": "F1-DAIO-001-c0007",
+        "source_file": "DAIO_beware-the-hype.pdf",
+        "excerpt": "Real wars thus offer a plethora of observations that can provide glimpses of how the future of warfighting might look like. In times of perceived technological change that might underpin military suc- cess, observers pay particular attention to how armed forces have been using the latest technology"
+      },
+      {
+        "rank": 3,
+        "chunk_id": "F1-CSET-076-c0100",
+        "source_file": "CSET_center-for-security-and-emerging-technology-4.pdf",
+        "excerpt": "The importance of UAVs for a variety of operations became apparent following the 2023 Nagorno-Karabakh conflict and was made even more abundantly clear with how the Rus- so-Ukrainian war became an unfortunate demonstration of the lethality of drones. 11 The current civil war within Sudan has also"
+      },
+      {
+        "rank": 4,
+        "chunk_id": "F1-DAIO-010-c0045",
+        "source_file": "DAIO_study2308-2.pdf",
+        "excerpt": "Recent successes of Turkish UAVs in contemporary conflicts encourage Turkey to invest in this niche market. Turkey’s usage of UAVs increased the combat effective- ness of the Turkish military as well as the users of Turkish UAVs. Especially follow- ing the Second Nagorno-Karabakh War, international"
+      },
+      {
+        "rank": 5,
+        "chunk_id": "F1-DAIO-023-c0003",
+        "source_file": "DAIO_study2422-survival-of-the-smartest-vitaliy-goncharuk.pdf",
+        "excerpt": "full-scale invasion in February 2022, Ukraine had an advanced ecosystem to produce artificial intelligence (AI) solutions for commercial use. The country also ranked first in the number of AI companies in Eastern Europe 1 with more than 7,000 AI engineers and hosting research and development (R&D)"
+      }
+    ]
+  },
+  {
+    "question_id": "q004",
+    "question": "¿Qué riesgos representa la escasez de talento especializado en inteligencia artificial para el desarrollo de capacidades de defensa?",
+    "relevant_chunks": [
+      {
+        "rank": 1,
+        "chunk_id": "F1-DAIO-017-c0019",
+        "source_file": "DAIO_study2315-embracing-the-organized-mess-dolinko-antebi.pdf",
+        "excerpt": "Recruiting and retaining skilled personnel ca- pable of developing, adapting, and implementing AI systems for military and national security purposes is challenging due to intense competition from the private sector, which provides more favorable employment conditions. While Israel’s economy"
+      },
+      {
+        "rank": 2,
+        "chunk_id": "F1-DAIO-020-c0056",
+        "source_file": "DAIO_study2318-servers-before-tanks-andreas-graae.pdf",
+        "excerpt": "growing knowledge gap and lack of AI literacy thus remain some of the greatest barriers for adopting defence AI in Denmark. This makes conscription and recruitment of IT-specialists, technical translators, and experts in data science a still more demanding task. This also means that AI readiness"
+      },
+      {
+        "rank": 3,
+        "chunk_id": "F1-DAIO-035-c0040",
+        "source_file": "DAIO_study2634-fragmented-efforts-joao-paulo-moralez-santiago-rivas.pdf",
+        "excerpt": "no measures have been observed to significantly scale up the number of defense professionals with AI expertise, either through training programs within the Armed Forces or through the recruitment of civilian personnel, although courses and postgraduate programs focused on AI already exist. The"
+      },
+      {
+        "rank": 4,
+        "chunk_id": "F1-DAIO-022-c0054",
+        "source_file": "DAIO_study2421-will-the-one-ring-hold-youngwook-park.pdf",
+        "excerpt": "nurturing defense-specific AI expertise and bolstering the digital proficiency of its defense workforce. To foster a robust pool of experts and establish a sustainable foundation for defense AI advancement, the MND has unveiled initiatives to partner with universities to train 1,000 AI"
+      },
+      {
+        "rank": 5,
+        "chunk_id": "F1-ILIA-007-c0134",
+        "source_file": "ILIA_2025.-key-findings-applied-artificial-intelligence-and-human-talent-compressed.pdf",
+        "excerpt": "a fundamental talent gap with global leaders persists. This gap is evident not only in the absolute number of professionals but, more importantly, in the pace at which talent is being developed. As Latin America progresses, innovation hubs elsewhere are accelerating faster, widening the existing"
+      }
+    ],
+    "notes": "Ninguna fuente cuantifica el riesgo de la escasez de talento para capacidades de defensa; los fragmentos documentan la brecha de talento y sus efectos sobre la adopcion de IA de defensa en paises concretos (Israel, Dinamarca, Brasil, Corea del Sur) y en America Latina."
+  },
+  {
+    "question_id": "q005",
+    "question": "¿Qué implicaciones estratégicas tiene la dependencia de tecnologías extranjeras de IA para la autonomía y la seguridad nacional de Colombia?",
+    "relevant_chunks": [
+      {
+        "rank": 1,
+        "chunk_id": "F1-CSET-076-c0072",
+        "source_file": "CSET_center-for-security-and-emerging-technology-4.pdf",
+        "excerpt": "For some governments, sovereignty means con- trolling the full hardware-software stack. For others, it is the ability to develop AI models trained on domestic datasets to reduce dependence on foreign companies. This paper interrogates the concept of “sovereign AI” through the lens of the technology"
+      },
+      {
+        "rank": 2,
+        "chunk_id": "F1-ILIA-009-c0056",
+        "source_file": "ILIA_documento-ilia-2025.pdf",
+        "excerpt": "soberanía tecnológica genuina, donde los países no solo consuman tecnologías extranjeras, sino que también las produzcan con pertinencia local. Comisión Económica para América Latina y el Caribe (CEPAL) iv) Costa Rica: una apuesta por el Talento Humano en IA El posicionamiento de Costa Rica como"
+      },
+      {
+        "rank": 3,
+        "chunk_id": "F1-ILIA-009-c0061",
+        "source_file": "ILIA_documento-ilia-2025.pdf",
+        "excerpt": "reducir la dependencia tecnológica del exterior y fomentar una IA contextualizada, alineada con las necesidades sociales y productivas locales. Además, permite que los países de la región participen activamente en la frontera del conocimiento, abriendo oportunidades para liderar investigaciones,"
+      },
+      {
+        "rank": 4,
+        "chunk_id": "F1-DAIO-031-c0097",
+        "source_file": "DAIO_study2530-bonds-that-separate-heiko-borchert.pdf",
+        "excerpt": "balance sovereignty and dependence, adjust AI-enhanced defense capability and defense industrial portfolios, address the normative aspects of technology-driven development and cooperation and to what extent they will ensure public-private cooperation to protect a burgeoning cluster of data centers"
+      },
+      {
+        "rank": 5,
+        "chunk_id": "F1-ILIA-001-c0202",
+        "source_file": "ILIA_2023.pdf",
+        "excerpt": "colonialismo tecnológico y regulatorio, se destacó la importancia de una mayor colaboración regional y el fortalecimiento de los marcos institucionales. D. Cambio climático En el escenario optimista planteado al principio económicos y rara vez se consideran sus impactos en de la discusión los"
+      }
+    ],
+    "notes": "No hay fragmentos sobre dependencia de IA extranjera referidos especificamente a Colombia; los seleccionados tratan la soberania tecnologica de forma general y para America Latina."
+  },
+  {
+    "question_id": "q006",
+    "question": "¿Qué riesgos operacionales y jurídicos implica incorporar inteligencia artificial en inteligencia militar sin una doctrina, políticas y protocolos consolidados?",
+    "relevant_chunks": [
+      {
+        "rank": 1,
+        "chunk_id": "F3-SIPRI-111-c0068",
+        "source_file": "SIPRI_pragmatic-approaches-to-governance-at-the-ai-nuclear-nexus.pdf",
+        "excerpt": "without concrete operational definitions, accountability mechanisms and technical benchmarks, any commitment to ‘human control’ may not offer meaningful safeguards. To translate concern into action, states should develop operational principles and standards at the national level—such as on domestic"
+      },
+      {
+        "rank": 2,
+        "chunk_id": "F3-SIPRI-101-c0005",
+        "source_file": "SIPRI_laws-v-0.pdf",
+        "excerpt": "a false target identification can result in immediate lethal action without human input. For AI-DSS, which provide outputs to humans, the risk is indirect—harm materializes if humans act upon that false target identification. Both AWS and AI-DSS raise questions about how much users are permitted to"
+      },
+      {
+        "rank": 3,
+        "chunk_id": "F3-SIPRI-001-c0042",
+        "source_file": "SIPRI_0226-milai-procurement-260216.pdf",
+        "excerpt": "legal review obligations under Article 36 of the 1977 Protocol Additional to the 1949 Geneva Conventions (API), requires an assessment of whether certain new military capabilities can be used in compliance with applicable international law. 67 Second, national and international policy commitments"
+      },
+      {
+        "rank": 4,
+        "chunk_id": "F3-SIPRI-006-c0068",
+        "source_file": "SIPRI_0326-preventing-biological-weapons-proliferation-0.pdf",
+        "excerpt": "Automation can improve efficiency but could also blur responsibility if decisions become opaque or delegated without clear accountability. Adopted tools will need to maintain clear chains of responsibility, especially where automated outputs shape official submissions, compliance decisions or"
+      },
+      {
+        "rank": 5,
+        "chunk_id": "F1-DAIO-006-c0012",
+        "source_file": "DAIO_study2204-2.pdf",
+        "excerpt": "Work here is nascent, with little formal doctrine as yet. There is existing conceptual writing on human-machine teaming, which stresses the continued importance on human judgment in military activities; a theme that emerges frequently in military discus- sions of defence AI. 8 AI features in"
+      }
+    ]
+  },
+  {
+    "question_id": "q007",
+    "question": "¿Qué desafíos plantea el empleo de sistemas autónomos o semiautónomos frente al Derecho Internacional Humanitario y la atribución de responsabilidades?",
+    "relevant_chunks": [
+      {
+        "rank": 1,
+        "chunk_id": "F3-CEEEP-043-c0000",
+        "source_file": "CEEEP_issue3-17-armas-autonomas-letales-medios-de-defensa-y-ataque.json",
+        "excerpt": "sistemas de armas autónomas letales (AAL) con autodeterminación en sus funciones críticas pueden impactar en la seguridad internacional, al iniciar una nueva carrera armamentista, promover la escalada de violencia no premeditada y reducir el umbral del uso legítimo de la fuerza para los tomadores"
+      },
+      {
+        "rank": 2,
+        "chunk_id": "F1-DAIO-013-c0010",
+        "source_file": "DAIO_study2311-2.pdf",
+        "excerpt": "the responsibility for and potential unintended consequences of the use of LAWS rests with the operator of the system or “programming.” 12 However, Russia simultaneously argues that it will be very difficult to develop crite- ria for what the “meaningfulness” means without politicizing the issue."
+      },
+      {
+        "rank": 3,
+        "chunk_id": "F1-DAIO-029-c0021",
+        "source_file": "DAIO_study2528-an-underdeveloped-strategic-necessity-umaima-ali.pdf",
+        "excerpt": "advocating for a complete ban on lethal autonomous weapon systems (LAWS). 43 Concerns that AI could potentially be used in robots weaponized to kill or the delegation of life-and-death decisions 41 “DigitalPakistanPolicy.” 42 “GovernmentofPakistanNationalCyberSecurityPolicy2021.” 43"
+      },
+      {
+        "rank": 4,
+        "chunk_id": "F1-DAIO-029-c0022",
+        "source_file": "DAIO_study2528-an-underdeveloped-strategic-necessity-umaima-ali.pdf",
+        "excerpt": "warrants further development of corresponding, legally binding inter- national rules.” In December 2023, Pakistan voted in support of UN General Assembly Resolution 78/241 on lethal autonomous weapons systems. In October 2024, Pakistan supported Draft Resolution L.77 on lethal autonomous weapons"
+      },
+      {
+        "rank": 5,
+        "chunk_id": "F1-DAIO-034-c0008",
+        "source_file": "DAIO_study2633-controlled-adaptation-and-integration-daniel-fiott.pdf",
+        "excerpt": "Belgium has consistently emphasised the ethical and legal dimensions of military AI. This is not merely rhetorical. As a state deeply invested in multilateralism and international law, Belgium approaches AI with a clear preference for restraint, transparency and accountability. Discussions around"
+      }
+    ]
+  },
+  {
+    "question_id": "q008",
+    "question": "¿Cómo están empleando las fuerzas militares el análisis de inteligencia asistido por IA, el targeting inteligente y los enjambres de drones, y qué oportunidades representan para países con geografías complejas como Colombia?",
+    "relevant_chunks": [
+      {
+        "rank": 1,
+        "chunk_id": "F1-CSET-115-c0027",
+        "source_file": "CSET_center-for-security-and-emerging-technology-7.pdf",
+        "excerpt": "ISR tasks are a promising application area for AI. The sections that follow give a sense of the PLA’s widespread efforts to enhance sensing and surveillance using novel data gathering and sensor fusion approaches, as well as emerging techniques, including AI. Among the RFPs, we noted several themes"
+      },
+      {
+        "rank": 2,
+        "chunk_id": "F1-DAIO-009-c0050",
+        "source_file": "DAIO_study2307-2.pdf",
+        "excerpt": "AI is already demonstrating the dramatic impact it can have on ISR capabilities due to its ability to recognize patterns quickly and analyze large swaths of dispa- 114 GAO,ArtificialIntelligence:DODShouldImproveStrategies,InventoryProcess,andCollaborationGuidance,pp.15–16. 115 Ibid.,p.17. 116"
+      },
+      {
+        "rank": 3,
+        "chunk_id": "F1-DAIO-029-c0013",
+        "source_file": "DAIO_study2528-an-underdeveloped-strategic-necessity-umaima-ali.pdf",
+        "excerpt": "perfect for surveillance and reconnaissance missions in hilly regions like Baluchistan. With AI-powered software, drones like Shahpar can improve their operational efficiency and targeting precision. In addition, AI can assist drones in differentiating between people and militants, thereby"
+      },
+      {
+        "rank": 4,
+        "chunk_id": "F3-SIPRI-016-c0030",
+        "source_file": "SIPRI_20240212113627.pdf",
+        "excerpt": "a drone swarm operating on a distributed, collective intelligence may collect accurate information from its sensors, but draw an incorrect inference about the location or existence of an adversary. Altogether, the reliability challenges coupled with the potential for mass harm mean that drone"
+      },
+      {
+        "rank": 5,
+        "chunk_id": "F3-SIPRI-016-c0036",
+        "source_file": "SIPRI_20240212113627.pdf",
+        "excerpt": "Companies are increasingly developing and making simple drone swarms available, such as Red Cat The Plague Beckons Holding’s 4-Ship (44). The 4-Ship allows operators to control six drones simultaneously: four carrying out operations with the other two to swap in as needed (45). Four drones might be"
+      }
+    ]
+  },
+  {
+    "question_id": "q009",
+    "question": "¿Cómo está redefiniendo la inteligencia artificial las tácticas y conceptos de operación en los conflictos armados contemporáneos?",
+    "relevant_chunks": [
+      {
+        "rank": 1,
+        "chunk_id": "F1-DAIO-028-c0013",
+        "source_file": "DAIO_study2527-thinking-before-sinking-borchert-brandlhuber-dzaack.pdf",
+        "excerpt": "Mosaic Warfare reinterprets force design and the Observe-Orient-De- cide-Act (OODA) loop originally conceived by John Boyd. 25 Prominent among military planners, most armed forces focus on accelerating and compressing the loop to leverage decision superiority vis-à-vis adversaries. In so doing,"
+      },
+      {
+        "rank": 2,
+        "chunk_id": "F1-CSET-115-c0006",
+        "source_file": "CSET_center-for-security-and-emerging-technology-7.pdf",
+        "excerpt": "transition from mechanization (the incorporation of advanced machinery and equipment), to informatization (the use of networks, information systems, and data), to intelligentization (the utilization of emerging technologies like AI). 2 Today, the PLA’s focus is on informatization and"
+      },
+      {
+        "rank": 3,
+        "chunk_id": "F3-SIPRI-111-c0005",
+        "source_file": "SIPRI_pragmatic-approaches-to-governance-at-the-ai-nuclear-nexus.pdf",
+        "excerpt": "The rapid integration of artificial intelligence (AI) into nuclear and nuclear-related weapon systems is reshaping global security. While it accelerates the decision-making process, enhances strategic warning and improves targeting, it also introduces new forms of vulnerability and uncertainty that"
+      },
+      {
+        "rank": 4,
+        "chunk_id": "F3-SIPRI-016-c0014",
+        "source_file": "SIPRI_20240212113627.pdf",
+        "excerpt": "Critical technologies like cyberspace and artificial intelligence (AI) are making new warfighting tools available, even as traditional ones like nuclear weapons are witnessing a resurgence. These changes have brought greater lethality and destruction in warfighting and blurred the lines of"
+      },
+      {
+        "rank": 5,
+        "chunk_id": "F3-CEEEP-004-c0000",
+        "source_file": "CEEEP_issue10-66-inteligencia-artificial-y-desinformacion-papel-en-los-conflictos-del-s.json",
+        "excerpt": "Los recientes conflictos en el mundo demuestran que la tecnología es fundamental para el desarrollo de las campañas bélicas. El uso de tecnología de punta no se limita exclusivamente a los actores tradicionales del Derecho Internacional Humanitario (DIH), sino que la emplean actores no estatales,"
+      }
+    ]
+  },
+  {
+    "question_id": "q010",
+    "question": "¿Qué capacidades basadas en IA fortalecen la detección, identificación y neutralización de drones utilizados por actores armados?",
+    "relevant_chunks": [
+      {
+        "rank": 1,
+        "chunk_id": "F1-DAIO-033-c0057",
+        "source_file": "DAIO_study2632-from-laggard-to-potential-regional-innovator-raluca-csernatoni.pdf",
+        "excerpt": "uses AI to detect, classify, and neutralise hostile unmanned aerial systems even in environments with jamming or disrupted communications, thus addressing a growing drone threat that has emerged along NATO borders. Romanian defence authorities reported ongoing trials and plans to integrate Merops"
+      },
+      {
+        "rank": 2,
+        "chunk_id": "F1-DAIO-033-c0056",
+        "source_file": "DAIO_study2632-from-laggard-to-potential-regional-innovator-raluca-csernatoni.pdf",
+        "excerpt": "counter-unmanned systems solutions and air defence: Unmanned Systems The Romanian Navy has acquired the V-BAT surveillance drone from U.S. manufacturer Shield AI in a deal worth approximately USD30M. This uncrewed aerial system (UAS) is employed for intelligence, surveillance, reconnaissance (ISR)"
+      },
+      {
+        "rank": 3,
+        "chunk_id": "F1-DAIO-010-c0035",
+        "source_file": "DAIO_study2308-2.pdf",
+        "excerpt": "Identification of Friend or Foe vehicles and people), Cyber Security, Border Security, Electronic Warfare and Radar, New Generation Guided Systems and Learning Through War Gaming. 66 In addition, OTAĞ reports illustrate how developing defense AI would augment specific national capabilities. For"
+      },
+      {
+        "rank": 4,
+        "chunk_id": "F1-DAIO-021-c0022",
+        "source_file": "DAIO_study2319-harnessing-the-potential-karampekios-sakalis-oikonomou.pdf",
+        "excerpt": "aid the detection and identification of a range of potential maritime threats. 34 LOTUS (Low Observable Tactical Unmanned air System) addresses feasibility issues, including the detailed design, prototyping and testing of a low-observ- able, airworthy and interoperable tactical Remotely Piloted Air"
+      },
+      {
+        "rank": 5,
+        "chunk_id": "F1-DAIO-001-c0032",
+        "source_file": "DAIO_beware-the-hype.pdf",
+        "excerpt": "used jamming against Ukrainian UAVs and surveillance UAVs deployed by the Organization for Security and Cooperation in Europe (OSCE). 45 Between 2015 and 2017, Ukraine lost 100 UAVs to Russia jamming and spoofing the Global Navigation Satellite System (GNSS). 46 Likewise, the 72 Raven drones"
+      }
+    ],
+    "notes": "Solo F1-DAIO-033-c0057 describe una capacidad antidron explicitamente basada en IA (sistema Merops). Los demas aportan contexto de contra-UAS, identificacion de amenazas y neutralizacion por guerra electronica sin componente de IA declarado."
+  },
+  {
+    "question_id": "q011",
+    "question": "¿Cuáles son las principales barreras para incorporar inteligencia artificial en los procesos operacionales y de inteligencia de las Fuerzas Militares?",
+    "relevant_chunks": [
+      {
+        "rank": 1,
+        "chunk_id": "F1-CSET-125-c0052",
+        "source_file": "CSET_center-for-security-and-emerging-technology.pdf",
+        "excerpt": "The hardest challenges are not technical, but rather the systemic institutional obstacles that frustrate any digital transformation: culture change, securing budgets, the requirements and procurement cycle, competition with existing programs of record and established prime contractors, and"
+      },
+      {
+        "rank": 2,
+        "chunk_id": "F1-DAIO-009-c0005",
+        "source_file": "DAIO_study2307-2.pdf",
+        "excerpt": "hurdles have slowed down progress on defense AI adoption and technol- ogy-based innovation within the Defense Department over the last few years. Critically, DoD suffers from a complex acquisitions process and a widespread shortfall of data, STEM, 2 and AI talent and training. Organizations working"
+      },
+      {
+        "rank": 3,
+        "chunk_id": "F1-DAIO-022-c0021",
+        "source_file": "DAIO_study2421-will-the-one-ring-hold-youngwook-park.pdf",
+        "excerpt": "overcoming barriers stemming from disjunct data management systems and regulations. To this purpose, the strategy foresaw a comprehensive revision of existing regulations to focus on the use of data, dismantling inter-agency silos, fostering a culture of data sharing, progressively establishing"
+      },
+      {
+        "rank": 4,
+        "chunk_id": "F1-DAIO-014-c0077",
+        "source_file": "DAIO_study2312-master-and-servant-borchert-schuetz-verbovszky.pdf",
+        "excerpt": "resistance of a Bundeswehr bureaucracy solidly grounded in the status quo. This is no surprise. As we have argued, Germany’s handling of defense relevant technologies in general and defense AI in particular is locked-in a “master and servant” logic that is deeply rooted in the country’s strategic"
+      },
+      {
+        "rank": 5,
+        "chunk_id": "F1-DAIO-009-c0025",
+        "source_file": "DAIO_study2307-2.pdf",
+        "excerpt": "a higher level of technology maturity than the science and technology community is willing to fund and develop.” 49 While the U.S. DoD may have been able to avoid the valley of death previously, this has become an incredibly sharp sticking point recently. AI and other newer technologies are"
+      }
+    ]
+  },
+  {
+    "question_id": "q012",
+    "question": "¿Cómo puede la experiencia operacional acumulada por las Fuerzas Militares convertirse en conocimiento útil para entrenar sistemas de inteligencia artificial?",
+    "relevant_chunks": [
+      {
+        "rank": 1,
+        "chunk_id": "F1-DAIO-022-c0021",
+        "source_file": "DAIO_study2421-will-the-one-ring-hold-youngwook-park.pdf",
+        "excerpt": "developing and operating a data platform to collect and share usable data, thereby overcoming barriers stemming from disjunct data management systems and regulations. To this purpose, the strategy foresaw a comprehensive revision of existing regulations to focus on the use of data, dismantling"
+      },
+      {
+        "rank": 2,
+        "chunk_id": "F1-DAIO-009-c0037",
+        "source_file": "DAIO_study2307-2.pdf",
+        "excerpt": "aligning these organizations could be potentially game-chang- ing and accelerate AI adoption throughout the U.S. military. It better bridges the gaps between institutional players, and “it links DoD’s AI efforts with data, the fuel AI requires.” 79"
+      },
+      {
+        "rank": 3,
+        "chunk_id": "F3-SIPRI-016-c0156",
+        "source_file": "SIPRI_20240212113627.pdf",
+        "excerpt": "can be used to augment datasets for training AI models, especially for object recognition-related tasks. Complex object characteristics and backgrounds make detection challenging, especially for remote sensing images or video (18). Detection models require millions of parameters and, therefore,"
+      },
+      {
+        "rank": 4,
+        "chunk_id": "F1-CSET-127-c0005",
+        "source_file": "CSET_center-for-security-and-emerging-technology.pdf",
+        "excerpt": "Actively plan the building of datasets for cutting-edge directions such as world models. (4) Strengthen organic linkage with the construction of data infrastructure. Encourage reliance on national data infrastructure, make full use of capabilities such as privacy-preserving computing and trusted"
+      },
+      {
+        "rank": 5,
+        "chunk_id": "F1-CSET-006-c0041",
+        "source_file": "CSET_center-for-security-and-emerging-technology-12.pdf",
+        "excerpt": "intelligent labeling, expert collaborative labeling, fusion mechanism ( 融 合机理 ) and simulation data synthesis, dataset quality assessment, and security monitoring. (7) Establish a data management system . Encourage enterprises to explore Chief Data Officer (CDO) systems, establish a data management"
+      }
+    ],
+    "notes": "El corpus no documenta la conversion de experiencia operacional militar en datos de entrenamiento. Los fragmentos cubren lo mas cercano disponible: gobernanza de datos de defensa, plataformas para compartir datos y construccion y etiquetado de conjuntos de datos."
+  },
+  {
+    "question_id": "q013",
+    "question": "¿Cuáles son las principales amenazas cibernéticas que afectan el despliegue seguro de sistemas de inteligencia artificial en infraestructuras críticas?",
+    "relevant_chunks": [
+      {
+        "rank": 1,
+        "chunk_id": "F1-CSET-027-c0117",
+        "source_file": "CSET_center-for-security-and-emerging-technology-20.pdf",
+        "excerpt": "These attacks include data poisoning, backdoors, adversarial input, and jailbreaking. Finally, adversaries can target these systems with availability attacks that use crafted inputs designed to make a model consume greater computational resources. While many cybersecurity and privacy principles"
+      },
+      {
+        "rank": 2,
+        "chunk_id": "F1-CSET-011-c0019",
+        "source_file": "CSET_center-for-security-and-emerging-technology-15.pdf",
+        "excerpt": "The cybersecurity community categorizes attacks into three groups: confidentiality, integrity, and availability attacks. 29 Confidentiality attacks aim to extract sensitive information, integrity attacks aim to compromise the model’s * Adversarial attacks on AI models can occur at every stage of"
+      },
+      {
+        "rank": 3,
+        "chunk_id": "F1-CSET-032-c0049",
+        "source_file": "CSET_center-for-security-and-emerging-technology-22.pdf",
+        "excerpt": "the use of AI in cyber and critical infrastructure exposes those AI systems to adversarial threats. All use of AI in safety-critical or homeland security applications should entail the use of secure-by-design, robust, and resilient AI systems that are instrumented to detect performance shifts, and"
+      },
+      {
+        "rank": 4,
+        "chunk_id": "F1-ILIA-006-c0277",
+        "source_file": "ILIA_2025.-hallazgos-principales-ia-aplicada-y-talento-humano-compressed.pdf",
+        "excerpt": "La ciberseguridad sigue siendo uno de los componentes más débiles del ecosistema de inteligencia artificial en América Latina y el Caribe. Si bien varios países han avanzado en la promulgación de leyes sobre ciberdelitos e infraestructura crítica, donde 18 de los 19 países supera los 60 puntos, la"
+      },
+      {
+        "rank": 5,
+        "chunk_id": "F1-CSET-027-c0077",
+        "source_file": "CSET_center-for-security-and-emerging-technology-20.pdf",
+        "excerpt": "Assess datasets for potential bias, data quality issues, and signs of poisoning or tampering. Employ training techniques, such as using adversarial examples, to improve model robustness. 3 Model Security Protect models against security threats including adversarial, poisoning, out-of-distribution,"
+      }
+    ]
+  },
+  {
+    "question_id": "q014",
+    "question": "¿Cómo limita la disponibilidad de infraestructura de cómputo avanzado el desarrollo de capacidades nacionales de inteligencia artificial para defensa?",
+    "relevant_chunks": [
+      {
+        "rank": 1,
+        "chunk_id": "F1-AIINDEX-023-c0668",
+        "source_file": "AIINDEX_ai-index-report-2026.pdf",
+        "excerpt": "domestic compute capacity is often framed around reducing reliance on foreign providers, limiting exposure to extraterritorial jurisdiction, and providing continuity of access for government agencies, research institutions, and domestic firms in scenarios such as export controls, geopolitical"
+      },
+      {
+        "rank": 2,
+        "chunk_id": "F1-ILIA-006-c0039",
+        "source_file": "ILIA_2025.-hallazgos-principales-ia-aplicada-y-talento-humano-compressed.pdf",
+        "excerpt": "Respecto a la capacidad de cómputo, Brasil representa más del 90% del total regional y tiene 17 veces más capacidad que el país con menor cantidad de teraflops por segundo. Aunque en capacidad de GPU per cápita hay un escenario más favorable para países como Uruguay, Costa Rica y Colombia , más de"
+      },
+      {
+        "rank": 3,
+        "chunk_id": "F1-ILIA-006-c0053",
+        "source_file": "ILIA_2025.-hallazgos-principales-ia-aplicada-y-talento-humano-compressed.pdf",
+        "excerpt": "Brasil tiene más de 121.000 teraflops por segundo de capacidad cómputo de alto rendimiento (HPC, por sus siglas en inglés), equivalente a más del 90% del total regional, seguido a gran distancia por Argentina (8.582) y México (7.235). El liderazgo brasileño en capacidad de cómputo de alto"
+      },
+      {
+        "rank": 4,
+        "chunk_id": "F1-ILIA-009-c0094",
+        "source_file": "ILIA_documento-ilia-2025.pdf",
+        "excerpt": "El resto de los países mantiene la brecha observada en el subindicador de HPC, con países como Colombia (28,25), Costa Rica (17,59) y Argentina (16,67). Por otro lado, aún existen 10 países de América Latina y el Caribe que no cuentan con GPU. La drástica reducción de brecha entre Brasil y Uruguay"
+      },
+      {
+        "rank": 5,
+        "chunk_id": "F1-ILIA-005-c0409",
+        "source_file": "ILIA_2025.-fichas-de-pais-y-aspectos-metodologicos.pdf",
+        "excerpt": "El cómputo constituye una de las principales debilidades estructurales. El indicador alcanza apenas 4,30 puntos, 17 puntos por debajo del promedio regional, debido a la ausencia de capacidades de computación de alto rendimiento (HPC) y de unidades de procesamiento gráfico (GPU). El país dispone de"
+      }
+    ],
+    "notes": "Los fragmentos miden la capacidad de computo a escala nacional y regional, no para defensa; el corpus no vincula de forma explicita la falta de computo con capacidades militares de IA."
+  },
+  {
+    "question_id": "q015",
+    "question": "¿Qué riesgos estratégicos genera la dependencia de semiconductores y hardware especializado para el desarrollo de capacidades militares basadas en IA?",
+    "relevant_chunks": [
+      {
+        "rank": 1,
+        "chunk_id": "F1-DAIO-015-c0036",
+        "source_file": "DAIO_study2313-overtaking-on-the-curve-john-lee.pdf",
+        "excerpt": "are a basic enabler for AI. The dominance of US firms and intellectual property in upstream segments of this complex supply chain, and China’s own limited capacities in it, allow the US government to target Chinese AI development by restricting Chinese access to semiconductor technologies. 94 This"
+      },
+      {
+        "rank": 2,
+        "chunk_id": "F1-AIINDEX-023-c0062",
+        "source_file": "AIINDEX_ai-index-report-2026.pdf",
+        "excerpt": "TSMC is a single point of dependency in the global AI supply chain, as it fabricates virtually every leading AI chip, including Nvidia’s Blackwell GPUs and AMD’s MI300X. There are high barriers to entry at every layer— requiring decades of accumulated expertise, specialized equipment, and"
+      },
+      {
+        "rank": 3,
+        "chunk_id": "F1-CSET-076-c0073",
+        "source_file": "CSET_center-for-security-and-emerging-technology-4.pdf",
+        "excerpt": "they will remain for the foreseeable future reliant on U.S. chip design companies for access to the semiconductors that power most AI models and applications. The leading AI chips used to train and deploy frontier generative AI models are overwhelmingly designed by U.S. companies, most notably"
+      },
+      {
+        "rank": 4,
+        "chunk_id": "F1-AIINDEX-023-c0061",
+        "source_file": "AIINDEX_ai-index-report-2026.pdf",
+        "excerpt": "The leading manufacturers of HBM are SK Hynix (South Korea), Samsung (South Korea), and Micron (USA). During training, GPUs must continuously share data with one another, which requires fast, high throughput network connectivity achieved with fiber-optic cables running high-bandwidth networking"
+      },
+      {
+        "rank": 5,
+        "chunk_id": "F1-CSET-042-c0002",
+        "source_file": "CSET_center-for-security-and-emerging-technology-27.pdf",
+        "excerpt": "For the design, development, production, or use of weapons of mass destruction (WMD) or their delivery vehicles; b. For terrorist purposes; c. For military use or for improving potential military capabilities ( 军事潜力 ). 4. Export applications for items for R&D or production of 14 nm or smaller logic"
+      }
+    ]
+  },
+  {
+    "question_id": "q016",
+    "question": "¿Qué ventajas estratégicas obtienen los actores que incorporan inteligencia artificial y drones de bajo costo, y cuáles son los riesgos de retrasar la transformación tecnológica en defensa?",
+    "relevant_chunks": [
+      {
+        "rank": 1,
+        "chunk_id": "F1-CSET-097-c0046",
+        "source_file": "CSET_center-for-security-and-emerging-technology-5.pdf",
+        "excerpt": "The development of low-cost, high-performance UAVs like the Wing Loong and CH series has allowed China to flood the global defense market, providing cost-effective alternatives to U.S. and Israeli drone systems. Countries that cannot access U.S. military technology due to export restrictions"
+      },
+      {
+        "rank": 2,
+        "chunk_id": "F3-SIPRI-001-c0029",
+        "source_file": "SIPRI_0226-milai-procurement-260216.pdf",
+        "excerpt": "existential need to leverage lowcost drones to compensate for shortages in its military tanks and artillery. 32 As Russian electronic warfare can disrupt the communication and navigation systems on which remotecontrolled drones depend, Ukraine has been using AIenabled drones that can conduct part"
+      },
+      {
+        "rank": 3,
+        "chunk_id": "F1-CSET-009-c0003",
+        "source_file": "CSET_center-for-security-and-emerging-technology-14.pdf",
+        "excerpt": "cheaper, multi-use commercial platforms developed in other countries have in recent years become more useful across a range of applications. 1 The mass production and deployment of small UAVs for military operations in the Russia-Ukraine war exemplifies this trend. 2 Despite the United States’"
+      },
+      {
+        "rank": 4,
+        "chunk_id": "F3-SIPRI-016-c0025",
+        "source_file": "SIPRI_20240212113627.pdf",
+        "excerpt": "Drone swarm advantages include cheap mass, limited operator requirements, distributed complexity, and applicability to various military missions. Additionally, those gains must be greater than any economic, political, tactical, or strategic risks and requirements. In the case of drone swarms, those"
+      },
+      {
+        "rank": 5,
+        "chunk_id": "F3-SIPRI-016-c0023",
+        "source_file": "SIPRI_20240212113627.pdf",
+        "excerpt": "Any military innovation requires the financial resources to buy or build the technology and organisational capacity to incorporate changes into recruiting, training, and operations (11). Incorporating drone swarms into larger operations requires identifying and assessing the most effective use"
+      }
+    ]
+  },
+  {
+    "question_id": "q017",
+    "question": "¿Qué restricciones impone el Derecho Internacional en el Espacio en la regulación del uso de armas?",
+    "relevant_chunks": [
+      {
+        "rank": 1,
+        "chunk_id": "F2-UNOOSA-027-c0012",
+        "source_file": "UNOOSA_st-space-61rev03e.pdf",
+        "excerpt": "States Parties to the Treaty undertake not to place in orbit around the Earth any objects carrying nuclear weapons or any other kinds of weapons of mass destruction, install such weapons on celestial bodies, or station such w eapons in outer space in any other manner. The Moon and other celestial"
+      },
+      {
+        "rank": 2,
+        "chunk_id": "F2-SWF-126-c0036",
+        "source_file": "SWF_handbook-for-new-space-actors-2025-hr.pdf",
+        "excerpt": "Article IV of the Outer Space Treaty requires that states refrain from placing nuclear weapons or other weapons of mass destruction into Earth orbit or installing or stationing them on celestial bodies. It further requires that the Moon and other celestial bodies be used exclusively For states"
+      },
+      {
+        "rank": 3,
+        "chunk_id": "F2-UNOOSA-030-c0015",
+        "source_file": "UNOOSA_st-space-61rev03s.pdf",
+        "excerpt": "Los Estados Partes en el Tratado deberán realizar sus actividades de exploración y utilización del espacio ultraterrestre, incluso la Luna y otros cuerpos celestes, de conformidad con el derecho internacional, incluida la Carta de las Naciones Unidas, en interés del mantenimiento de la paz y la"
+      },
+      {
+        "rank": 4,
+        "chunk_id": "F1-CSET-074-c0354",
+        "source_file": "CSET_center-for-security-and-emerging-technology-4.pdf",
+        "excerpt": "Placement of Nuclear Weapons in Orbit: security interest. If so, development of anti- Article IV of the 1967 Outer Space Treaty satellite and space-based weapons by the (OST) prohibits orbiting nuclear weapons. United States and the U.S.S.R. could continue This would include nuclear “space mines’"
+      },
+      {
+        "rank": 5,
+        "chunk_id": "F2-CSIS-204-c0098",
+        "source_file": "CSIS_rumsfeldcommission.pdf",
+        "excerpt": "preserve the space weapons regime established by the Outer Space Treaty, particularly the traditional interpretation of the Treaty’s “peaceful purposes” language to mean that both self-defense and non-aggressive military use of space are allowed. U.S. Objectives for Space The U.S. should review"
+      }
+    ]
+  },
+  {
+    "question_id": "q018",
+    "question": "¿Qué capacidades contraespaciales representan actualmente la mayor amenaza para los sistemas satelitales?",
+    "relevant_chunks": [
+      {
+        "rank": 1,
+        "chunk_id": "F2-CSIS-135-c0012",
+        "source_file": "CSIS_240417-swope-space-threat-0.pdf",
+        "excerpt": "counterspace capabilities are organized into four main categories: kinetic weapons, non-kinetic weapons, electronic weap- ons, and cyber operations. This report also discusses unfriendly behaviors in space and the potential implications of such behaviors on space security. Capabilities intended to"
+      },
+      {
+        "rank": 2,
+        "chunk_id": "F2-CSIS-180-c0046",
+        "source_file": "CSIS_harrison-spacethreatassessment2022-web-v3-compressed.pdf",
+        "excerpt": "Russia possesses counterspace weapons in all four under the name Sledopyt with categories: kinetic physical, non-kinetic physical, the capability to gain access to electronic, and cyber. Russia has demonstrated its radio signals emitted by foreign kinetic capabilities frequently, including the"
+      },
+      {
+        "rank": 3,
+        "chunk_id": "F2-CSIS-132-c0017",
+        "source_file": "CSIS_230414-bingen-space-assessment.pdf",
+        "excerpt": "Counterspace weapons, particularly those that produce orbital debris, pose a serious risk to the space environment and the ability of all nations to use the space domain for prosperity and security. This chapter provides an overview of different types of counterspace weapons, drawing on previous"
+      },
+      {
+        "rank": 4,
+        "chunk_id": "F2-CSIS-208-c0025",
+        "source_file": "CSIS_spacethreatassessment2019-compressed.pdf",
+        "excerpt": "A wide array of counterspace weapons are available to potential adversaries that vary in the types of effects they create, the level of technological sophistication, and the resources required to develop and field them. Counterspace weapons also differ in how they are employed and how difficult"
+      },
+      {
+        "rank": 5,
+        "chunk_id": "F2-CSIS-179-c0074",
+        "source_file": "CSIS_harrison-spacethreatassessment2021.pdf",
+        "excerpt": "has made any advancement in its non-kinetic physical capabilities, though some sources insist that a North Korean EMP threat exists. North Korea has demonstrat- ed the ability to conduct electronic warfare through jamming capabilities, and its cyberattack threat is active and viable. It is these"
+      }
+    ]
+  },
+  {
+    "question_id": "q019",
+    "question": "¿Cómo se está empleando la guerra electrónica para interferir sistemas espaciales y qué incidentes recientes lo evidencian?",
+    "relevant_chunks": [
+      {
+        "rank": 1,
+        "chunk_id": "F2-SWF-043-c0015",
+        "source_file": "SWF_2025-executive-summary-spanish.pdf",
+        "excerpt": "Rusia otorga una alta prioridad a la integración de la guerra electrónica (EW) en las operaciones militares y ha estado invirtiendo fuertemente en la modernización de esta capacidad. La mayoría de las actualizaciones se han enfocado en sistemas tácticos multifunción cuya capacidad contraespacial se"
+      },
+      {
+        "rank": 2,
+        "chunk_id": "F2-SWF-034-c0108",
+        "source_file": "SWF_2020-full-report-english.pdf",
+        "excerpt": "Electronic warfare is defined as “military action involving the use of electromagnetic and directed energy to 1.3 – CHINESE ELECTRONIC WARFARE control the electromagnetic spectrum or to attack the enemy.” 79 In the context of this report, the scope Assessment of EW is narrowed to refer specifically"
+      },
+      {
+        "rank": 3,
+        "chunk_id": "F2-SWF-123-c0353",
+        "source_file": "SWF_global-counterspace-capabilities-2025.pdf",
+        "excerpt": "Ukrainian military units started to see outages in their Starlink connections, something a Ukrainian government official said was the result of Russia “testing different mechanisms” for its EW systems. 228 GLOBAL 228 Paul Mozur and Adam Satariano, “Russia, in New Push, Increasingly Disrupts"
+      },
+      {
+        "rank": 4,
+        "chunk_id": "F2-SWF-081-c0232",
+        "source_file": "SWF_69d003188c7e60684d6fab55-2021-global-counterspace-capabilities-an-open-source-assessme.pdf",
+        "excerpt": "Russia has dedicated capabilities for both downlink and uplink jamming of signals from communications satellites. The R-330Zh “Zhitel” mobile jammer is reportedly able to jam commercial INMARSAT and Iridium receivers within a tactical local area and has been deployed throughout recent Russian"
+      },
+      {
+        "rank": 5,
+        "chunk_id": "F2-SWF-124-c0810",
+        "source_file": "SWF_global-counterspace-capabilities-2026-hr.pdf",
+        "excerpt": "Some events have coincided with joint South Korea-US military exercises. North Korea could also be developing jammers that are effective against the military GPS signals, but to date, there is no public evidence of such development, testing, or use. There is extremely limited public information"
+      }
+    ]
+  },
+  {
+    "question_id": "q020",
+    "question": "¿Qué incidentes recientes de spoofing han comprometido servicios satelitales y qué vulnerabilidades revelan?",
+    "relevant_chunks": [
+      {
+        "rank": 1,
+        "chunk_id": "F2-SWF-124-c0752",
+        "source_file": "SWF_global-counterspace-capabilities-2026-hr.pdf",
+        "excerpt": "numerous reports of commercial airlines losing their navigation systems when flying in the Middle East, with their GPS information being spoofed so that they thought they were somewhere other than they actually were, causing some to fly off-course. 67 At times, the spoofing sent aircraft up to 80"
+      },
+      {
+        "rank": 2,
+        "chunk_id": "F2-SWF-121-c0301",
+        "source_file": "SWF_global-counterspace-capabilities-2022-rev2.pdf",
+        "excerpt": "published an in-depth report on Russian GNSS jamming and spoofing in Russia, Crimea, and Syria. 425 The report details nearly 10,000 suspected incidents across the entire Russian Federation, its occupied territories (including Crimea), and overseas military facilities (primarily in Syria). In"
+      },
+      {
+        "rank": 3,
+        "chunk_id": "F2-SWF-123-c0463",
+        "source_file": "SWF_global-counterspace-capabilities-2025.pdf",
+        "excerpt": "a report detailed multiple incidents of GNSS jamming and spoofing near the Chinese port of Shanghai. 133 Analysts from the Center for Advanced Defense Studies determined that jamming and spoofing of the GNSS signals used by the automatic identification system (AIS) to track commercial shipping"
+      },
+      {
+        "rank": 4,
+        "chunk_id": "F2-SWF-034-c0110",
+        "source_file": "SWF_2020-full-report-english.pdf",
+        "excerpt": "Additional analysis showed that the spoofing was affecting fitness tracks as well, suggesting it was The three principal areas of concern for counterspace impacting all GPS receivers in the area. are the jamming of: SATCOM Jamming 1. Global navigation satellite systems (GNSS) The January 2019 DIA"
+      },
+      {
+        "rank": 5,
+        "chunk_id": "F2-CSIS-142-c0056",
+        "source_file": "CSIS_250425-swope-space-threat.pdf",
+        "excerpt": "a massive increase in GPS spoofing incidents caused by jamming. 7 The International Air Transport Association in the eastern Mediterranean Sea and Middle also operates databases containing informa- East. At the time of this report’s publication, Until 2017, when several ships reported tion about"
+      }
+    ]
+  },
+  {
+    "question_id": "q021",
+    "question": "¿Qué implicaciones militares tienen las maniobras de proximidad y encuentro (RPO) realizadas por satélites?",
+    "relevant_chunks": [
+      {
+        "rank": 1,
+        "chunk_id": "F2-SWF-108-c0017",
+        "source_file": "SWF_fact-sheet-2026-russian-military-and-intelligence-rendezvous-and-proximity-operations.pdf",
+        "excerpt": "They could also be used for aggressive purposes such as co-orbital ASATs. The lack of transparency about these programs and occasional generation of orbital debris has fueled suspicion that they are covert weapons programs. However, the publicly-available evidence to date suggests they are aimed at"
+      },
+      {
+        "rank": 2,
+        "chunk_id": "F1-CSET-065-c0019",
+        "source_file": "CSET_center-for-security-and-emerging-technology-36.pdf",
+        "excerpt": "The act of maneuvering a satellite against other satellites is known as rendezvous and proximity operations (RPO). Rendezvous refers to aligning two separate satellites into the same orbital plane, shape, and size. Proximity operations involve bringing them together to perform actions such as"
+      },
+      {
+        "rank": 3,
+        "chunk_id": "F2-SWF-010-c0001",
+        "source_file": "SWF_12-2-chinese-military-and-intelligence-rendezvous-and-proximity-operations-fact-sheet.json",
+        "excerpt": "while many of these Chinese satellite maneuvers raise concern because of their dual-use potential, there is not strong public evidence linking these programs to confirmed co-orbital anti-satellite weapons testing or deployment. Instead, the activities described here are more consistent with the"
+      },
+      {
+        "rank": 4,
+        "chunk_id": "F2-SWF-021-c0000",
+        "source_file": "SWF_12-2-u-s-military-and-intelligence-rendezvous-and-proximity-operations-fact-sheet.json",
+        "excerpt": "have developed and deployed a wide array of satellites capable of rendezvous and proximity operations (RPO) to support space security, space situational awareness, and intelligence collection. These activities—while often secretive—have contributed to evolving space capabilities and responsible"
+      },
+      {
+        "rank": 5,
+        "chunk_id": "F2-CSIS-188-c0059",
+        "source_file": "CSIS_johnson-governanceinspace-web-final-1.pdf",
+        "excerpt": "there is no international consensus on a definition or homogenous concept of activities that can be classified as an RPO. 79 A U.S.-led group called the Consortium for Execution of Rendezvous and Servicing Operations (CONFERS) has defined rendezvous as the “process wherein two space objects"
+      }
+    ]
+  },
+  {
+    "question_id": "q022",
+    "question": "¿Qué evidencias existen sobre el desarrollo de armas de energía dirigida con potencial empleo contra activos espaciales?",
+    "relevant_chunks": [
+      {
+        "rank": 1,
+        "chunk_id": "F2-SWF-079-c0109",
+        "source_file": "SWF_69cffd06bb49a754a728c08d-2019-global-counterspace-capabilities-an-open-source-assessme.pdf",
+        "excerpt": "China has been actively pursuing DEW for counterspace and other applications since the 1960s, and there are significant scientific and technical discussions of research and possible future military applications. 88 However, exactly how advanced Chinese DEW counterspace weapons are is unknown and"
+      },
+      {
+        "rank": 2,
+        "chunk_id": "F2-SWF-120-c0011",
+        "source_file": "SWF_gcsr-2026-execsum-spa.pdf",
+        "excerpt": "Estados Unidos ha llevado a cabo importantes vii LA actividades de investigación y desarrollo sobre el uso de láseres de alta energía terrestres con fines contraespaciales y de otro tipo. Consideramos FUNDACIÓN que no existen obstáculos tecnológicos que impidan a los Estados Unidos ponerlos en"
+      },
+      {
+        "rank": 3,
+        "chunk_id": "F2-SWF-120-c0024",
+        "source_file": "SWF_gcsr-2026-execsum-spa.pdf",
+        "excerpt": "la India se encuentra en las primeras fases de desarrollo de armas de energía dirigida. En 2025, la India demostró con éxito en dos ocasiones su capacidad para maniobrar activos espaciales civiles en órbita, lo que supuso un paso importante hacia el desarrollo de tecnología de encuentro y"
+      },
+      {
+        "rank": 4,
+        "chunk_id": "F2-CSIS-142-c0012",
+        "source_file": "CSIS_250425-swope-space-threat.pdf",
+        "excerpt": "Non-kinetic weapons are defined as those that use radiated energy to destroy, damage, or interfere with space systems. This energy can be directed, such as with laser or microwave energy, or distributed through nuclear detonations or electromagnetic pulse (EMP) events. High-powered lasers and"
+      },
+      {
+        "rank": 5,
+        "chunk_id": "F3-SIPRI-078-c0209",
+        "source_file": "SIPRI_9781954445024.pdf",
+        "excerpt": "These capabilities rely on the direction of concentrated energy through either electromagnetic pulses (EMP), microwave beams, or lasers to attack space systems. States have been pursuing research and development in lasers, though at present, there is no public evidence of directed energy"
+      }
+    ]
+  },
+  {
+    "question_id": "q023",
+    "question": "¿Cuáles son las principales vulnerabilidades cibernéticas de la infraestructura satelital?",
+    "relevant_chunks": [
+      {
+        "rank": 1,
+        "chunk_id": "F2-SWF-126-c0181",
+        "source_file": "SWF_handbook-for-new-space-actors-2025-hr.pdf",
+        "excerpt": "Satellites and their ground control systems involve increasingly complex and powerful computers and thus are susceptible to cyber attacks. Historically many satellites used custom hardware and software and dedicated communications links that made it harder for cyber attackers to get in. Today, many"
+      },
+      {
+        "rank": 2,
+        "chunk_id": "F2-SWF-078-c0244",
+        "source_file": "SWF_69cffa84a1834078d6f9fe5e-2018-global-counterspace-capabilities-an-open-source-assessme.pdf",
+        "excerpt": "Any cyber attack requires four things: access, vulnerability, a malicious payload, and a command- and-control system. 377 Three primary points of access exist for exploitation, attack, and service denial of space assets in the cyber domain: the supply chain, the extended land-based infrastructure"
+      },
+      {
+        "rank": 3,
+        "chunk_id": "F2-SWF-123-c0733",
+        "source_file": "SWF_global-counterspace-capabilities-2025.pdf",
+        "excerpt": "the primary focus of cyberattacks has been against the user interface, which accounted for 76% of incidents. This includes the IT infrastructure of space companies and agencies, such as websites, authentication portals, and computers. Additionally, 10% of attacks targeted the user segment,"
+      },
+      {
+        "rank": 4,
+        "chunk_id": "F2-SWF-081-c0453",
+        "source_file": "SWF_69d003188c7e60684d6fab55-2021-global-counterspace-capabilities-an-open-source-assessme.pdf",
+        "excerpt": "the higher the attack surface of potential vulnerabilities that an attacker can exploit. There is also an unclear distinction between cyber attacks and electronic warfare, with some arguing for a merger of the two fields. 759 Any cyber attack requires four things: access, vulnerability, a malicious"
+      },
+      {
+        "rank": 5,
+        "chunk_id": "F2-SWF-120-c0032",
+        "source_file": "SWF_gcsr-2026-execsum-spa.pdf",
+        "excerpt": "un número creciente de actores no estatales está SEGURO sondeando activamente los sistemas de satélites comerciales y descubriendo vulnerabilidades cibernéticas similares a las que se encuentran en los sistemas no espaciales. Esto indica que los fabricantes y desarrolladores 04/2026 de sistemas"
+      }
+    ]
+  },
+  {
+    "question_id": "q024",
+    "question": "¿Qué países están desarrollando capacidades láser con potencial empleo contra sistemas espaciales?",
+    "relevant_chunks": [
+      {
+        "rank": 1,
+        "chunk_id": "F2-SWF-123-c0361",
+        "source_file": "SWF_global-counterspace-capabilities-2025.pdf",
+        "excerpt": "Russia has a strong technological knowledge base in directed energy physics and is developing a number of military applications for laser systems in a variety of environments. Russia has revived, and continues to evolve, a legacy program whose goal is to develop an aircraft-borne laser system for"
+      },
+      {
+        "rank": 2,
+        "chunk_id": "F3-SIPRI-016-c0218",
+        "source_file": "SIPRI_20240212113627.pdf",
+        "excerpt": "China can pose ASAT threats with ground-based jammer, ground-launched direct-ascent ASAT missile, ground-based laser blinding, cyber-attack on command- and-control links for satellites (3) and satellite ground systems (4), and high-altitude nuclear electromagnetic pulse (5). The emerging threats in"
+      },
+      {
+        "rank": 3,
+        "chunk_id": "F2-SWF-120-c0024",
+        "source_file": "SWF_gcsr-2026-execsum-spa.pdf",
+        "excerpt": "la India se encuentra en las primeras fases de desarrollo de armas de energía dirigida. En 2025, la India demostró con éxito en dos ocasiones su capacidad para maniobrar activos espaciales civiles en órbita, lo que supuso un paso importante hacia el desarrollo de tecnología de encuentro y"
+      },
+      {
+        "rank": 4,
+        "chunk_id": "F2-SWF-081-c0336",
+        "source_file": "SWF_69d003188c7e60684d6fab55-2021-global-counterspace-capabilities-an-open-source-assessme.pdf",
+        "excerpt": "the United States possesses low power laser systems with the G capability to dazzle, and possibly blind, EO imaging satellites. However, L there is no indication that these potential high or low power capabilities have been operationalized. There is no public evidence that the United States has a"
+      },
+      {
+        "rank": 5,
+        "chunk_id": "F2-SWF-122-c0024",
+        "source_file": "SWF_global-counterspace-capabilities-2024.pdf",
+        "excerpt": "the United States has conducted significant research and development on the use of ground-based high-energy lasers LEO Direct Ascent for counterspace and other purposes. We assess that there are no technological MEO/GEO Direct Ascent roadblocks to the United States operationalizing them for"
+      }
+    ]
+  },
+  {
+    "question_id": "q025",
+    "question": "¿Qué implicaciones tendría el despliegue de una capacidad nuclear antisatélite en órbita?",
+    "relevant_chunks": [
+      {
+        "rank": 1,
+        "chunk_id": "F2-SWF-075-c0003",
+        "source_file": "SWF_690e30052993b5d301a5c1b8-victoria-samson-quad-nations-security-dialogue-sept-28-2025.pdf",
+        "excerpt": "A nuclear detonation in space would have two types of effects • First is exposure to X-ray, gamma, and ultraviolet photos from the detonation, occurring instantly and severely damaging or completely disabling any satellite within line-of-sight • Second and more enduring is radiation exposure from"
+      },
+      {
+        "rank": 2,
+        "chunk_id": "F2-CSIS-102-c0002",
+        "source_file": "CSIS_2024-06-28-is-there-a-path-to-counter-russias-space-weapons.json",
+        "excerpt": "Some anti-satellite weapons can produce indiscriminate effects through the creation of space debris or radiation, destroying the target satellite as well as hundreds, if not thousands, of other satellites as collateral damage. Russia either already fields or is developing many different types of"
+      },
+      {
+        "rank": 3,
+        "chunk_id": "F2-CSIS-137-c0005",
+        "source_file": "CSIS_240503-stewart-nuclear-option.pdf",
+        "excerpt": "a violation of international obligations. I mean, that’s – but nuclear weapons in space are really profoundly different from nuclear weapons here on, you know, planet Earth. I mean, we’re used to thinking about blast effects and there’s the shockwave and all that sort of thing. All of that is the"
+      },
+      {
+        "rank": 4,
+        "chunk_id": "F2-CSIS-144-c0012",
+        "source_file": "CSIS_2kaitlyn-a-balance-of-instability.pdf",
+        "excerpt": "Starfish Prime proved the disastrous effects nuclear weapons could have on space systems. The 1.45 megaton weapon was approximately 100 times more powerful than the nuclear weapon used on Hiroshima and produced such a massive electromagnetic pulse and wave of charged particles that almost one-third"
+      },
+      {
+        "rank": 5,
+        "chunk_id": "F2-CSIS-137-c0008",
+        "source_file": "CSIS_240503-stewart-nuclear-option.pdf",
+        "excerpt": "this is not an active capability that has already been deployed. Although Russia’s pursuit of this capability is deeply troubling, there is no imminent threat. We aren’t talking about a weapon that can be used to attack humans or cause structural damage on Earth. Instead, as Assistant Secretary"
+      }
+    ]
+  },
+  {
+    "question_id": "q026",
+    "question": "¿Cuál ha sido el impacto de las pruebas antisatélite sobre la generación de desechos orbitales?",
+    "relevant_chunks": [
+      {
+        "rank": 1,
+        "chunk_id": "F2-ESA-025-c0004",
+        "source_file": "ESA_space-debris-faq-frequently-asked-questions.json",
+        "excerpt": "On 11 January 2007, China conducted an anti-satellite test, intercepting their Fengyun-1C satellite with a surface-launched medium-range missile. The intercept occurred at an altitude of 862 km on a near-polar orbit, adding more than 3300 trackable objects to the US Space Surveillance Network"
+      },
+      {
+        "rank": 2,
+        "chunk_id": "F2-SWF-124-c0613",
+        "source_file": "SWF_global-counterspace-capabilities-2026-hr.pdf",
+        "excerpt": "The US military catalogued 130 pieces of trackable orbital debris from India’s test; the final piece of trackable debris re-entered the atmosphere in June 2022, 3.2 years after the test occurred. At least some pieces had been thrown to an altitude of 2250 km due to collision dynamics, as what also"
+      },
+      {
+        "rank": 3,
+        "chunk_id": "F2-CSIS-131-c0046",
+        "source_file": "CSIS_221214-young-loworbit-highstakes-min.pdf",
+        "excerpt": "Starlink satellites have reportedly had to maneuver over 1,700 times to avoid orbital debris from Russia’s 2021 ASAT test. 103 Although no satellites from the Project Kuiper constellation are currently in orbit, space safety and sustainability have been emphasized throughout Amazon’s design"
+      },
+      {
+        "rank": 4,
+        "chunk_id": "F2-CSIS-049-c0180",
+        "source_file": "CSIS_2020-03-30-space-threat-assessment-2020.json",
+        "excerpt": "was specifically placed in a low-altitude sun-synchronous orbit as the target for an ASAT test. After the successful test in March, independent analysts realized that an earlier attempt to intercept the satellite on February 12 of the same year failed.51 What was perhaps most notable about the"
+      },
+      {
+        "rank": 5,
+        "chunk_id": "F2-CSIS-199-c0002",
+        "source_file": "CSIS_osi-international-open-letter-asats-public.pdf",
+        "excerpt": "a real-world example of debris produced by a kinetic ASAT test conducted at an altitude of 280 km — the 2019 Indian ASAT test. Figure: Consequences of a low-altitude kinetic ASAT test in a mega-constellation environment. The grey curves show the orbital paths of catalogued debris that resulted from"
+      }
+    ]
+  },
+  {
+    "question_id": "q027",
+    "question": "¿Qué desafíos plantea el uso de inteligencia artificial en las operaciones espaciales?",
+    "relevant_chunks": [
+      {
+        "rank": 1,
+        "chunk_id": "F1-CSET-065-c0035",
+        "source_file": "CSET_center-for-security-and-emerging-technology-36.pdf",
+        "excerpt": "may introduce new attack surfaces, such as data poisoning or evasion attacks vulnerabilities, these risks can be mitigated. 49 With clear guardrails — performance standards, explainability requirements, rigorous TEVV, and hardened data pipelines — the U.S. Space Force can harness AI to accelerate"
+      },
+      {
+        "rank": 2,
+        "chunk_id": "F1-CSET-067-c0000",
+        "source_file": "CSET_center-for-security-and-emerging-technology-37.pdf",
+        "excerpt": "Integrating AI, both on ground systems and onboard satellites, is essential to accelerating decision-making, enhancing satellite survivability, and maintaining domain knowledge in an increasingly contested environment. This analysis reviews emerging AI applications upon two space mission areas and"
+      },
+      {
+        "rank": 3,
+        "chunk_id": "F2-UNOOSA-005-c0007",
+        "source_file": "UNOOSA_ensuring-responsible-ai-in-space-and-earth-observation.pdf",
+        "excerpt": "AI learns from the data it is trained on. If that data is predominantly from the Global North, models can misinterpret conditions elsewhere, leading to weaker results and inequitable outcomes. Access to what makes AI work—high ‑ quality EO data, computing power, and skilled personnel—is also"
+      },
+      {
+        "rank": 4,
+        "chunk_id": "F2-ESA-026-c0079",
+        "source_file": "ESA_space-debris-mitigation-compliance-verification-guidelines.pdf",
+        "excerpt": "On-board autonomy to allow the spacecraft to manoeuvre in response to provided CDMs, considering the resulting ability to predict, monitor, communicate and validate collision avoidance. b. On-board autonomy to simplify the execution of a ground-commanded mitigation activity and therefore reduce the"
+      },
+      {
+        "rank": 5,
+        "chunk_id": "F2-UNOOSA-005-c0004",
+        "source_file": "UNOOSA_ensuring-responsible-ai-in-space-and-earth-observation.pdf",
+        "excerpt": "This policy brief addresses the civilian and peaceful applications of AI across the space and Earth observation value chain from on ‑ board autonomy and ground processing to analysis, dissemination, and decision support. It proposes practical, near-term actions for governments and space agencies,"
+      }
+    ],
+    "notes": "Los fragmentos mas pertinentes provienen de material de IA (CSET) y no del acervo espacial; el corpus espacial aborda la autonomia a bordo y la IA responsable en observacion de la Tierra, pero no los desafios de la IA en operaciones espaciales militares."
+  },
+  {
+    "question_id": "q028",
+    "question": "¿Qué capacidades estratégicas ha demostrado China mediante operaciones de servicio y reabastecimiento en órbita?",
+    "relevant_chunks": [
+      {
+        "rank": 1,
+        "chunk_id": "F2-SWF-010-c0001",
+        "source_file": "SWF_12-2-chinese-military-and-intelligence-rendezvous-and-proximity-operations-fact-sheet.json",
+        "excerpt": "demonstrate inspection, surveillance, docking, maneuvering, and possible refueling capabilities, often with limited public explanation from China. The fact sheet also highlights a key point often lost in outside commentary: while many of these Chinese satellite maneuvers raise concern because of"
+      },
+      {
+        "rank": 2,
+        "chunk_id": "F2-SWF-085-c0009",
+        "source_file": "SWF_69d7dd0c7b9a543b1c15c6ff-2025-commercial-and-civil-robotic-rendezvous-and-proximity-op.pdf",
+        "excerpt": "The SJ-21 docked at some point and on January 21, 2022, used its onboard propulsion to pull the Compass G2 to an altitude above the geostationary belt. 16 On February 18, 2024, Astroscale Japan launched the Adras-J satellite for a debris inspection demonstration mission. Between April 17 and"
+      },
+      {
+        "rank": 3,
+        "chunk_id": "F2-SWF-123-c0435",
+        "source_file": "SWF_global-counterspace-capabilities-2025.pdf",
+        "excerpt": "extension vehicles” that could refuel satellites in GEO. 89 It advertised what it Space/2024-03-18%20PLA%20On-Orbit%20 called an “on-orbit gas station” at the 2018 Zhuhai Air Show. 90 The customer 11 Satellite%20Logistics.pdf. satellite would need to have SAST’s refuelling docking port and the"
+      },
+      {
+        "rank": 4,
+        "chunk_id": "F2-SWF-124-c0507",
+        "source_file": "SWF_global-counterspace-capabilities-2026-hr.pdf",
+        "excerpt": "the two satellites got within 1 km of each, GLOBAL 118 Andrew Jones, “Chinese spacecraft begin 118 rendezvous and proximity operations in possibly docked, and then separated. They again appeared to come close geostationary orbit,” SpaceNews , June 30, enough to dock on June 30 according to imagery"
+      },
+      {
+        "rank": 5,
+        "chunk_id": "F2-CSIS-180-c0085",
+        "source_file": "CSIS_harrison-spacethreatassessment2022-web-v3-compressed.pdf",
+        "excerpt": "akin to other on-orbit servicing, satellite tracking company, SJ-21 performed satellite to a disposal orbit. assembly, and manufacturing satellites, and RPOs around Compass G2 for several days the test was not used for counterspace pur- before docking with the inactive satellite"
+      }
+    ]
+  },
+  {
+    "question_id": "q029",
+    "question": "¿Qué capacidades operacionales evidencian las maniobras realizadas recientemente por satélites rusos en órbita GEO?",
+    "relevant_chunks": [
+      {
+        "rank": 1,
+        "chunk_id": "F2-CSIS-188-c0062",
+        "source_file": "CSIS_johnson-governanceinspace-web-final-1.pdf",
+        "excerpt": "frequently performs maneuvers in GEO, a region often characterized by its “stationary” attributes. Thus far in its operational lifetime, Luch has stopped at 19 orbital locations in the GEO belt. 83 To have more than two or three orbital locations on the GEO belt throughout a satellite’s lifetime is"
+      },
+      {
+        "rank": 2,
+        "chunk_id": "F2-SWF-108-c0012",
+        "source_file": "SWF_fact-sheet-2026-russian-military-and-intelligence-rendezvous-and-proximity-operations.pdf",
+        "excerpt": "Luch conducted a series of maneuvers that brought it close to other operational satellites around the GEO belt. During its time on orbit, Luch parked near more than two dozen commercial communications satellites for periods ranging from a few weeks to nine months, 29 and typically close enough to"
+      },
+      {
+        "rank": 3,
+        "chunk_id": "F2-SWF-108-c0014",
+        "source_file": "SWF_fact-sheet-2026-russian-military-and-intelligence-rendezvous-and-proximity-operations.pdf",
+        "excerpt": "cataloged as Luch Olymp 2, and designated Luch 5X in registration filings with the United Nations, appears to be conducting RPO activities similar to that of the original Luch by visiting Russian, United States, and European satellites in the GEO belt. 41 Its orbital history is documented in Figure"
+      },
+      {
+        "rank": 4,
+        "chunk_id": "F2-SWF-017-c0000",
+        "source_file": "SWF_12-2-russian-military-and-intelligence-rendezvous-and-proximity-operations-fact-sheet.json",
+        "excerpt": "Since 2013, Russia has conducted robotic rendezvous and proximity operations (RPO) in both low Earth orbit (LEO) and geostationary Earth orbit (GEO), most of which are related to military or intelligence operations. Most of these missions have been publicly acknowledged by the Russian government"
+      },
+      {
+        "rank": 5,
+        "chunk_id": "F2-CSIS-035-c0016",
+        "source_file": "CSIS_2019-04-04-space-threat-assessment-2019.json",
+        "excerpt": "Suspicious RPO activity has also been observed in at least one Russian satellite in GEO.18 The satellite—known as Olymp-K, but misleadingly referred to as Luch by the Russian government—has attracted attention for shifting its position within the geosynchronous belt on a relatively frequent basis,"
+      }
+    ]
+  },
+  {
+    "question_id": "q030",
+    "question": "¿Cómo han evolucionado las operaciones espaciales dinámicas dentro de la estrategia espacial estadounidense?",
+    "relevant_chunks": [
+      {
+        "rank": 1,
+        "chunk_id": "F2-CSIS-206-c0028",
+        "source_file": "CSIS_space-force-doctrine-document-1-final-4apr25.pdf",
+        "excerpt": "The desired outcome of space control activities is space superiority, a degree of control that allows forces to operate at a time and place of their choosing without prohibitive interference from space or counterspace threats, while also denying the same to an adversary. Space control consists of"
+      },
+      {
+        "rank": 2,
+        "chunk_id": "F2-SWF-124-c0257",
+        "source_file": "SWF_global-counterspace-capabilities-2026-hr.pdf",
+        "excerpt": "Three mission areas are given for counterspace operations: • “Orbital Warfare (OW). Combat operations conducted through fires, movement, and maneuver to control the space domain. • “Electromagnetic Warfare (EW). Combat operations through the electromagnetic spectrum to negate space or counterspace"
+      },
+      {
+        "rank": 3,
+        "chunk_id": "F2-SWF-121-c0200",
+        "source_file": "SWF_global-counterspace-capabilities-2022-rev2.pdf",
+        "excerpt": "the Biden administration unveiled its Space Priorities Framework, which states, “The United States will defend its national security interests from the growing scope and scale of space and counterspace threats... To deter aggression against U.S., allied, and partner interests in a manner that"
+      },
+      {
+        "rank": 4,
+        "chunk_id": "F2-SWF-124-c0255",
+        "source_file": "SWF_global-counterspace-capabilities-2026-hr.pdf",
+        "excerpt": "Guardians are, and always will be, warfighters.” ibid. “Space Force Doctrine Document – 1 (SFDD-1),” CAPABILITIES SFDD-1’s section titled “Space Warfare” describes it as “the Space Force must 409 ibid. be prepared to conduct warfare to deter or compel adversary behavior, 410 “Space Force Doctrine"
+      },
+      {
+        "rank": 5,
+        "chunk_id": "F2-SWF-122-c0190",
+        "source_file": "SWF_global-counterspace-capabilities-2024.pdf",
+        "excerpt": "three core tenets: space domain awareness, using resilience to deter space-force-chief-outlines-3-part-competitive-en- COUNTERSPACE durance-theory-aimed-at-space-superiority/. attack, and ‘responsible’ counterspace activities that avoided destruction of satellites that would create orbital debris."
+      }
+    ],
+    "notes": "El corpus no usa la expresion dynamic space operations. Los fragmentos recogen la evolucion doctrinal estadounidense equivalente: superioridad espacial, competitive endurance, guerra orbital y el marco de prioridades espaciales."
+  },
+  {
+    "question_id": "q031",
+    "question": "¿Qué cambios doctrinales han fortalecido el empleo militar de las capacidades espaciales de Corea del Norte?",
+    "relevant_chunks": [
+      {
+        "rank": 1,
+        "chunk_id": "F2-SWF-079-c0297",
+        "source_file": "SWF_69cffd06bb49a754a728c08d-2019-global-counterspace-capabilities-an-open-source-assessme.pdf",
+        "excerpt": "there is no clear doctrine for counterspace weapons in the DPRK. In fact, there is a curious absence of discussion on counterspace weapons in the DPRK state media. Surveying the archives since 2010 does not reveal a single mention of ASAT or counterspace. Satellites and space are only mentioned in"
+      },
+      {
+        "rank": 2,
+        "chunk_id": "F2-SWF-043-c0028",
+        "source_file": "SWF_2025-executive-summary-spanish.pdf",
+        "excerpt": "no ha mencionado las operaciones ASAT ni su intención, lo que sugiere que no existe una doctrina clara en el pensamiento de Pyongyang hasta este momento. Corea del Norte no parece muy motivada para desarrollar medios contraespaciales específicos, aunque ciertas capacidades de su programa de misiles"
+      },
+      {
+        "rank": 3,
+        "chunk_id": "F2-CSIS-135-c0077",
+        "source_file": "CSIS_240417-swope-space-threat-0.pdf",
+        "excerpt": "the launch of the Malligyong-1 military reconnaissance satellite, which was discussed in last year’s report. Pyongyang also completed significant upgrades to the Sohae satellite launching station. Additionally, North Korea strengthened its cooperation with Russia in various areas, including space"
+      },
+      {
+        "rank": 4,
+        "chunk_id": "F2-SWF-120-c0030",
+        "source_file": "SWF_gcsr-2026-execsum-spa.pdf",
+        "excerpt": "Corea del Norte ha demostrado su capacidad para interferir las señales GPS civiles dentro de una zona geográfi ca limitada. No se ha demostrado que Corea del Norte tenga capacidad para interferir las comunicaciones por satélite, aunque se desconoce su capacidad técnica al respecto. xxi LA 13 —"
+      },
+      {
+        "rank": 5,
+        "chunk_id": "F2-CSIS-142-c0049",
+        "source_file": "CSIS_250425-swope-space-threat.pdf",
+        "excerpt": "North Korea continues to operate its Mallygyong-1 satellite, which was launched in November 2023, and executed maneuvers to raise the satellite’s altitude in February and June 2024. 10 It was reported that North Korea successfully tested a new ballistic missile in October 2024 South Korean news"
+      }
+    ],
+    "notes": "La evidencia contradice la premisa de la pregunta: las fuentes coinciden en que Corea del Norte no tiene una doctrina espacial o contraespacial declarada. Los fragmentos documentan esa ausencia y los avances materiales (satelite Malligyong-1, reorganizacion de la agencia espacial) que si se registran."
+  },
+  {
+    "question_id": "q032",
+    "question": "¿Qué lecciones ha dejado el conflicto entre Rusia y Ucrania sobre el empleo militar del dominio espacial?",
+    "relevant_chunks": [
+      {
+        "rank": 1,
+        "chunk_id": "F3-SIPRI-016-c0176",
+        "source_file": "SIPRI_20240212113627.pdf",
+        "excerpt": "This was done to interfere with Ukrainian military communications, and it was effective: it took out tens of thousands of end-user modems, affecting users not just in Ukraine but all across Europe (3). It did not permanently harm the modems, but it did take some time for them to either get back"
+      },
+      {
+        "rank": 2,
+        "chunk_id": "F2-SWF-124-c0879",
+        "source_file": "SWF_global-counterspace-capabilities-2026-hr.pdf",
+        "excerpt": "an external attacker used a misconfigured VPN appliance to gain access to the management network for the KA-SAT service and sent a series of malicious commands to overwrite data on user modems, and that it only took 45 minutes for the malware GLOBAL 51 Joseph Gedeon, “For the first time, U.S."
+      },
+      {
+        "rank": 3,
+        "chunk_id": "F2-CSIS-135-c0117",
+        "source_file": "CSIS_240417-swope-space-threat-0.pdf",
+        "excerpt": "Ukraine has served as a proving ground for many space capa- bilities, demonstrating the value of com- Image of a Starlink terminal deployed in Ukraine. mercial space services in the crucible of war and testing the abilities of commercial photo by yasuyoshi chiba/getty images 36 SPACE THREAT"
+      },
+      {
+        "rank": 4,
+        "chunk_id": "F2-SWF-123-c0353",
+        "source_file": "SWF_global-counterspace-capabilities-2025.pdf",
+        "excerpt": "Ukrainian military units started to see outages in their Starlink connections, something a Ukrainian government official said was the result of Russia “testing different mechanisms” for its EW systems. 228 GLOBAL 228 Paul Mozur and Adam Satariano, “Russia, in New Push, Increasingly Disrupts"
+      },
+      {
+        "rank": 5,
+        "chunk_id": "F2-CSIS-132-c0072",
+        "source_file": "CSIS_230414-bingen-space-assessment.pdf",
+        "excerpt": "attacks against space capabilities used by Ukraine Following the successful cyberattack on Viasat, the are an example of how counterspace weapons can and Ukrainian government sought help from Elon Musk and will likely be used prior to and during future conflict. SpaceX to help the country restore"
+      }
+    ]
+  },
+  {
+    "question_id": "q033",
+    "question": "¿Cómo utilizan los grupos armados ilegales el control territorial para sustituir funciones del Estado y consolidar su influencia sobre las comunidades?",
+    "relevant_chunks": [
+      {
+        "rank": 1,
+        "chunk_id": "F3-MAPPOEA-034-c0046",
+        "source_file": "MAPPOEA_xxx-informe-semestral.pdf",
+        "excerpt": "los grupos armados ilegales procuran suplantar al Estado y resolver tensiones sociales en los territorios, como invasión de predios, llegada de población extranjera en zonas rurales apartadas, competencia laboral o delincuencia común. Todo lo anterior, con el objetivo de incrementar su control"
+      },
+      {
+        "rank": 2,
+        "chunk_id": "F3-MAPPOEA-018-c0049",
+        "source_file": "MAPPOEA_informe-mappoea-35.pdf",
+        "excerpt": "impedir el desarrollo de las funciones de las instituciones del Estado. Esta dinámica tuvo mayor impacto en Antioquia, Cauca, Caquetá, Chocó, Guaviare, Meta, Nariño y Putumayo. Tras la finalización del periodo decretado para los ceses, entes territoriales, autoridades étnicas, liderazgos y sectores"
+      },
+      {
+        "rank": 3,
+        "chunk_id": "F3-MAPPOEA-034-c0055",
+        "source_file": "MAPPOEA_xxx-informe-semestral.pdf",
+        "excerpt": "dictaminan reglas al interior de las comunidades como restricciones de movilidad horaria y territorial, prohíben dialogar con la fuerza pública y agentes del Estado, y buscan mantener un control efectivo sobre las comunidades y las rutas de los mercados ilegales. La SG/OEA resalta que aún se"
+      },
+      {
+        "rank": 4,
+        "chunk_id": "F3-MAPPOEA-029-c0053",
+        "source_file": "MAPPOEA_xxix-informe-semestral.pdf",
+        "excerpt": "el fortalecimiento del control social por parte de los grupos armados ilegales a través de la imposición de medidas restrictivas y coercitivas para cumplir la cuarentena. En departamentos como Antioquia, Bolívar, Cauca, Cesar, Chocó, Nariño, Putumayo y la región del Catatumbo 72 , los grupos"
+      },
+      {
+        "rank": 5,
+        "chunk_id": "F3-ALERTAS-390-c0012",
+        "source_file": "ALERTAS_informes027.pdf",
+        "excerpt": "Las comunidades rurales se encuentran a merced de nuevos grupos armados ilegales, toda vez que el Estado no ha logrado llegar de manera efectiva y simultanea a recuperar el control territorial e implementar politicas publicas que representen bienestar social. Sumado a lo anterior y de manera"
+      }
+    ]
+  },
+  {
+    "question_id": "q034",
+    "question": "¿Qué corredores geográficos y territorios estratégicos son priorizados por los grupos armados para fortalecer su control operacional?",
+    "relevant_chunks": [
+      {
+        "rank": 1,
+        "chunk_id": "F3-MAPPOEA-035-c0013",
+        "source_file": "MAPPOEA_xxxi-informe-semestral-mappoea.pdf",
+        "excerpt": "La importancia geográfica y económica de los lugares en los que hacen presencia los GAI son determinantes para estas dinámicas, desde el punto de vista de los beneficios que representan para su supervivencia y el aprovechamiento económico de contextos de ilegalidad, como las zonas de grandes"
+      },
+      {
+        "rank": 2,
+        "chunk_id": "F3-MAPPOEA-032-c0025",
+        "source_file": "MAPPOEA_xxvii-informe-semestral-espanol.pdf",
+        "excerpt": "obtener el control de corredores de movilidad y salida hacia el océano Pacífico, para el negocio de narcotráfico y tráfico de armas, generando afectaciones como la siembra de MAP, confinamiento y restricciones a la movilidad, desplazamientos masivos 14 y afectaciones a liderazgos sociales que"
+      },
+      {
+        "rank": 3,
+        "chunk_id": "F3-ALERTAS-386-c0013",
+        "source_file": "ALERTAS_informes023.pdf",
+        "excerpt": "por expandir y consolidar zonas costaneras del Pacífico, corredores fluviales en el Chocó, Valle, Cauca y Nariño y en el Caribe; también zonas urbanas con accesos a puertos y corredores de movilidad hacia mercados internacionales. Pero también sobresale el incremento y cada vez mayor cantidad de"
+      },
+      {
+        "rank": 4,
+        "chunk_id": "F3-MAPPOEA-020-c0016",
+        "source_file": "MAPPOEA_informe-semestral-36-mappoea-1.pdf",
+        "excerpt": "condiciones geográficas que facilitaron su uso como corredores de movilidad. De acuerdo con el monitoreo realizado en las zonas priorizadas por la Misión, el presente Informe hace referencia al accionar del Estado Mayor Central de las FARC-EP, el Ejército de Liberación Nacional, las Autodefensas"
+      },
+      {
+        "rank": 5,
+        "chunk_id": "F3-MAPPOEA-029-c0020",
+        "source_file": "MAPPOEA_xxix-informe-semestral.pdf",
+        "excerpt": "sus zonas de operación se concentran en los departamentos de Antioquia, Córdoba, Chocó y la subregión de Cordillera en Nariño. Por su parte, en la región del Urabá Antioqueño se ha consolidado como el único grupo armado ilegal con presencia en la región que mantiene disputas con grupos disidentes o"
+      }
+    ]
+  },
+  {
+    "question_id": "q035",
+    "question": "¿Cómo contribuyen las economías ilícitas al deterioro ambiental y al fortalecimiento de los grupos armados en América Latina?",
+    "relevant_chunks": [
+      {
+        "rank": 1,
+        "chunk_id": "F3-ALERTAS-333-c0000",
+        "source_file": "ALERTAS_056-19-91709.json",
+        "excerpt": "La confluencia de economías ilegales, informales y criminales, el control de grupos armados ilegales y las condiciones de vulnerabilidad social, económica y organizativa, es propiciada por la debilidad del control binacional de esta área de frontera. Estructural Narcotráfico; Minería ilegal;"
+      },
+      {
+        "rank": 2,
+        "chunk_id": "F3-MAPPOEA-016-c0083",
+        "source_file": "MAPPOEA_cp51877scp-1.pdf",
+        "excerpt": "La extracción ilegal de yacimientos mineros continuó contaminando fuentes hídricas y generando escenarios de deforestación en Caquetá, Cauca y Valle del Cauca, así como en las regiones de Bajo Cauca y nordeste de Antioquia, sur de Bolívar, San Juan y Atrato, sur de Córdoba, Telembí y Bajo Putumayo."
+      },
+      {
+        "rank": 3,
+        "chunk_id": "F3-MAPPOEA-019-c0064",
+        "source_file": "MAPPOEA_informe-periodico-40-esp-1-1.pdf",
+        "excerpt": "los impactos de la extracción ilícita de recursos naturales como fuente de financiación de los GA. 5.1. Afectaciones al medioambiente Los GA continuaron afectando fuentes hídricas a través de la extracción ilícita de yacimientos mineros, especialmente de oro, en regiones como el Bajo Cauca en"
+      },
+      {
+        "rank": 4,
+        "chunk_id": "F3-ALERTAS-423-c0017",
+        "source_file": "ALERTAS_informes060.pdf",
+        "excerpt": "es de gran relevancia dar mayor atención al fenómeno de mineria ilícita, ya que este viene siendo un tema que ha venido cobrando relevancia y pocas acciones se han tomado para hacerle frente. Sobre todo, porque con la baja coordinación interinstitucional, la presencia de narcotráfico y mineria"
+      },
+      {
+        "rank": 5,
+        "chunk_id": "F3-ALERTAS-251-c0000",
+        "source_file": "ALERTAS_032-19-91605.json",
+        "excerpt": "un territorio propicio para el desarrollo de actividades ilícitas de narcotráfico y minería Inminencia La presencia y accionar de los grupos armados ilegales en el municipio de Samaniego se explica históricamente, en gran medida, por ser un territorio propicio para el desarrollo de actividades"
+      }
+    ]
+  },
+  {
+    "question_id": "q036",
+    "question": "¿Qué actividades económicas ilegales convergen con la explotación de recursos naturales en zonas de conflicto?",
+    "relevant_chunks": [
+      {
+        "rank": 1,
+        "chunk_id": "F3-MAPPOEA-018-c0064",
+        "source_file": "MAPPOEA_informe-mappoea-35.pdf",
+        "excerpt": "Las disputas por el control y la explotación de recursos naturales, así como las rentas que estos generan, han sido causa y consecuencia del conflicto armado. El uso y la tenencia de la tierra, la presencia de cultivos ilícitos, las economías extractivas de oro y madera, la praderización 57 de"
+      },
+      {
+        "rank": 2,
+        "chunk_id": "F3-ALERTAS-389-c0048",
+        "source_file": "ALERTAS_informes026.pdf",
+        "excerpt": "hechos que propician aún más la explotación de los recursos naturales, y con ello, la dinamización de estas economías. Según información otorgada por el Instituto Amazónico de Investigaciones Científicas Sinchi, la sobre explotación de recursos naturales en la Amazonía se ha incrementado"
+      },
+      {
+        "rank": 3,
+        "chunk_id": "F3-MAPPOEA-032-c0057",
+        "source_file": "MAPPOEA_xxvii-informe-semestral-espanol.pdf",
+        "excerpt": "Minería ilegal, explotación de madera, impactos ambientales por derrame de crudo, entre otros. 31 Abierto el 26 de febrero de 2019 32 Abierto el 1 de marzo de 2019 las limitaciones que tienen para acceder a recursos tecnológicos, las dificultades y los costos de recolectar información en zonas"
+      },
+      {
+        "rank": 4,
+        "chunk_id": "F3-ALERTAS-276-c0000",
+        "source_file": "ALERTAS_037-23-91895.json",
+        "excerpt": "el afianzamiento de dinámicas del crimen organizado dedicado a la comisión de delitos ambientales. Inminencia Narcotráfico; Minería ilegal; Tala ilegal Facciones disidentes de las FARC-EP Grupos Armados de Crimen Organizado El riesgo está relacionado con la presunta y reciente presencia de miembros"
+      },
+      {
+        "rank": 5,
+        "chunk_id": "F3-ALERTAS-417-c0019",
+        "source_file": "ALERTAS_informes054.pdf",
+        "excerpt": "existen sobre el territorio intereses foráneos sobre los recursos naturales, actividades de exploración minera, proyectos de construcción de alto impacto que podrían afectar el plan de vida del pueblo Nasa y la vida social y comunitaria de los campesinos y afro descendientes. Sumado a lo anterior"
+      }
+    ]
+  },
+  {
+    "question_id": "q037",
+    "question": "¿De qué manera el crimen organizado logra fortalecer su capacidad de influencia sobre las instituciones del Estado?",
+    "relevant_chunks": [
+      {
+        "rank": 1,
+        "chunk_id": "F3-RESDAL-092-c0044",
+        "source_file": "RESDAL_atlas-2024-esp.pdf",
+        "excerpt": "dificulta la gobernabilidad y debilita el Es - amenazas globales tales como el peligro atómico, el Antro - tado de Derecho y la democracia. poceno, la movilidad humana global, las consecuencias de las nuevas tecnologías y de la inteligencia artificial. Todas En un libro reciente de la UPEACE-Press"
+      },
+      {
+        "rank": 2,
+        "chunk_id": "F3-CEEEP-012-c0000",
+        "source_file": "CEEEP_issue11-74-radicalizacion-ideologica-crimen-organizado-y-seguridad-nacional-la-in.json",
+        "excerpt": "afectan la gobernabilidad y comprometen el control del Estado sobre territorios clave. Se concluye que esta convergencia incrementa las amenazas a la seguridad interna, requiriendo una intervención estratégica por parte del Estado. Aunque la seguridad interna es una tarea principalmente policial,"
+      },
+      {
+        "rank": 3,
+        "chunk_id": "F3-ALERTAS-423-c0017",
+        "source_file": "ALERTAS_informes060.pdf",
+        "excerpt": "incentivar la cooptación de funcionarios públicos, por lo que es prioritario que la Procuraduria y Fiscalía valoren desde sus competencias emprender acciones investigativas en el área advertida, focalizada en este riesgo. 6.Enla misma linea, es de gran relevancia dar mayor atención al fenómeno de"
+      },
+      {
+        "rank": 4,
+        "chunk_id": "F3-MAPPOEA-010-c0027",
+        "source_file": "MAPPOEA_2014-conversatorios-sobre-restitucion-de-tierras-y-territorios-compressed.pdf",
+        "excerpt": "hay un problema de corrupción en la administración pública en general, que es importante que los jueces lo tengan presente a la hora de fallar, pues la corrupción, paralela a las armas, ha marcado las lógicas del conflicto armado en Colombia. Una forma de blindar a las comunidades rurales del"
+      },
+      {
+        "rank": 5,
+        "chunk_id": "F3-ALERTAS-386-c0117",
+        "source_file": "ALERTAS_informes023.pdf",
+        "excerpt": "presuntos vínculos de funcionarios públicos con economías ilícitas (minería ilegal, aprovechamiento ilegal de bosques naturales y otros delitos ambientales), y de su participación en actividades con grupos armados organizados. A la Procuraduría General de la Nación:  Adoptar una estrategia"
+      }
+    ],
+    "notes": "El corpus aborda la influencia del crimen organizado sobre el Estado de forma indirecta y dispersa (cooptacion de funcionarios, despojo con anuencia de notarias, debilitamiento de la gobernabilidad); no hay fragmentos dedicados a describir el mecanismo."
+  },
+  {
+    "question_id": "q038",
+    "question": "¿Qué innovaciones tácticas recientes han incorporado los grupos armados para aumentar su capacidad operacional?",
+    "relevant_chunks": [
+      {
+        "rank": 1,
+        "chunk_id": "F3-MAPPOEA-014-c0005",
+        "source_file": "MAPPOEA_cp-informe-mappoea-39-esp.pdf",
+        "excerpt": "han diversificado sus métodos de confrontación mediante el uso de nuevas tecnologías y tácticas no convencionales. El empleo de drones para ataques y labores de vigilancia se suma a la instalación de artefactos explosivos en animales de carga y objetos de uso cotidiano, así como ataques a la"
+      },
+      {
+        "rank": 2,
+        "chunk_id": "F3-MAPPOEA-014-c0019",
+        "source_file": "MAPPOEA_cp-informe-mappoea-39-esp.pdf",
+        "excerpt": "las acciones incluyeron francotiradores y el uso de drones para el lanzamiento de artefactos explosivos. 23 Mediante ataques con explosivos en Arauca y Norte de Santander, afectando los oleoductos Caño Limón-Coveñas y Bicentenario. civil al ocurrir en cabeceras municipales y algunas ciudades. En"
+      },
+      {
+        "rank": 3,
+        "chunk_id": "F3-MAPPOEA-016-c0040",
+        "source_file": "MAPPOEA_cp51877scp-1.pdf",
+        "excerpt": "los GA mantuvieron el uso de drones para el lanzamiento de AEI e incrementaron su capacidad militar por medio de depósitos ilegales para la fabricación de estos artefactos. Particularmente, en el norte de Cauca y Guambuyaco en Nariño utilizaron a la población civil, incluyendo menores de edad, para"
+      },
+      {
+        "rank": 4,
+        "chunk_id": "F3-MAPPOEA-013-c0021",
+        "source_file": "MAPPOEA_37informesemestralmappoeaesp.pdf",
+        "excerpt": "El empleo de drones representó una novedad respecto a las dinámicas y métodos utilizados por los GA para desarrollar acciones ofensivas. Además de atacar a la fuerza pública, los drones fueron maniobrados por personal especializado en el marco de disputas territoriales entre grupos en Caquetá,"
+      },
+      {
+        "rank": 5,
+        "chunk_id": "F3-MAPPOEA-034-c0030",
+        "source_file": "MAPPOEA_xxx-informe-semestral.pdf",
+        "excerpt": "se identifica la reinstalación de minas antipersonal por parte de los grupos armados ilegales. También se conoce de accidentes por MAP en la población recolectora de hoja de coca (algunos de estos NNA), miembros de la fuerza pública, de los Grupos Móviles de Erradicación e integrantes de los grupos"
+      }
+    ]
+  },
+  {
+    "question_id": "q039",
+    "question": "¿Qué capacidades han fortalecido los grupos armados para consolidar y expandir su control territorial?",
+    "relevant_chunks": [
+      {
+        "rank": 1,
+        "chunk_id": "F3-ALERTAS-029-c0000",
+        "source_file": "ALERTAS_004-18-91623.json",
+        "excerpt": "utilizando las rentas ilícitas para obtener su fortalecimiento e interés de expansión territorial. Inminencia Resguardos indígenas: EL CEDRO, LAS PEÑAS, LA BRAVA, PILVÍ Y LA PINTADA, GRAN ROSARIO, INDA ZABALETA, PULGANDE CAMPOALEGRE Consejos Comunitarios: ALTO MIRA Y FRONTERA, BAJO MIRA Y FRONTERA"
+      },
+      {
+        "rank": 2,
+        "chunk_id": "F3-MAPPOEA-030-c0029",
+        "source_file": "MAPPOEA_xxv-informe-semestral-version-oficial-cp40544s03.pdf",
+        "excerpt": "dinámicas de reacomodo, consolidación y expansión territorial de actores armados ilegales. Igualmente, se percibe que el carácter ambicioso de planes como el Plan Horus, puede estar superando las capacidades reales de las unidades militares desplegadas en los territorios. En este sentido, en"
+      },
+      {
+        "rank": 3,
+        "chunk_id": "F3-ALERTAS-064-c0000",
+        "source_file": "ALERTAS_007-26-91953.json",
+        "excerpt": "expansión que evidencia una aceleración en su proceso de consolidación territorial y control social. Inminencia Autodefensas Conquistadoras de la Sierra Se emite ante los graves riesgos de violaciones a los DDHH y al DIH derivados de la expansión territorial de las Autodefensas Conquistadoras de la"
+      },
+      {
+        "rank": 4,
+        "chunk_id": "F3-ALERTAS-090-c0000",
+        "source_file": "ALERTAS_010-25-91935.json",
+        "excerpt": "en la expansión territorial, militar y política del EGC; y por otro, en el recrudecimiento del control hegemónico de las ACSN en determinados territorios. Estructural Autodefensas Gaitanistas de Colombia (AGC) Autodefensas Conquistadoras de la Sierra En este territorio la amenaza sobre la población"
+      },
+      {
+        "rank": 5,
+        "chunk_id": "F3-MAPPOEA-034-c0019",
+        "source_file": "MAPPOEA_xxx-informe-semestral.pdf",
+        "excerpt": "aspiran controlar y dominar para que no intervengan en sus planes de expansión y consolidación. Adicionalmente, los NNA continúan siendo reclutados forzosamente para el desarrollo de actividades criminales; la población forastera —o aquellos que no reconocen como oriundos de la región en la que se"
+      }
+    ]
+  },
+  {
+    "question_id": "q040",
+    "question": "¿Cómo utilizan los grupos armados ilegales la imposición de normas de conducta para ejercer control social sobre la población civil en regiones con baja presencia del Estado?",
+    "relevant_chunks": [
+      {
+        "rank": 1,
+        "chunk_id": "F3-MAPPOEA-023-c0022",
+        "source_file": "MAPPOEA_informe-xxxiv-esp-1.pdf",
+        "excerpt": "Se entiende por control social la regulación efectiva de la conducta de determinada población mediante la imposición de normas de comportamiento por parte de GAI. Se presume el control social: i) cuando el grupo ha comunicado a la población civil las normas que quiere imponer, ii) hay una"
+      },
+      {
+        "rank": 2,
+        "chunk_id": "F3-MAPPOEA-031-c0017",
+        "source_file": "MAPPOEA_xxvi-informe-semestral-mappoea.pdf",
+        "excerpt": "seguido por la imposición de normas de convivencia, y en algunos casos de sanciones y ejecuciones penales. Así, los grupos armados ilegales siguen influenciando el comportamiento social y ejerciendo justicias paralelas a la ordinaria en los lugares donde hacen presencia, determinando la estructura"
+      },
+      {
+        "rank": 3,
+        "chunk_id": "F3-MAPPOEA-033-c0042",
+        "source_file": "MAPPOEA_xxviii-informe-semestral-espanol.pdf",
+        "excerpt": "impongan medidas, restricciones y disposiciones, con el fin de regular el comportamiento social y asegurar, entre otros, el mantenimiento de sus economías ilegales. En la zona fronteriza entre Colombia y Venezuela 42 , el Bajo Cauca antioqueño 43 , el sur del departamento de Córdoba 44 y los"
+      },
+      {
+        "rank": 4,
+        "chunk_id": "F3-ALERTAS-039-c0000",
+        "source_file": "ALERTAS_005-19-91754.json",
+        "excerpt": "La ausencia histórica de autoridades e instituciones civiles efectivas, sin duda es una de las variables que explican la imposición de estos mecanismos de control y orden social por parte de los grupos armados ilegales. Estructural Facciones disidentes de las FARC-EP Autodefensas Gaitanistas de"
+      },
+      {
+        "rank": 5,
+        "chunk_id": "F3-ALERTAS-132-c0000",
+        "source_file": "ALERTAS_015-22-91837.json",
+        "excerpt": "formas de control y regulación de la vida cotidiana de la población civil, lo que ha terminado por configurar una sociedad con una muy limitada o inexistente capacidad de afrontamiento o resistencia a los códigos de conducta, normas y demás formas de gobernanza criminal. Estructural Minería ilegal;"
+      }
+    ]
+  },
+  {
+    "question_id": "q041",
+    "question": "¿Qué corredores de movilidad y territorios estratégicos son priorizados por los Grupos Armados Organizados (GAO), Grupos Armados Organizados Residuales (GAOR) y Grupos Delictivos Organizados (GDO) para asegurar sus economías ilícitas y fortalecer su control territorial?",
+    "relevant_chunks": [
+      {
+        "rank": 1,
+        "chunk_id": "F3-MAPPOEA-032-c0020",
+        "source_file": "MAPPOEA_xxvii-informe-semestral-espanol.pdf",
+        "excerpt": "se percibe un incremento del control territorial por parte del ELN para el paso de armamento, explosivos, y el control de rutas para el narcotráfico. En los límites fronterizos con Panamá, particularmente en el municipio de Juradó, se han presentado enfrentamientos entre el ELN y las AGC/Clan del"
+      },
+      {
+        "rank": 2,
+        "chunk_id": "F3-MAPPOEA-032-c0018",
+        "source_file": "MAPPOEA_xxvii-informe-semestral-espanol.pdf",
+        "excerpt": "Los territorios donde más se percibe este reacomodo son el Norte de Antioquia, Arauca, Catatumbo, Sur de Córdoba y la Costa Pacífica Caucana y Nariñense. En algunas regiones esto ha significado enfrentamientos con otro grupo armado ilegal, impactando a la población civil. Durante el mes de marzo,"
+      },
+      {
+        "rank": 3,
+        "chunk_id": "F3-MAPPOEA-020-c0016",
+        "source_file": "MAPPOEA_informe-semestral-36-mappoea-1.pdf",
+        "excerpt": "La presencia de los GA estuvo concentrada en territorios que les permitieron maximizar la captación de recursos económicos provenientes, principalmente, de dinámicas asociadas a la narcoactividad 8 y la explotación ilícita de yacimientos mineros. También, en aquellos con condiciones geográficas que"
+      },
+      {
+        "rank": 4,
+        "chunk_id": "F3-CEEEP-041-c0000",
+        "source_file": "CEEEP_issue3-15-grupos-armados-organizados-residuales-y-amenazas-transfronterizas-en-e.json",
+        "excerpt": "Ante la ausencia del Estado peruano, los GAOR se han consolidado en la zona y sus actividades económicas -en gran medida- constituyen la única alternativa para que la población aledaña pueda salir de la pobreza. En ese sentido, en este artículo se analiza el impacto de los GAOR en la seguridad y el"
+      },
+      {
+        "rank": 5,
+        "chunk_id": "F3-MAPPOEA-031-c0010",
+        "source_file": "MAPPOEA_xxvi-informe-semestral-mappoea.pdf",
+        "excerpt": "se han identificado diferentes dinámicas relacionadas con los Grupos Armados Organizados (GAO), Grupos Delictivos Organizados (GDO), Grupos Armados Organizados Residuales (GAOR) y el Ejército de Liberación Nacional (ELN) en el contexto actual. Con respecto a los GDO, Los Rastrojos y La Constru,"
+      }
+    ]
+  },
+  {
+    "question_id": "q042",
+    "question": "¿De qué manera la minería ilegal de oro financia el fortalecimiento y la expansión territorial de los Grupos Armados Organizados (GAO), Grupos Armados Organizados Residuales (GAOR) y Grupos Delictivos Organizados (GDO) en departamentos como Chocó, Antioquia y Bolívar?",
+    "relevant_chunks": [
+      {
+        "rank": 1,
+        "chunk_id": "F3-MAPPOEA-014-c0083",
+        "source_file": "MAPPOEA_cp-informe-mappoea-39-esp.pdf",
+        "excerpt": "La extracción ilícita de yacimientos mineros continuó siendo una de las fuentes de financiación de los GA y eje articulador de su control sobre comunidades y territorios. En algunos casos, esta práctica sustituyó a la narcoactividad debido a su mayor margen de ganancia y a las dificultades en la"
+      },
+      {
+        "rank": 2,
+        "chunk_id": "F3-MAPPOEA-016-c0083",
+        "source_file": "MAPPOEA_cp51877scp-1.pdf",
+        "excerpt": "así como en las regiones de Bajo Cauca y nordeste de Antioquia, sur de Bolívar, San Juan y Atrato, sur de Córdoba, Telembí y Bajo Putumayo. En estos territorios, las autoridades y comunidades advirtieron el incremento del ingreso y uso de retroexcavadoras que contaminaron y desviaron los cauces de"
+      },
+      {
+        "rank": 3,
+        "chunk_id": "F3-MAPPOEA-018-c0068",
+        "source_file": "MAPPOEA_informe-mappoea-35.pdf",
+        "excerpt": "la continuidad de la explotación ilícita de yacimientos de oro en Antioquia, Bolívar, Caquetá, Cauca, Nariño y Chocó. Y la segunda, estuvo relacionada con los efectos de los atentados con explosivos por parte de GAI a la infraestructura de transporte de hidrocarburos, especialmente contra el"
+      },
+      {
+        "rank": 4,
+        "chunk_id": "F3-MAPPOEA-029-c0022",
+        "source_file": "MAPPOEA_xxix-informe-semestral.pdf",
+        "excerpt": "extracción ilícita de minerales no regulada por la ley, economía que se constituye en una de las fuentes de financiación de grupos armados ilegales y que su explotación sin mínimos estándares de precaución, genera graves afectaciones al medio ambiente. Adicionalmente, se continúa con la"
+      },
+      {
+        "rank": 5,
+        "chunk_id": "F3-MAPPOEA-020-c0016",
+        "source_file": "MAPPOEA_informe-semestral-36-mappoea-1.pdf",
+        "excerpt": "dinámicas asociadas a la narcoactividad 8 y la explotación ilícita de yacimientos mineros. También, en aquellos con condiciones geográficas que facilitaron su uso como corredores de movilidad. De acuerdo con el monitoreo realizado en las zonas priorizadas por la Misión, el presente Informe hace"
+      }
+    ]
+  },
+  {
+    "question_id": "q043",
+    "question": "¿De qué manera el narcotráfico financia el fortalecimiento y la expansión territorial de los Grupos Armados Organizados (GAO), Grupos Armados Organizados Residuales (GAOR) y Grupos Delictivos Organizados (GDO) en departamentos como Norte de Santander, Arauca, Córdoba y el Cauca?",
+    "relevant_chunks": [
+      {
+        "rank": 1,
+        "chunk_id": "F3-MAPPOEA-022-c0073",
+        "source_file": "MAPPOEA_informe-semestral-xxxiii-mappoea.pdf",
+        "excerpt": "continúa siendo uno de los factores que dinamiza la presencia y accionar de los GAI e involucra a algunos grupos poblacionales, directa e indirectamente, bajo coacción o por razones de supervivencia económica. El aumento en la densidad de cultivos ilícitos en Antioquia, Cauca, Norte de Santander y"
+      },
+      {
+        "rank": 2,
+        "chunk_id": "F3-MAPPOEA-033-c0063",
+        "source_file": "MAPPOEA_xxviii-informe-semestral-espanol.pdf",
+        "excerpt": "la persistencia del cultivo de hoja de coca como la principal fuente de sustento y motor de la economía en varios municipios de departamentos como Caquetá, Cauca, Guaviare, Meta y de regiones como Catatumbo, Sur de Bolívar, la Cordillera Occidental y la Costa Pacífica nariñense, así como en áreas"
+      },
+      {
+        "rank": 3,
+        "chunk_id": "F3-MAPPOEA-023-c0013",
+        "source_file": "MAPPOEA_informe-xxxiv-esp-1.pdf",
+        "excerpt": "control de algunos territorios rurales y de las rentas económicas que obtienen a través de cobros extorsivos. La presencia y accionar del ELN se concentró, principalmente, en Arauca, Chocó y Norte de Santander, seguido de Antioquia, Bolívar y Cauca. Las disputas que este grupo sostiene con otros"
+      },
+      {
+        "rank": 4,
+        "chunk_id": "F3-MAPPOEA-021-c0093",
+        "source_file": "MAPPOEA_informe-semestral-xxxii-mappoea.pdf",
+        "excerpt": "la tecnificación del proceso de transformación en pasta base de coca y sus derivados, han generado mayor rendimiento y producción de drogas ilícitas. En Cauca, en municipios como Corinto, Toribío y Miranda, los grupos residuales o disidentes de las FARC-EP han establecido el cobro de un impuesto a"
+      },
+      {
+        "rank": 5,
+        "chunk_id": "F3-MAPPOEA-034-c0016",
+        "source_file": "MAPPOEA_xxx-informe-semestral.pdf",
+        "excerpt": "persisten acciones directas contra otros grupos; por ejemplo, en la región del Telembí (Nariño) y el cañón del río Micay (Cauca) con el ELN; y en las regiones del Sanquianga y Cordillera (Nariño) y en el sur de Córdoba y el norte de Antioquia con las AGC/Clan del Golfo. En otros casos, las"
+      }
+    ]
+  },
+  {
+    "question_id": "q044",
+    "question": "¿Qué factores incrementan el riesgo de reclutamiento, uso y utilización de niños, niñas y adolescentes en zonas de disputa entre grupos armados organizados?",
+    "relevant_chunks": [
+      {
+        "rank": 1,
+        "chunk_id": "F3-MAPPOEA-034-c0023",
+        "source_file": "MAPPOEA_xxx-informe-semestral.pdf",
+        "excerpt": "El reclutamiento forzado se presenta en mayor medida en zonas rurales, allí los NNA son apartados de sus núcleos familiares para sumarlos a las filas de los grupos armados ilegales, además, persiste la vinculación y reclutamiento de NNA pertenecientes a comunidades étnicas por el conocimiento que"
+      },
+      {
+        "rank": 2,
+        "chunk_id": "F3-MAPPOEA-031-c0021",
+        "source_file": "MAPPOEA_xxvi-informe-semestral-mappoea.pdf",
+        "excerpt": "principalmente está alentada por las precarias condiciones socioeconómicas y las escasas oportunidades y expectativas de desarrollo de esta población en entornos donde prevalecen dinámicas ilegales. Con respecto a las afectaciones a comunidades en zonas de frontera, se resaltan aquellas que atentan"
+      },
+      {
+        "rank": 3,
+        "chunk_id": "F3-ALERTAS-134-c0000",
+        "source_file": "ALERTAS_015-24-91913.json",
+        "excerpt": "bajo las modalidades de reclutamiento forzado, uso y utilización, en el marco del control hegemónico que ejerce la facción disidente de las antiguas FARC-EP denominada \"Estado Mayor Central\". Estructural Facciones disidentes de las FARC-EP El escenario de riesgo está asociado a la vinculación de"
+      },
+      {
+        "rank": 4,
+        "chunk_id": "F3-MAPPOEA-022-c0025",
+        "source_file": "MAPPOEA_informe-semestral-xxxiii-mappoea.pdf",
+        "excerpt": "persiste el reclutamiento forzado de NNA por parte de los grupos disidentes o residuales de las FARC- EP, bajo la amenaza de desplazamiento forzado ante la negativa de vincularse al grupo. En consecuencia, las autoridades étnico-territoriales que buscan la protección de los NNA son víctimas de"
+      },
+      {
+        "rank": 5,
+        "chunk_id": "F3-MAPPOEA-034-c0026",
+        "source_file": "MAPPOEA_xxx-informe-semestral.pdf",
+        "excerpt": "las niñas son utilizadas desde temprana edad (12 años) con fines de explotación sexual, tanto por integrantes de los grupos disidentes o residuales de las FARC-EP, como por particulares. En la región del Sur de Bolívar y en Norte de Santander, NNA campesinos se desplazaron con sus familias para"
+      }
+    ]
+  },
+  {
+    "question_id": "q045",
+    "question": "¿Cómo afectan las disputas entre grupos criminales la seguridad de la población civil y el incremento de los homicidios selectivos?",
+    "relevant_chunks": [
+      {
+        "rank": 1,
+        "chunk_id": "F3-MAPPOEA-033-c0017",
+        "source_file": "MAPPOEA_xxviii-informe-semestral-espanol.pdf",
+        "excerpt": "que se han traducido en desplazamientos y homicidios selectivos que incluyeron prácticas aberrantes, como las ocurridas en El Bagre el 24 de diciembre de 2019. La hostilidad de estos grupos se ha extendido hacia la Fuerza Pública, como se evidenció con la emboscada en Caucasia a una patrulla del"
+      },
+      {
+        "rank": 2,
+        "chunk_id": "F3-ALERTAS-419-c0038",
+        "source_file": "ALERTAS_informes056.pdf",
+        "excerpt": "Los homicidios selectivos fundados en la sospecha, la utilizacion de nifios y adolescentes, el desplazamiento forzado, la extorsion y los enfrentamientos en medio de zonas pobladas, son formas de violencia que recaen sobre la poblacién en su mayoria vulnerable. De acuerdo con el contexto"
+      },
+      {
+        "rank": 3,
+        "chunk_id": "F3-ALERTAS-417-c0042",
+        "source_file": "ALERTAS_informes054.pdf",
+        "excerpt": "siendo las principales conductas vulneratórias los homicidios selectivos, amenazas, atentados, desplazamientos forzados individuales y colectivos, el confinamiento y restricción a la movilidad, enfrentamientos con interposición de población civil y accidentes con MAP/MUSE AI, entre otras,"
+      },
+      {
+        "rank": 4,
+        "chunk_id": "F3-MAPPOEA-021-c0011",
+        "source_file": "MAPPOEA_informe-semestral-xxxii-mappoea.pdf",
+        "excerpt": "de miembros comunitarios, líderes, lideresas y autoridades; asimismo, el control social impuesto a través de medidas coercitivas, como el empleo de artefactos explosivos, que impactan la movilidad humana, la convivencia social y el medio ambiente. La vinculación y reclutamiento forzado de niñas,"
+      },
+      {
+        "rank": 5,
+        "chunk_id": "F3-MAPPOEA-018-c0015",
+        "source_file": "MAPPOEA_informe-mappoea-35.pdf",
+        "excerpt": "representaron los principales fenómenos violentos contra la población civil. Estas vulneraciones persistieron en las áreas rurales y ocurrieron de manera recurrente en cabeceras municipales. Las estadísticas oficiales reportaron una disminución del 58% 12 en los eventos de desplazamiento forzado"
+      }
+    ]
+  },
+  {
+    "question_id": "q046",
+    "question": "¿Qué minerales estratégicos están siendo utilizados por los grupos armados organizados en Colombia y la región para financiar el conflicto?",
+    "relevant_chunks": [
+      {
+        "rank": 1,
+        "chunk_id": "F3-MAPPOEA-029-c0022",
+        "source_file": "MAPPOEA_xxix-informe-semestral.pdf",
+        "excerpt": "la extracción ilícita de minerales no regulada por la ley, economía que se constituye en una de las fuentes de financiación de grupos armados ilegales y que su explotación sin mínimos estándares de precaución, genera graves afectaciones al medio ambiente. Adicionalmente, se continúa con la"
+      },
+      {
+        "rank": 2,
+        "chunk_id": "F3-MAPPOEA-014-c0083",
+        "source_file": "MAPPOEA_cp-informe-mappoea-39-esp.pdf",
+        "excerpt": "En Cauca, los GA regularon los precios del oro y monopolizaron su comercialización. En Antioquia, Bolívar, Chocó y Nariño, impusieron contribuciones económicas a los mineros, a los propietarios de la maquinaria utilizada para la extracción y a los administradores de las minas, con montos"
+      },
+      {
+        "rank": 3,
+        "chunk_id": "F3-MAPPOEA-013-c0102",
+        "source_file": "MAPPOEA_37informesemestralmappoeaesp.pdf",
+        "excerpt": "los GA instalaron lugares para el procesamiento de PBC o la extracción ilícita de yacimientos de oro, vinculando a la población colombiana y extranjera a estas actividades. En la frontera con Venezuela, los grupos siguieron extorsionando a aquellos involucrados en actividades ligadas al"
+      },
+      {
+        "rank": 4,
+        "chunk_id": "F3-MAPPOEA-016-c0083",
+        "source_file": "MAPPOEA_cp51877scp-1.pdf",
+        "excerpt": "el incremento del ingreso y uso de retroexcavadoras que contaminaron y desviaron los cauces de los ríos, generando erosión de los suelos y pérdida de la biodiversidad. Esto incentivó la dependencia de algunas familias a actividades extractivas por encima de labores agrícolas y de pesca, para"
+      },
+      {
+        "rank": 5,
+        "chunk_id": "F3-MAPPOEA-018-c0068",
+        "source_file": "MAPPOEA_informe-mappoea-35.pdf",
+        "excerpt": "la continuidad de la explotación ilícita de yacimientos de oro en Antioquia, Bolívar, Caquetá, Cauca, Nariño y Chocó. Y la segunda, estuvo relacionada con los efectos de los atentados con explosivos por parte de GAI a la infraestructura de transporte de hidrocarburos, especialmente contra el"
+      }
+    ],
+    "notes": "El unico mineral que el corpus documenta como fuente de financiacion es el oro. No se encontraron fragmentos sobre coltan, casiterita u otros minerales estrategicos."
+  },
+  {
+    "question_id": "q047",
+    "question": "¿Cómo la disputa por el control de rutas aéreas incrementa el tráfico de narcóticos, armas y mercancías de contrabando?",
+    "relevant_chunks": [
+      {
+        "rank": 1,
+        "chunk_id": "F3-ALERTAS-303-c0000",
+        "source_file": "ALERTAS_046-18-91748.json",
+        "excerpt": "se disputan el control territorial de las islas y las rutas marítimas que son utilizadas para el tráfico de narcóticos, armas, dinero y otras mercancías de contrabando. Estructural Autodefensas Gaitanistas de Colombia (AGC) La Empresa El riesgo se configura a partir de la presencia de grupos"
+      },
+      {
+        "rank": 2,
+        "chunk_id": "F3-RESDAL-092-c1158",
+        "source_file": "RESDAL_atlas-2024-esp.pdf",
+        "excerpt": "pistas clandestinas El Ejército de Guatemala, en conjunto con la Policía Nacional Civil, el de aterrizaje en los departamentos de: Petén, Retalhuleu, Consejo Interinstitucional para la Prevención, Combate a la Defrauda- Escuintla, y Alta Verapaz. ción Fiscal y el Contrabando, y el Consejo Nacional"
+      },
+      {
+        "rank": 3,
+        "chunk_id": "F3-ALERTAS-139-c0000",
+        "source_file": "ALERTAS_016-20-91666.json",
+        "excerpt": "el corredor de movilidad del narcotráfico y tráfico de armas en el municipio de Bahía Solano que tiene lugar entre las AGC, el grupo armado de crimen organizado Los Chacales y el ELN. Inminencia Resguardos indígenas: RÍOS VALLE Y BOROBORO; VILLA NUEVA JUNA Consejos Comunitarios: CUPICA; GENERAL DE"
+      },
+      {
+        "rank": 4,
+        "chunk_id": "F3-ALERTAS-328-c0000",
+        "source_file": "ALERTAS_054-19-91766.json",
+        "excerpt": "el control de los corredores de movilidad para el tráfico de armas y los primeros eslabones de la cadena de narcotráfico. Estructural Autodefensas Gaitanistas de Colombia (AGC) Facciones disidentes de las FARC-EP Bloque Virgilio Peralta Arenas ELN El escenario de riesgo se configura a a partir de"
+      },
+      {
+        "rank": 5,
+        "chunk_id": "F3-ALERTAS-208-c0000",
+        "source_file": "ALERTAS_025-19-91593.json",
+        "excerpt": "controlar la ruta de la cocaína, el tráfico de armas, la minería ilegal, la explotación de madera y el tránsito de tropas. Inminencia Resguardos indígenas: BURUJON O LA UNIÓN-SAN BERNARDO, PAPAYO, CHACHAJO, RÍO ORPUA, RÍO PICHIMA, CHAGPIEN, RÍO TAPARAL, BUENAVISTA, DOCORDO-BALSALITO, TIOSILIDIO,"
+      }
+    ],
+    "notes": "No hay fragmentos sobre disputa por rutas aereas. Los seleccionados documentan corredores maritimos, fluviales y terrestres para narcotrafico, armas y contrabando, y un unico registro de destruccion de pistas clandestinas de aterrizaje (Guatemala)."
+  },
+  {
+    "question_id": "q048",
+    "question": "¿Cómo influyen las dinámicas de exploración y explotación petrolera en la inserción y fortalecimiento de grupos armados que buscan controlar rentas derivadas de recursos estratégicos?",
+    "relevant_chunks": [
+      {
+        "rank": 1,
+        "chunk_id": "F3-ALERTAS-358-c0000",
+        "source_file": "ALERTAS_081-18-91724.json",
+        "excerpt": "estrechamente relacionadas con la exploración y explotación petrolera. Estructural ELN Facciones disidentes de las FARC-EP Autodefensas Gaitanistas de Colombia (AGC) La fuerte inserción de grupos armados en el departamento de Arauca se vincula con la presencia que el Estado ha tenido en el"
+      },
+      {
+        "rank": 2,
+        "chunk_id": "F3-MAPPOEA-018-c0068",
+        "source_file": "MAPPOEA_informe-mappoea-35.pdf",
+        "excerpt": "los efectos de los atentados con explosivos por parte de GAI a la infraestructura de transporte de hidrocarburos, especialmente contra el oleoducto Caño Limón-Coveñas, que fue dinamitado ocho veces, generando la contaminación de ríos principales y quebradas que abastecen de agua a centros poblados"
+      },
+      {
+        "rank": 3,
+        "chunk_id": "F3-MAPPOEA-031-c0014",
+        "source_file": "MAPPOEA_xxvi-informe-semestral-mappoea.pdf",
+        "excerpt": "particularmente en contra de la infraestructura petrolera, en Boyacá, Arauca y Norte de Santander. Adicionalmente, el ELN se ha enfrentado de manera directa y permanente a la Fuerza Pública, principalmente en Arauca, donde busca reafirmar su influencia. 2.2. Administración de justicia ejercida por"
+      },
+      {
+        "rank": 4,
+        "chunk_id": "F3-MAPPOEA-014-c0083",
+        "source_file": "MAPPOEA_cp-informe-mappoea-39-esp.pdf",
+        "excerpt": "se presentaron 21 atentados contra oleoductos, lo que representó un incremento del 600% respecto al mismo período de 2024 112 . 5.2. Extracción ilícita de yacimientos mineros La extracción ilícita de yacimientos mineros continuó siendo una de las fuentes de financiación de los GA y eje articulador"
+      },
+      {
+        "rank": 5,
+        "chunk_id": "F3-MAPPOEA-031-c0046",
+        "source_file": "MAPPOEA_xxvi-informe-semestral-mappoea.pdf",
+        "excerpt": "el rechazo a la operación minera y petrolera, en especial el movimiento anti-fracking; el rechazo a proyectos de construcción de represas e hidroeléctricas; y el derecho a la consulta previa de las comunidades étnicas. Finalmente, en el tema de minería e hidrocarburos, las dificultades en los"
+      }
+    ]
+  },
+  {
+    "question_id": "q049",
+    "question": "¿De qué manera el accionar de grupos armados interfiere y obstaculiza el desarrollo de los procesos de restitución de tierras?",
+    "relevant_chunks": [
+      {
+        "rank": 1,
+        "chunk_id": "F3-MAPPOEA-033-c0029",
+        "source_file": "MAPPOEA_xxviii-informe-semestral-espanol.pdf",
+        "excerpt": "el reclamo por el acceso a tierras, la oposición a actividades extractivas, el cuidado del medio ambiente y la defensa del territorio, persisten como factores de riesgo en el contexto actual. La violencia ejercida está orientada, principalmente, a modificar o imponer normas de convivencia, impedir"
+      },
+      {
+        "rank": 2,
+        "chunk_id": "F3-MAPPOEA-033-c0005",
+        "source_file": "MAPPOEA_xxviii-informe-semestral-espanol.pdf",
+        "excerpt": "comunidades, líderes y lideresas (comunales, indígenas, afrodescendientes, reclamantes de tierras, víctimas del conflicto armado), periodistas, defensores de derechos humanos, promotores de la implementación de políticas de paz como la sustitución de cultivos ilícitos y exintegrantes de las"
+      },
+      {
+        "rank": 3,
+        "chunk_id": "F3-MAPPOEA-008-c0054",
+        "source_file": "MAPPOEA_2013-la-restitucion-de-tierras-en-la-ley-975-de-2005-compressed-1.pdf",
+        "excerpt": "el contexto también puede servir para indagar por qué entraron los actores armados en determinadas zonas, cuál era la realidad política y social, la problemática de las tierras y por qué la intención de apropiación. En cada región sería bueno que la Unidad de Restitución de Tierras y los jueces"
+      },
+      {
+        "rank": 4,
+        "chunk_id": "F3-MAPPOEA-008-c0124",
+        "source_file": "MAPPOEA_2013-la-restitucion-de-tierras-en-la-ley-975-de-2005-compressed-1.pdf",
+        "excerpt": "Uno de los crímenes más representativos fue el despojo de tierras, cometido directamente o por medio de testaferros y concretado algunas veces con la anuencia de 143 Setenta (70) dirigentes regionales firmaron esos pactos entre los años de 2000 y 2001, y, según la Fiscalía, en ellos acordaron la"
+      },
+      {
+        "rank": 5,
+        "chunk_id": "F3-MAPPOEA-033-c0071",
+        "source_file": "MAPPOEA_xxviii-informe-semestral-espanol.pdf",
+        "excerpt": "La continuidad de la política pública de restitución de tierras resulta necesaria, en especial, tomando en cuenta que a lo largo de la implementación del trámite de restitución en algunas zonas microfocalizadas se han presentado suspensiones por la persistencia del accionar de grupos armados"
+      }
+    ],
+    "notes": "El corpus documenta el proceso de restitucion de tierras y el riesgo sobre los reclamantes, pero no describe de forma directa como el accionar de los grupos armados obstaculiza el tramite; los fragmentos aportan la evidencia parcial disponible."
+  },
+  {
+    "question_id": "q050",
+    "question": "¿Cómo adaptan las organizaciones criminales sus estrategias de control territorial frente a las transformaciones políticas, ambientales, tecnológicas y económicas en América Latina?",
+    "relevant_chunks": [
+      {
+        "rank": 1,
+        "chunk_id": "F3-CEEEP-079-c0000",
+        "source_file": "CEEEP_issue9-60-consecuencias-transnacionales-del-proceso-de-paz-colombia-farc.json",
+        "excerpt": "provocó un traslado de la delincuencia de un territorio a otro, incluso estableciendo alianzas con bandas criminales de estados fronterizos. Como resultado, la criminalidad que antes era local se convirtió en transnacional, ya que el Ejército de Liberación Nacional (ELN), grupos de las FARC y el"
+      },
+      {
+        "rank": 2,
+        "chunk_id": "F3-ALERTAS-288-c0000",
+        "source_file": "ALERTAS_041-18-91644.json",
+        "excerpt": "los cambios surgidos por alianzas entre estructuras ilegales bajo el liderazgo y la disputa entre dos organizaciones por el monopolio de las economías ilícitas. Inminencia Autodefensas Gaitanistas de Colombia (AGC) Posdemovilización de las AUC La Oficina de Envigado El escenario de riesgo se"
+      },
+      {
+        "rank": 3,
+        "chunk_id": "F3-ALERTAS-399-c0044",
+        "source_file": "ALERTAS_informes036.pdf",
+        "excerpt": "Estas coaliciones no son estables y el interés por el control de las economias ilegales ha desencadenado en presuntas disputas entre las bandas locales (como Los Pussy), tantalen San Andrés como en Providencia. Por otro lado, no se descarta la posibilidad de que existan alianzas entre estos grupos"
+      },
+      {
+        "rank": 4,
+        "chunk_id": "F3-CEEEP-040-c0000",
+        "source_file": "CEEEP_issue3-14-crimen-organizado-transnacional-en-la-triple-frontera-entre-brasil-col.json",
+        "excerpt": "la interacción de los grupos armados organizados y los grupos de delincuencia organizada con el COT, la cual se refuerza a través de economías ilícitas en las fronteras de estos tres países. Asimismo, se describen los efectos del COT, y se analiza si los mecanismos y estrategias para combatirlo"
+      },
+      {
+        "rank": 5,
+        "chunk_id": "F3-MAPPOEA-035-c0013",
+        "source_file": "MAPPOEA_xxxi-informe-semestral-mappoea.pdf",
+        "excerpt": "persisten reacomodos y relacionamientos cambiantes entre los grupos armados ilegales (GAI) que se expresan de manera diferente en cada zona. La importancia geográfica y económica de los lugares en los que hacen presencia los GAI son determinantes para estas dinámicas, desde el punto de vista de los"
+      }
+    ],
+    "notes": "El corpus es mayoritariamente colombiano; los fragmentos cubren la adaptacion criminal via alianzas, reacomodos y expansion transfronteriza, pero no las transformaciones ambientales ni tecnologicas que menciona la pregunta."
+  }
+]

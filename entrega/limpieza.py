@@ -1,10 +1,7 @@
-"""Reglas transversales de limpieza, compartidas por todos los extractores.
+"""Normalización de texto, ruido estructural y detección de idioma.
 
-Este módulo no conoce el contrato de datos: trabaja solo con cadenas. Cualquier
-extractor puede usarlo sin arrastrar dependencias.
-
-Todo lo que hay aquí es determinista: mismas entradas, mismas salidas, sin
-importar el orden de ejecución ni el valor de ``PYTHONHASHSEED``.
+No conoce el contrato de datos: trabaja solo con cadenas, así que se puede usar
+suelto. Todo es determinista, incluida la detección de idioma.
 """
 
 from __future__ import annotations
@@ -15,21 +12,16 @@ from collections import Counter
 from collections.abc import Iterable, Sequence
 from functools import lru_cache
 
-# Idiomas admitidos por el contrato. El orden fija el desempate del detector.
+# El orden fija el desempate del detector de idioma.
 IDIOMAS_SOPORTADOS: tuple[str, ...] = ("es", "en", "pt")
 
-# Por debajo de esta longitud no hay evidencia suficiente para detectar idioma.
 MINIMO_CARACTERES_IDIOMA = 20
 
-# Categorías Unicode de espacio que se colapsan a un espacio simple.
+# Espacios que se colapsan; controles e invisibles (BOM, zero-width) que se van.
 _CATEGORIAS_ESPACIO = {"Zs", "Zl", "Zp"}
-
-# Categorías Unicode que se eliminan por completo: controles (Cc) y caracteres
-# de formato invisibles (Cf: zero-width space, BOM, marcas de dirección...).
 _CATEGORIAS_INVISIBLES = {"Cc", "Cf"}
 
-# Espacios en blanco ASCII que deben convertirse en espacio, no eliminarse,
-# aunque su categoría Unicode sea Cc.
+# Espacios ASCII: se convierten en espacio pese a ser de categoría Cc.
 _ESPACIOS_ASCII = "\t\n\r\f\v"
 
 
@@ -55,20 +47,15 @@ def normalizar_texto(texto: str) -> str:
         if categoria in _CATEGORIAS_ESPACIO:
             caracteres.append(" ")
         elif categoria in _CATEGORIAS_INVISIBLES:
-            continue  # invisible: no aporta y rompe las comparaciones
+            continue
         else:
             caracteres.append(caracter)
 
-    # split() sin argumentos colapsa espacios y recorta los extremos de una vez.
     return unicodedata.normalize("NFC", " ".join("".join(caracteres).split()))
 
 
 def es_texto_util(texto: str) -> bool:
-    """``True`` si el texto aporta algo una vez normalizado.
-
-    Los extractores deben descartar los bloques para los que devuelve ``False``:
-    el contrato prohíbe bloques vacíos.
-    """
+    """``True`` si el texto aporta algo una vez normalizado."""
     return bool(normalizar_texto(texto))
 
 
@@ -90,8 +77,7 @@ _PATRONES_RUIDO = (
 def es_ruido_estructural(texto: str) -> bool:
     """``True`` si la línea es numeración de página o similar, sin contenido.
 
-    Complementa a :func:`lineas_repetidas`: esta función juzga una línea aislada
-    por su forma; aquella juzga un conjunto de líneas por su frecuencia.
+    Juzga una línea por su forma; :func:`lineas_repetidas`, por su frecuencia.
     """
     limpio = normalizar_texto(texto)
     if not limpio:
@@ -106,15 +92,10 @@ def lineas_repetidas(
 ) -> list[str]:
     """Detecta líneas que se repiten entre unidades: cabeceras, pies, menús.
 
-    Cada "unidad" es una página de un PDF o una hoja de un XLSX: lo que en ese
-    formato se repite cuando algo es boilerplate. Una
-    línea se considera repetida si aparece en al menos ``umbral`` de las
-    unidades. Se cuenta *en cuántas unidades* aparece, no cuántas veces en
-    total: tres repeticiones dentro de una misma página son énfasis, no cabecera.
-
-    Devuelve la lista **ordenada alfabéticamente** para que el resultado sea
-    estable entre corridas. Con menos de ``minimo_unidades`` devuelve lista
-    vacía: no hay evidencia suficiente para hablar de repetición.
+    Una "unidad" es lo que en cada formato se repite: la página de un PDF, la
+    hoja de un XLSX. Se cuenta *en cuántas unidades* aparece cada línea, no
+    cuántas veces en total. Devuelve la lista ordenada, y vacía si hay menos de
+    ``minimo_unidades``.
     """
     materializadas = [list(unidad) for unidad in unidades]
     if len(materializadas) < minimo_unidades:
@@ -122,9 +103,7 @@ def lineas_repetidas(
 
     apariciones: Counter[str] = Counter()
     for unidad in materializadas:
-        # sorted() sobre el set: el conteo no depende del orden, pero el
-        # recorrido explícito documenta que no hay iteración sobre un set.
-        for linea in sorted(set(unidad)):
+        for linea in sorted(set(unidad)):  # ordenado: nunca se itera un set suelto
             apariciones[linea] += 1
 
     minimo = umbral * len(materializadas)
@@ -142,9 +121,7 @@ try:  # pragma: no cover - depende del entorno
 except ImportError:  # pragma: no cover - entorno sin la dependencia opcional
     _HAY_LANGDETECT = False
 
-# Palabras funcionales que discriminan entre los tres idiomas del contrato.
-# Se usan como respaldo cuando langdetect no está o devuelve un idioma ajeno
-# al contrato (p. ej. francés o italiano en un documento suelto).
+# Respaldo para cuando langdetect no está o devuelve un idioma fuera del contrato.
 _PALABRAS_FUNCIONALES: dict[str, frozenset[str]] = {
     "es": frozenset(
         """el la los las un una unos unas de del que y en por con para se su sus al lo
@@ -180,22 +157,17 @@ def _idioma_por_palabras_funcionales(texto: str, por_defecto: str) -> str:
         idioma: sum(1 for palabra in palabras if palabra in vocabulario)
         for idioma, vocabulario in _PALABRAS_FUNCIONALES.items()
     }
-    # max() sobre una tupla fija: en caso de empate gana siempre el mismo
-    # idioma, así que el resultado no depende del orden del diccionario.
+    # Sobre la tupla fija y no sobre el dict: el empate desempata siempre igual.
     mejor = max(IDIOMAS_SOPORTADOS, key=lambda idioma: puntajes[idioma])
     return mejor if puntajes[mejor] > 0 else por_defecto
 
 
 @lru_cache(maxsize=2048)
 def detectar_idioma(texto: str, por_defecto: str = "es") -> str:
-    """Detecta el idioma del texto y lo restringe a los del contrato.
+    """Detecta el idioma y lo restringe a los del contrato.
 
-    Devuelve siempre uno de ``IDIOMAS_SOPORTADOS``. Con texto demasiado corto
-    para decidir, devuelve ``por_defecto``.
-
-    El resultado es determinista: langdetect lleva la semilla fijada y el
-    respaldo por palabras funcionales no usa aleatoriedad. El caché solo evita
-    recalcular; no cambia el resultado.
+    Devuelve siempre uno de ``IDIOMAS_SOPORTADOS``; con texto muy corto, el
+    ``por_defecto``.
     """
     limpio = normalizar_texto(texto)
     if len(limpio) < MINIMO_CARACTERES_IDIOMA:

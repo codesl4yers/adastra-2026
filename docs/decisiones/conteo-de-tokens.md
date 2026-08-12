@@ -1,7 +1,8 @@
 # Decisión — Conteo de tokens con el tokenizador real
 
-CODEFEST Ad Astra 2026 · Etapa 1 · 5 ago 2026
-Estado: **implementado**; la re-fragmentación del corpus queda pendiente de lanzar.
+CODEFEST Ad Astra 2026 · Etapa 1 · 5 ago 2026 (§7 añadido el 11 ago)
+Estado: **implementado y aplicado**. La re-fragmentación del corpus completo ya
+se lanzó; su resultado está en §7.
 
 ---
 
@@ -97,7 +98,35 @@ orden de las horas de la fragmentación actual más el sobrecoste de tokenizaci�
 Es una re-corrida, no un rediseño: el algoritmo y todos los topes de palabras
 quedan igual (§13.1 del addendum).
 
-## 6. Párrafo para el informe técnico
+## 6. Resultado de la re-corrida (11 ago 2026)
+
+Corrida completa de `fragmentar_corpus` con `--tokenizador real` sobre los 1826
+documentos, ya con la limpieza de campos tabulares aplicada:
+
+| | estimación 1,6 | tokenizador real |
+|---|---:|---:|
+| fragmentos | 140 686 | **134 317** |
+| mediana de palabras | 123 | **140** |
+| p95 de palabras | 234 | 232 |
+| atómicos | 40 978 | 41 594 |
+| huérfanos fusionados | 2 693 | 2 159 |
+| fragmentos > 450 tokens | 8,2 % | **1,9 %** (2 543) |
+| token máximo | 17 803 | **3 691** |
+
+Lo esperado en §4 se cumple a medias y conviene dejarlo escrito: el tope de
+tokens sí pasó a ser la restricción activa en csv y pbf, pero la mediana global
+de palabras **subió** de 123 a 140 en vez de bajar. La causa es que las dos
+correcciones viajaron juntas: los registros bibliográficos limpios (§ del doc de
+campos indexables) se agrupan en vez de salir sueltos, y eso empuja la mediana
+hacia arriba más de lo que el contador real la empuja hacia abajo. Sigue por
+debajo del objetivo de 150–220 de §8.2, y esa distancia es de la población
+tabular, no de la prosa.
+
+El 1,9 % que queda por encima de 450 son oraciones indivisibles y registros
+atómicos: partirlos violaría §3.3. Con la ventana de 32 768 del modelo y un
+máximo de 3 691, **cero fragmentos truncados** en el índice construido.
+
+## 7. Párrafo para el informe técnico
 
 > El control de tamaño de los fragmentos se realiza con el tokenizador del
 > encoder seleccionado y no con una heurística de palabras. La primera versión

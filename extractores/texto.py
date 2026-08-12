@@ -1,33 +1,12 @@
-"""Extractor de texto plano y Markdown (.txt, .md).
+"""Extractor de texto plano y Markdown (.txt, .md). Un archivo del corpus.
 
-Cómo se decide dónde acaba un párrafo
--------------------------------------
-Por **líneas en blanco**, nunca por salto de línea: el texto plano de un informe
-viene con las líneas cortadas a 80 columnas y partir por ``\\n`` trocearía cada
-frase en pedazos que no son oraciones. Un salto suelto une; dos separan.
+Los párrafos se cortan por **líneas en blanco** y nunca por salto de línea: el
+texto plano de un informe viene cortado a 80 columnas. En Markdown, las
+almohadillas son títulos salvo dentro de un bloque de código.
 
-En Markdown se reconocen los encabezados ``#``..``######`` como títulos, con el
-número de almohadillas como nivel, y se mantiene la pila para el breadcrumb. En
-``.txt`` no hay marcado: todo es párrafo, salvo lo que descarte
-:func:`limpieza.es_ruido_estructural`.
-
-La trampa principal
--------------------
-El texto plano extraído de un PDF conserva los cortes de página con sus
-cabeceras y pies repetidos en medio del cuerpo. Se pasan las páginas —separadas
-por el carácter de salto de página— como unidades a
-:func:`limpieza.lineas_repetidas`; sin eso, el índice acaba lleno de
-"Secure World Foundation | 12" entre párrafo y párrafo.
-
-Segunda trampa: un ``.md`` puede traer bloques de código con almohadillas al
-principio de línea que no son encabezados. Se sigue el estado de las vallas
-``````` antes de interpretar un ``#``.
-
-El caso real del corpus
------------------------
-``SWF_full-text.txt`` es el volcado de una página web y empieza con una cabecera
-``SOURCE:`` / ``SCRAPED:`` seguida de una regla de signos igual. Esos dos datos
-son metadata, no contenido, y van a ``meta``.
+Dos detalles del corpus: los saltos de página traen cabeceras y pies repetidos en
+medio del cuerpo, y ``SWF_full-text.txt`` empieza con una cabecera
+``SOURCE:``/``SCRAPED:`` que es metadata y no contenido.
 """
 
 from __future__ import annotations
@@ -44,9 +23,7 @@ FORMATO = "texto"
 
 EXTENSIONES = (".txt", ".md")
 
-# Orden fijo de codificaciones. utf-8-sig acierta con y sin BOM; cp1252 es lo
-# que produce Windows en español. Fijar el orden importa: una autodetección
-# probabilística puede decodificar distinto en dos corridas.
+# Orden fijo: una autodetección probabilística decodificaría distinto entre corridas.
 CODIFICACIONES = ("utf-8-sig", "cp1252", "latin-1")
 
 SALTO_DE_PAGINA = "\x0c"
@@ -121,11 +98,8 @@ def _decodificar(crudo: bytes) -> tuple[str | None, str | None]:
 
 
 def _extraer_cabecera(contenido: str, meta: dict[str, Any]) -> str:
-    """Separa la cabecera ``SOURCE``/``SCRAPED`` del cuerpo.
-
-    Indexarla metería una URL y un timestamp como si fueran el primer párrafo
-    del documento, justo donde más peso tienen.
-    """
+    """Separa la cabecera ``SOURCE``/``SCRAPED`` del cuerpo: indexarla metería una
+    URL y un timestamp como primer párrafo del documento."""
     lineas = contenido.splitlines()
     consumidas = 0
 
@@ -164,11 +138,8 @@ def _bloques_de(contenido: str, es_markdown: bool) -> list[Bloque | None]:
 
 
 def _descartables(paginas: list[str]) -> set[str]:
-    """Cabeceras y pies: lo que se repite página tras página.
-
-    Solo tiene sentido si el archivo trae saltos de página; con una sola unidad
-    :func:`limpieza.lineas_repetidas` devuelve vacío por falta de evidencia.
-    """
+    """Cabeceras y pies: lo que se repite página tras página. Sin saltos de
+    página no hay unidades que comparar y devuelve vacío."""
     unidades = [
         [normalizar_texto(linea) for linea in pagina.splitlines() if linea.strip()]
         for pagina in paginas
@@ -179,11 +150,8 @@ def _descartables(paginas: list[str]) -> set[str]:
 def _bloques_de_parrafo(
     parrafo: str, jerarquia: Jerarquia, es_markdown: bool, descartables: set[str]
 ) -> list[Bloque | None]:
-    """Convierte un bloque separado por líneas en blanco en uno o varios bloques.
-
-    Un párrafo puede contener varios encabezados o elementos de lista, así que
-    no siempre sale un único bloque de aquí.
-    """
+    """Convierte un bloque separado por líneas en blanco en uno o varios bloques:
+    dentro puede haber encabezados y elementos de lista."""
     bloques: list[Bloque | None] = []
     acumulado: list[str] = []
     en_codigo = False

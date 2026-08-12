@@ -1,41 +1,16 @@
 """Extractor de JSON: artículos scrapeados, catálogos y GeoJSON.
 
-El módulo se llama ``json_`` para no ensombrecer al ``json`` de la biblioteca
-estándar dentro del paquete.
+Se llama ``json_`` para no ensombrecer al ``json`` de la estándar dentro del
+paquete. Son 954 documentos del índice, el 52 % del corpus, y casi todos son
+artículos con un esquema estable (``title``, ``body_paragraphs``, ``sections``),
+más 363 alertas tempranas con su ``alerta_meta``.
 
-Qué hay en el corpus
---------------------
-964 de los 1826 documentos son JSON, y casi todos son **artículos de un
-scraper** con un esquema estable: ``title``, ``body_paragraphs``, a veces
-``sections`` con ``heading``, más metadata (``authors``, ``date``, ``url``,
-``doi``, ``tags``) y listas de enlaces. 363 de ellos son alertas tempranas de
-la Defensoría, con un ``alerta_meta`` donde ``tema_clave`` y ``municipios``
-son contenido de verdad y ``detail_id`` es un identificador interno.
+Hay tres caminos, por orden: GeoJSON —solo ``properties``, la geometría se
+resume en un bbox—, esquema de artículo, y un recorrido genérico iterativo y con
+tope de profundidad para lo demás.
 
-Por eso el extractor no es un recorrido genérico de árbol: reconoce el esquema
-de artículo y lo aprovecha, y solo cae al recorrido genérico cuando no lo
-encuentra. Un recorrido ciego perdería la jerarquía título/sección —que es lo
-único que le da fronteras estructurales al fragmentador en el 52 % del corpus—
-e indexaría URLs y hashes como si fueran prosa.
-
-Orden de emisión
-----------------
-Título, resumen, campos textuales de ``alerta_meta``, cuerpo plano, listas y
-por último las secciones. El cuerpo plano va **antes** que las secciones a
-propósito: emitido después quedaría colgando de la última sección abierta, y su
-breadcrumb diría que pertenece a una sección con la que no tiene nada que ver.
-
-La trampa del GeoJSON
----------------------
-Un GeoJSON es un JSON, pero el 99 % de sus bytes son coordenadas. Se detecta
-por su ``type``/``features`` y solo se indexan las ``properties`` de cada
-feature; la geometría se resume en un bounding box en ``meta``. El corpus
-actual no trae ninguno, pero ``.geojson`` está registrado en el orquestador y un
-recorrido ingenuo emitiría cientos de miles de bloques numéricos.
-
-Segunda trampa: la profundidad no está acotada. El recorrido genérico es
-iterativo y con límite explícito, porque un JSON con recursión profunda
-revienta la pila.
+Por qué no un recorrido genérico para todo, y en qué orden se emite:
+``docs/decisiones/extraccion-por-formato.md`` §5.
 """
 
 from __future__ import annotations
@@ -56,8 +31,8 @@ from limpieza import normalizar_texto
 
 FORMATO = "json"
 
+# Tope del recorrido genérico. Ningún documento del corpus se acerca.
 PROFUNDIDAD_MAXIMA = 40
-"""Tope del recorrido genérico. Ningún documento legítimo del corpus se acerca."""
 
 # Claves del esquema de artículo, por función.
 _CLAVE_TITULO = "title"
@@ -100,8 +75,7 @@ def extraer(path: Path, fenomeno: int) -> Documento:
     """Extrae un ``Documento`` desde un archivo JSON. Nunca lanza."""
     path = Path(path)
     try:
-        # utf-8-sig y no utf-8: si el archivo trae BOM, se colaría como primer
-        # carácter del título.
+        # utf-8-sig: con utf-8, un BOM se colaría como primer carácter del título.
         datos = json.loads(path.read_text(encoding="utf-8-sig"))
     except json.JSONDecodeError as exc:
         return documento_fallido(
@@ -191,9 +165,7 @@ def _bloques_de_articulo(datos: dict, jerarquia: Jerarquia, meta: dict) -> list[
 def _bloques_de_cuerpo(datos: dict, jerarquia: Jerarquia) -> list[Bloque | None]:
     """``body_paragraphs`` si existe; ``body_text`` solo como respaldo.
 
-    ``body_text`` es el mismo cuerpo concatenado en una sola cadena. Indexar los
-    dos duplicaría cada documento en el índice y haría que un fragmento
-    compitiera consigo mismo por los diez puestos que evalúa el NDCG@10.
+    Son el mismo cuerpo: indexar los dos duplicaría el documento en el índice.
     """
     parrafos = [
         jerarquia.parrafo(parrafo)
@@ -224,10 +196,8 @@ def _bloques_de_secciones(secciones: Any, jerarquia: Jerarquia) -> list[Bloque |
 def _bloques_de_alerta(alerta: Any, jerarquia: Jerarquia, meta: dict) -> list[Bloque | None]:
     """``alerta_meta`` de las 363 alertas tempranas de la Defensoría.
 
-    ``tema_clave`` describe el escenario de riesgo en varias líneas y es de lo
-    más valioso del documento; ``detail_id`` es un identificador de la web de
-    origen. Se reparten por lo que son y no por dónde están: el texto al índice
-    y el resto a ``meta``, donde sigue disponible para trazar.
+    Se reparte por lo que es cada campo y no por dónde está: ``tema_clave``
+    describe el riesgo y va al índice, ``detail_id`` es interno y va a ``meta``.
     """
     if not isinstance(alerta, dict):
         return []
@@ -296,12 +266,7 @@ def _es_geojson(datos: Any) -> bool:
 
 
 def _bloques_de_geojson(datos: dict, jerarquia: Jerarquia, meta: dict) -> list[Bloque | None]:
-    """Solo las ``properties``; la geometría se resume en un bounding box.
-
-    Indexar coordenadas es meter megabytes de ruido numérico en el índice: no
-    responden a ninguna consulta en lenguaje natural y desplazan a los
-    fragmentos que sí lo hacen.
-    """
+    """Solo las ``properties``; la geometría se resume en un bounding box."""
     features = datos.get("features") if "features" in datos else [datos]
     bloques: list[Bloque | None] = []
     puntos: list[tuple[float, float]] = []
@@ -354,14 +319,9 @@ def _coordenadas(geometria: Any) -> list[tuple[float, float]]:
 def _bloques_genericos(datos: Any, meta: dict) -> list[Bloque | None]:
     """Último recurso: recorre el árbol emitiendo las hojas que sean texto.
 
-    En un JSON la clave **es** el encabezado de su contenido, así que el camino
-    de claves se materializa como bloques de título. No es un adorno: el
-    contrato reconstruye la jerarquía a partir de los títulos y compara, y una
-    ``ruta`` que no esté respaldada por títulos hace que el documento no valide.
-
-    Los títulos se abren de forma perezosa, solo cuando de verdad va a colgar
-    texto de ellos. Una rama entera de URLs no deja tras de sí un título
-    huérfano, que en el índice sería un vector que solo dice "enlaces".
+    El camino de claves se materializa como títulos, porque el contrato exige que
+    la ``ruta`` esté respaldada por ellos. Se abren de forma perezosa, para que
+    una rama entera de URL no deje detrás un vector que solo dice "enlaces".
     """
     jerarquia = Jerarquia()
     bloques: list[Bloque | None] = []
@@ -381,14 +341,9 @@ def _bloques_genericos(datos: Any, meta: dict) -> list[Bloque | None]:
 def _hojas(datos: Any, meta: dict):
     """Genera ``(texto, camino_de_claves)`` en orden estable y sin recursión.
 
-    Las claves de cada objeto se recorren ordenadas: sin eso, el orden de los
-    bloques dependería del orden de inserción del archivo y dos corpus
-    equivalentes darían índices distintos. La pila invierte el orden, así que se
-    apila al revés para emitir de la A a la Z.
-
-    El recorrido es iterativo y con tope de profundidad porque la recursión
-    sobre un JSON arbitrario es una forma cómoda de reventar la pila con un
-    archivo de entrada.
+    Las claves se recorren ordenadas, y se apilan al revés porque la pila
+    invierte. Iterativo y con tope de profundidad: la recursión sobre un JSON
+    arbitrario es una forma cómoda de reventar la pila con un archivo de entrada.
     """
     pila: list[tuple[Any, list[str]]] = [(datos, [])]
     while pila:

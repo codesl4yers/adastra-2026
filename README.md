@@ -8,9 +8,14 @@ ese índice y escribe `resultados.jsonl`. **No** hay reranking: eso vive en capa
 posteriores y consume `indice/`.
 
 Estado: todas las capas implementadas —contrato, limpieza, orquestador,
-extractores, segmentador, fragmentador, encoder y generador—, con 675 pruebas, y
+extractores, segmentador, fragmentador, encoder y generador—, con 685 pruebas, y
 corrida completa sobre los 1826 archivos del corpus real de ADL: extracción, OCR,
 fragmentación y validación de contrato, las tres al 100 %, no sobre una muestra.
+
+El porqué de cada decisión no obvia vive en `docs/decisiones/`; los specs de
+partida, en `docs/specs/`. Este README es el manual de uso y el resumen del
+estado: cuando una decisión necesita medidas o alternativas descartadas, va al
+doc y aquí queda el enlace.
 
 El encoder es `ibm-granite/granite-embedding-311m-multilingual-r2`
 (ModernBERT, encoder-only, 768 dims, Apache 2.0), elegido en
@@ -209,9 +214,11 @@ Produce `fragmentos/fragmentos.jsonl` (una línea por fragmento, claves
 ordenadas) y `fragmentos/reporte_fragmentacion.json` (histograma de palabras,
 mediana, p95, atómicos, huérfanos fusionados y oraciones indivisibles).
 
-Sobre el corpus completo: **1826 documentos → 140.686 fragmentos**, mediana de
-123 palabras (p95: 234), 40.978 atómicos (filas de CSV/XLSX y features de PBF)
-y 2693 huérfanos fusionados. Tarda unos 10-15 minutos, casi todo dentro de
+Sobre el corpus completo, con el tokenizador real y la limpieza de campos
+tabulares ya aplicados: **1826 documentos → 134.317 fragmentos**, mediana de
+140 palabras (p95: 232), 41.594 atómicos (filas de CSV/XLSX y features de PBF),
+2159 huérfanos fusionados, 506 oraciones indivisibles y 315 registros atómicos
+partidos por exceder las 250 palabras. Tarda unos 10-15 minutos, casi todo dentro de
 `pysbd` —no hay paralelismo aquí, y no lo necesita salvo por un caso
 particular: el atlas de RESDAL trae **8319 bloques** él solo, y `pysbd`
 compila una expresión regular nueva por cada oración para ubicar su posición
@@ -253,13 +260,14 @@ fragmentar_corpus(Path("extraidos"), Path("fragmentos"),
                   config_fragmentacion_con_tokenizador())
 ```
 
-La estimación **no era conservadora**, en contra de lo que decía este README
-hasta ahora: medida contra el tokenizador de granite, la mediana real del corpus
-es de 1,77 tokens por palabra —3,50 en tiles vectoriales, 2,81 en datos
-tabulares, 1,48 en prosa PDF— y el 8,2 % de los fragmentos de la corrida actual
-excede el tope de 450. Ninguno supera la ventana de 32 768 del modelo, así que
-no hay truncamiento, pero la re-fragmentación sigue siendo obligatoria. El
-detalle y los números están en `docs/decisiones/conteo-de-tokens.md`.
+La estimación **no era conservadora**: medida contra el tokenizador de granite,
+la mediana real del corpus es de 1,77 tokens por palabra —3,50 en tiles
+vectoriales, 2,81 en datos tabulares, 1,48 en prosa PDF—, así que el 8,2 % de
+los fragmentos de la corrida estimada excedía el tope de 450. **El corpus ya se
+re-fragmentó con el contador real** (es la corrida de 134.317 fragmentos de
+arriba): los que siguen por encima de 450 son 2543, el 1,9 %, y el mayor mide
+3691 tokens, muy por debajo de la ventana de 32 768 del modelo. El detalle y los
+números están en `docs/decisiones/conteo-de-tokens.md`.
 
 ### Índice vectorial
 
@@ -275,6 +283,12 @@ los ocho campos obligatorios y sin `texto_enriquecido`— y
 comprobaciones que fallan en silencio: fragmentos truncados (debe ser 0) y norma
 de los vectores (debe ser 1,0). Si algún fragmento se trunca, el CLI sale con
 código 1: un índice con fragmentos a medias no vale para la entrega.
+
+**El índice del corpus completo ya está construido**: 134.317 vectores de 768
+dimensiones (412 MB), 0 truncados, normas entre 0,9999999 y 1,0000001, p95 de
+442 tokens y máximo de 3707 con el prefijo de contexto incluido. La justificación
+de cada decisión de esta capa —qué se codifica, cómo se agrupa el top-k, por qué
+el lote es pequeño— está en `docs/decisiones/recuperacion-y-entregable.md`.
 
 Lo que se codifica es `texto_enriquecido` —observatorio, título y breadcrumb de
 secciones por delante del texto—, no `texto`. La justificación completa, con
@@ -339,9 +353,12 @@ ModernBERT materializa una máscara de atención de `(lote, 1, L, L)` en float32
 —dos, en realidad: global y sliding window— donde `L` es el fragmento **más
 largo del lote**. El coste no lo fija el número de textos sino el cuadrado del
 más largo multiplicado por el lote entero: un lote de 32 con un fragmento de
-8 200 tokens reserva 8,67 GB de una sentada. Este corpus tiene 4 237 fragmentos
-por encima de 450 tokens y 57 por encima de 8 192, con un máximo de 17 803, así
-que el caso ocurre de verdad.
+8 200 tokens reserva 8,67 GB de una sentada. En la corrida fragmentada con la
+estimación de tokens eso pasaba de verdad —57 fragmentos por encima de 8 192 y
+un máximo de 17 803—. Con el contador real el caso extremo desapareció: el
+máximo del corpus vigente es de 3707 tokens. Los dos mecanismos de abajo se
+mantienen porque el coste sigue siendo cuadrático y una configuración de
+fragmentación distinta puede devolver la cola larga.
 
 Dos mecanismos lo contienen:
 
@@ -421,7 +438,8 @@ El corpus trae lit-covid dos veces —`F1-AIINDEX-041` en CSV y `F1-AIINDEX-042`
 en XLSX, las mismas 8 866 filas—. El generador **codifica ese texto una sola
 vez y lo inserta las dos**: cada `fuente` conserva su fila en el índice, porque
 omitir una garantiza perder ese acierto, pero el pase del encoder no se repite.
-`reporte_indice.json` lo deja anotado en `n_reutilizados`.
+`reporte_indice.json` lo deja anotado en `n_reutilizados`: en la corrida vigente
+son 12 132 vectores, el 9 % del índice, que no se volvieron a calcular.
 
 ## Correr las pruebas
 
@@ -429,7 +447,7 @@ omitir una garantiza perder ese acierto, pero el pase del encoder no se repite.
 python -m pytest
 ```
 
-545 pruebas. Las cinco que exige el enunciado:
+685 pruebas. Las cinco que exige el enunciado:
 
 | Requisito | Dónde |
 |---|---|
@@ -462,9 +480,17 @@ extractores/
     texto.py         1 archivo: texto plano y Markdown
 fixtures/            corpus sintético
 base_documental/     corpus real de ADL (solo lectura, no se toca un byte)
+ground/              ground truth interno: 50 consultas etiquetadas + metodología
+docs/decisiones/     por qué de cada decisión no obvia, con sus mediciones
+docs/specs/          specs de partida (fechados; el estado vigente es este README)
 scripts/             herramientas fuera del pipeline (verificación y barrido)
 tests/               pytest
 ```
+
+Las cuentas de archivos por extractor son **archivos en disco**, no entradas del
+índice: los 760 PDF incluyen el enunciado y los 964 JSON los 10 catálogos de
+scraping, que el índice no lista y el pipeline no procesa. Por eso la tabla de
+verificación de más arriba dice 759 y 954.
 
 ### La carpeta de entrega
 
@@ -578,8 +604,8 @@ final del pipeline.
 ## Cómo añadir un extractor nuevo
 
 Los seis formatos del corpus ya están implementados; esto vale para uno nuevo.
-Cada módulo documenta en su docstring la estrategia y la trampa del formato:
-léelo antes de tocar nada parecido.
+La estrategia y la trampa de cada formato están en
+`docs/decisiones/extraccion-por-formato.md`: léelo antes de tocar nada parecido.
 
 **0. Usa `extractores/comun.py`.** `Jerarquia` lleva la pila de encabezados que
 `validar_documento` va a reconstruir y comparar; llevarla por tu cuenta produce
@@ -637,7 +663,24 @@ tus fixtures, y dos corridas deben dar bytes idénticos.
 
 ## Decisiones de diseño
 
-Las que no son obvias, con su porqué:
+La bitácora completa está en `docs/decisiones/`, una por tema, con las medidas
+sobre las que se tomó cada una y las alternativas que se descartaron:
+
+| Documento | De qué responde |
+|---|---|
+| `orquestacion-y-determinismo.md` | identidad (`doc_id`/`fuente`/colisiones), qué detiene la corrida, el índice como filtro, paralelismo y memoria, el manifiesto |
+| `extraccion-por-formato.md` | qué se extrae y qué se tira en pdf, json, csv/xlsx, pbf, imagen y texto; los dos filtros de ruido; OCR |
+| `fragmentos-fuera-de-norma.md` | títulos huérfanos, pseudo-oraciones de 8995 palabras, y el OCR por página de los PDF ilegibles |
+| `conteo-de-tokens.md` | por qué la estimación de 1,6 tokens/palabra no servía y qué salió de re-fragmentar con el tokenizador real |
+| `campos-indexables-tabulares.md` | qué columnas de un dataset entran al vector y cuáles viajan como metadata |
+| `enriquecimiento-de-contexto.md` | qué se codifica exactamente y por qué es legal bajo §4.2 |
+| `recuperacion-y-entregable.md` | lotes y memoria de GPU, orden índice↔metadata, top-k, score por documento, deduplicación, `resultados.jsonl` |
+
+Y `docs/specs/` guarda los specs de partida —fragmentador y addendum de
+selección de encoder—, que son documentos fechados y no se reescriben: cuando
+uno choca con una decisión posterior, manda la decisión.
+
+Un extracto de las que más se preguntan:
 
 **`fuente = path.name`, no la ruta relativa.** El enunciado pide el nombre
 exacto del archivo entregado. La contrapartida es que dos archivos con el mismo
@@ -671,35 +714,49 @@ fixtures sin ningún archivo real que los ejercite, así que no está en
 (francés, italiano) o no está instalado, se cae a un recuento de palabras
 funcionales. Ambos caminos son deterministas.
 
+## Ground truth interno
+
+`ground/ground_truth.json`: **50 consultas etiquetadas a mano**, las mismas de
+ADL (`q001`–`q050`), con cinco fragmentos relevantes cada una ordenados por
+`rank` — 250 referencias sobre 234 `chunk_id` distintos y 132 archivos de
+origen. `ground/ground_truth_metodologia.pdf` documenta cómo se construyó:
+índice BM25 sobre el corpus completo, expansión bilingüe de cada consulta
+escrita a mano —el corpus es 75 % inglés y las preguntas son en español—,
+filtrado automático de índices, bibliografías y filas tabulares, y selección
+final por juicio humano sobre el pool recuperado.
+
+Los 234 `chunk_id` **resuelven contra el índice vigente**: comprobado línea a
+línea sobre `indice/metadata.jsonl`, 234 de 234.
+
+Dos límites que conviene tener presentes al leer cualquier métrica que salga de
+aquí, y que el propio documento declara: no es exhaustivo —marca cinco
+fragmentos por consulta, no todos los relevantes, así que un acierto fuera de la
+lista no es necesariamente un fallo— y 14 consultas llevan salvedades en `notes`,
+tres de ellas porque el supuesto de la pregunta no existe en el corpus (q031,
+q046, q047).
+
+Con esto se desbloquean las dos mediciones que estaban esperándolo: la ablación
+del enriquecimiento de contexto y el barrido de configuraciones de fragmentación.
+
 ## Pendiente
 
-- **Re-fragmentar el corpus completo** con el tokenizador real
-  (`config_fragmentacion_con_tokenizador()`). El encoder ya está elegido y
-  cableado; lo que falta es lanzar la re-corrida y revisar el histograma de
-  palabras contra el objetivo de 150–220 de §8.2, porque con el contador real el
-  tope de tokens pasa a ser la restricción activa en csv y pbf.
-- **Construir el índice del corpus completo** (`generador.py`) una vez
-  re-fragmentado. Verificado de punta a punta sobre 200 fragmentos reales con el
-  checkpoint de granite; los 140k restantes son cuestión de tiempo de cómputo.
-- **Relanzar las consultas contra ese índice.** La etapa está implementada y
-  verificada contra el índice de la corrida anterior —las 50 preguntas de ADL,
-  50 líneas con top-3 completo—, pero ese índice es de antes del tokenizador
-  real y de la limpieza de campos: el `resultados.jsonl` de la entrega tiene que
-  salir del índice reconstruido.
+- **Medir la ablación del enriquecimiento de contexto** (con y sin prefijo)
+  contra el ground truth. La decisión de mantenerlo sigue siendo provisional
+  hasta esa medición; ver `docs/decisiones/enriquecimiento-de-contexto.md` §6.
+- **Ejecutar el barrido de configuraciones** (`scripts/barrido_fragmentacion.py`)
+  y elegir con NDCG@10 y F1@3, no con la tabla de tamaños.
 - **Confirmar los nombres de campo de la Tabla 2** contra el enunciado. El
   entregable se escribe hoy con `query_id`, `consulta` y `documentos[]`; si ADL
   los fija de otro modo, el único sitio que cambia es
   `registro_de_resultado()` en `generador.py`.
-- **Medir la ablación del enriquecimiento de contexto** (con y sin prefijo)
-  contra el ground truth interno. La decisión de mantenerlo es provisional hasta
-  esa medición; ver `docs/decisiones/enriquecimiento-de-contexto.md` §6.
-- **Ejecutar el barrido de configuraciones** (`scripts/barrido_fragmentacion.py`)
-  sobre el corpus ya extraído. La tabla no elige la configuración: elegirla
-  exige medir NDCG@10 y F1@3 contra un ground truth interno que aún no existe.
-- **Construir ese ground truth**: 20–30 consultas etiquetadas a mano. Bloquea la
-  elección tanto del encoder como de la configuración de fragmentación.
 - **Relanzar `scripts/verificar_corpus.py`** (el checklist formal de aceptación,
   con su doble corrida completa para determinismo) desde que cambió la
   paralelización del orquestador. Los mismos criterios se comprobaron a mano
   contra la salida real más arriba —0 violaciones de contrato sobre los 1826
   documentos—, pero el script en sí no se ha vuelto a correr de punta a punta.
+- **Escribir `entrega/informe_tecnico.pdf`**, que no lo genera el pipeline.
+  `scripts/preparar_entrega.py` avisa si falta.
+
+Ya no está pendiente, y la bitácora lo daba por hacer hasta el 11 ago: la
+re-fragmentación con el tokenizador real, la construcción del índice completo,
+la corrida de las 50 consultas contra él y la construcción del ground truth.

@@ -1,24 +1,9 @@
-"""Extractor de imágenes por OCR.
+"""Extractor de imágenes: metadata primero, OCR después.
 
-Nueve archivos del corpus: ocho JPEG y un AVIF, todos ilustraciones de un
-informe web (tablas de capacidades, gráficos de semáforo, fotos).
-
-El orden de trabajo importa: **primero lo que se sabe sin mirar los píxeles**
-—dimensiones, formato, EXIF con fecha y geolocalización si la trae— y después
-el OCR. En un corpus con material satelital, esa metadata suele valer más que
-el texto reconocido, y se obtiene siempre, incluso cuando no hay Tesseract
-instalado o la imagen no tiene ni una letra.
-
-Las dos trampas
----------------
-1. **El OCR nunca falla.** Ante una imagen sin texto devuelve basura plausible
-   (``"|| ,-. l1"``). El filtro de confianza vive en :mod:`extractores.ocr` y
-   descarta por línea; sin él, esa basura entra al índice indistinguible del
-   texto bueno.
-2. **Tesseract no es determinista entre versiones.** No basta con fijar
-   semillas porque es un proceso externo. Se fija la configuración y se
-   registra la versión usada en ``meta``, para poder tratar un cambio de
-   versión por lo que es: un cambio de corpus que obliga a reindexar.
+Nueve archivos del corpus, ocho JPEG y un AVIF. El orden importa: lo que se sabe
+sin mirar los píxeles —dimensiones, formato, EXIF— se obtiene siempre, aunque no
+haya Tesseract o la imagen no tenga una letra, y en material satelital suele
+valer más que el texto reconocido.
 """
 
 from __future__ import annotations
@@ -33,13 +18,11 @@ from limpieza import es_ruido_estructural
 
 FORMATO = "imagen"
 
-# .avif necesita el plugin `pillow-avif-plugin`; sin él Pillow lanza
-# UnidentifiedImageError y el documento sale con el motivo en `errores`. Un solo
-# archivo del corpus lo usa (F2-SWF-065).
+# .avif necesita el plugin `pillow-avif-plugin`; sin él, el documento sale con el
+# motivo en `errores`. Un solo archivo del corpus lo usa (F2-SWF-065).
 EXTENSIONES = (".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp", ".webp", ".avif")
 
-# Etiquetas EXIF que sí describen el documento. Se listan por número porque es
-# lo que devuelve Pillow sin depender de su tabla de nombres.
+# Por número, que es lo que devuelve Pillow sin depender de su tabla de nombres.
 _EXIF_FECHA = 36867  # DateTimeOriginal
 _EXIF_GPS = 34853
 

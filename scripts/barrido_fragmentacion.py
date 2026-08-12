@@ -1,13 +1,10 @@
 """Barrido de configuraciones de fragmentación (§8.3 del spec).
 
-Produce la tabla comparativa que pide el spec: al menos cuatro configuraciones
-variando ``objetivo_palabras`` (120 / 190 / 240) y ``oraciones_solape`` (0 / 1),
-con número total de fragmentos, mediana y p95 de palabras, porcentaje de
-fragmentos de una sola oración y porcentaje de huérfanos fusionados.
+Tabla comparativa variando ``objetivo_palabras`` y ``oraciones_solape``, con
+fragmentos, mediana, p95, porcentaje de una sola oración y de huérfanos.
 
-**La tabla no elige la configuración.** Elegirla exige medir NDCG@10 y F1@3
-contra el conjunto interno de ground truth, que todavía no existe. Esto es el
-insumo de esa decisión y material directo para el informe técnico.
+**La tabla no elige la configuración**: eso exige medir NDCG@10 y F1@3 contra el
+ground truth. Es el insumo de esa decisión, no la decisión.
 
 Uso::
 

@@ -1,30 +1,19 @@
 """Construye el índice vectorial y responde las consultas contra él.
 
-Es la etapa que el enunciado exige poder reproducir (§1.4): mismo corpus y
-misma configuración → mismo índice. Por eso no hay ni un solo punto de
-aleatoriedad aquí dentro, el orden de los vectores es el del archivo de
-entrada, y el modelo corre en ``eval()`` y float32.
+Es la etapa que el enunciado exige poder reproducir (§1.4), así que no hay ni un
+punto de aleatoriedad: el orden de los vectores es el del archivo de entrada y el
+modelo corre en ``eval()`` y float32.
 
-Escribe tres archivos en el directorio de salida:
+Escribe ``index.faiss`` (``IndexFlatIP``, vectores normalizados),
+``metadata.jsonl`` —una línea por vector, en el mismo orden que el índice, sin
+``texto_enriquecido``— y ``reporte_indice.json``. La segunda etapa carga ese
+índice de disco y escribe el entregable ``resultados.jsonl``, con el top-3 de
+documentos por consulta.
 
-- ``index.faiss`` — ``IndexFlatIP`` con los vectores **normalizados**, que es
-  lo que §5.2 del enunciado pide para que el producto interno sea el coseno.
-- ``metadata.jsonl`` — una línea por vector, **en el mismo orden que el
-  índice**: la fila ``i`` del índice es la línea ``i`` de este archivo. Lleva
-  los ocho campos obligatorios de la Tabla 1 y no lleva ``texto_enriquecido``:
-  el enriquecimiento entra al encoder, no a lo que se le reporta al jurado.
-- ``reporte_indice.json`` — con qué se construyó y qué salió. Material directo
-  para el informe técnico, y la evidencia de las dos comprobaciones que fallan
-  en silencio: cuántos fragmentos se truncaron (debe ser cero) y qué norma
-  tienen los vectores (debe ser 1).
-
-Lo que se codifica es ``texto_enriquecido`` —observatorio, título y breadcrumb
-de secciones por delante del texto—, no ``texto``. La justificación está en
+Lo que se codifica es ``texto_enriquecido``, no ``texto``. Las decisiones de esta
+capa —lotes, orden, agregación a documento, deduplicación— están en
+``docs/decisiones/recuperacion-y-entregable.md`` y en
 ``docs/decisiones/enriquecimiento-de-contexto.md``.
-
-La segunda etapa consume ese índice y escribe el entregable ``resultados.jsonl``:
-una línea por consulta con los tres documentos del top-3 (§8.6). El índice se
-carga de disco, así que responder no obliga a reconstruir nada.
 
 Uso::
 
@@ -72,25 +61,19 @@ NOMBRE_METADATA = "metadata.jsonl"
 NOMBRE_REPORTE = "reporte_indice.json"
 NOMBRE_RESULTADOS = "resultados.jsonl"
 
-# Documentos por consulta en el entregable. Es el top-3 de §8.6, no un
-# parámetro de gusto: F1@3 se mide exactamente sobre tres.
+# El top-3 de §8.6: F1@3 se mide exactamente sobre tres.
 TOP_DOCUMENTOS = 3
 
-# Fragmentos que se piden a FAISS antes de agregar a documento. Tiene que
-# sobrar por encima de TOP_DOCUMENTOS: el top-k viene en fragmentos y varios
-# caen al mismo doc_id, así que pedir 3 fragmentos puede dar un solo documento.
+# Fragmentos que se piden a FAISS antes de agregar a documento. Sobra por encima
+# de TOP_DOCUMENTOS porque varios fragmentos caen en el mismo doc_id.
 K_FRAGMENTOS = 50
 
 CAMPO_A_CODIFICAR = "texto_enriquecido"
 
-# Se excluye de ``metadata.jsonl`` y de ninguna otra parte: el prefijo de
-# contexto es una decisión del indexador, no un dato del corpus, y devolverlo
-# como si fuera el texto del fragmento falsearía lo que se reporta (§2.2 del
-# spec del fragmentador).
+# El prefijo de contexto es una decisión del indexador, no un dato del corpus:
+# entra al encoder y no a lo que se reporta.
 CAMPOS_EXCLUIDOS: tuple[str, ...] = (CAMPO_A_CODIFICAR,)
 
-# Cada cuántos vectores se avisa por stderr. Codificar 140k fragmentos son
-# minutos u horas según el hardware: sin avance no se distingue de un cuelgue.
 PROGRESO_CADA = 5_000
 
 
@@ -103,25 +86,16 @@ class ReporteIndice:
     modelo: str
     pooling: str
     prefijo_fragmento: str
-    n_truncados: int
-    """Fragmentos cuyo texto excede la ventana del encoder. **Debe ser cero**:
-    uno solo significa un fragmento indexado a medias sin que nada avise."""
-
+    n_truncados: int  # debe ser cero: uno solo es un fragmento indexado a medias
     tokens_max: int
     tokens_p95: int
-    norma_min: float
+    norma_min: float  # las dos normas deben dar 1,0 ± 1e-5
     norma_max: float
-    """Verificación explícita de §14.2. Ambas deben dar 1,0 ± 1e-5."""
-
     vectores_por_fenomeno: dict[str, int]
     vectores_por_formato: dict[str, int]
 
+    # Vectores que salieron de la caché en vez de un pase del encoder.
     n_reutilizados: int = 0
-    """Vectores que salieron de la caché en vez de un pase del encoder.
-
-    Son fragmentos con texto idéntico: el corpus trae lit-covid en CSV y en
-    XLSX. Cada uno conserva su fila y su ``fuente``; lo único que se ahorra es
-    volver a calcular un vector que ya se calculó."""
 
 
 def generar_indice(
@@ -134,10 +108,8 @@ def generar_indice(
 ) -> ReporteIndice:
     """Codifica los fragmentos de ``entrada`` y escribe el índice en ``salida``.
 
-    ``entrada`` puede ser el ``fragmentos.jsonl`` o el directorio que lo
-    contiene. ``codificar`` y ``contar_tokens`` se inyectan: por defecto salen
-    del encoder configurado, y las pruebas los sustituyen para no descargar
-    1,2 GB de pesos por cada aserción sobre el orden de las filas.
+    ``entrada`` puede ser el ``fragmentos.jsonl`` o su directorio. ``codificar`` y
+    ``contar_tokens`` se inyectan para que las pruebas no descarguen los pesos.
     """
     import faiss
 
@@ -148,18 +120,14 @@ def generar_indice(
     indice = faiss.IndexFlatIP(config.dimension)
     total = len(registros)
 
-    # Los tokens se cuentan de una vez y antes de codificar nada: hacen falta
-    # para dimensionar los lotes, y contarlos sobre la marcha obligaría a fijar
-    # el tamaño del lote sin saber cuánto mide lo que viene dentro.
+    # De una vez y antes de codificar: hacen falta para dimensionar los lotes.
     tokens = [
         contar_tokens(texto_de_fragmento(r[CAMPO_A_CODIFICAR], config)) for r in registros
     ]
     truncados = sum(1 for cuenta in tokens if cuenta > config.ventana_modelo)
 
-    # El corpus trae el mismo dataset en dos formatos (lit-covid, en CSV y en
-    # XLSX): mismas filas, dos ``fuente`` distintos. Cada uno necesita su fila
-    # en el índice —si a uno le falta, no puede aparecer en el top-3 y pierde
-    # F1@3 (§10.2.1)— pero el pase del encoder es idéntico y basta con uno.
+    # El corpus trae el mismo dataset en dos formatos (lit-covid, CSV y XLSX):
+    # cada uno conserva su fila en el índice, pero se codifica una sola vez.
     a_codificar = [texto_de_fragmento(r[CAMPO_A_CODIFICAR], config) for r in registros]
     repetidos = _textos_repetidos(a_codificar)
     cache: dict[str, np.ndarray] = {}
@@ -220,12 +188,8 @@ def _ruta_de_entrada(entrada: Path) -> Path:
 
 
 def _cargar_fragmentos(ruta: Path) -> list[dict[str, Any]]:
-    """Lee el JSONL entero a memoria.
-
-    140k registros con su texto son del orden de 350 MB: cabe, y tenerlos todos
-    permite escribir la metadata en el mismo orden en que se indexaron sin
-    releer el archivo ni fiarse de que dos recorridos coincidan.
-    """
+    """Lee el JSONL entero a memoria: son ~350 MB y así la metadata se escribe en
+    el mismo orden en que se indexó, sin fiarse de que dos recorridos coincidan."""
     if not ruta.is_file():
         raise ValueError(f"no existe el archivo de fragmentos: {ruta}")
 
@@ -252,10 +216,9 @@ def _cargar_fragmentos(ruta: Path) -> list[dict[str, Any]]:
 
 
 def _textos_repetidos(textos: list[str]) -> set[str]:
-    """Los textos que aparecen más de una vez. Solo esos merecen caché.
+    """Los textos que aparecen más de una vez: solo esos merecen caché.
 
-    Cachear todo costaría un vector por fragmento en RAM —1 GB largo en el
-    corpus completo— para no reutilizar ninguno.
+    Cachear todo costaría más de un giga de RAM para no reutilizar ninguno.
     """
     vistos: set[str] = set()
     repetidos: set[str] = set()
@@ -275,8 +238,8 @@ def _codificar_reutilizando(
 ) -> tuple[np.ndarray, int]:
     """Codifica solo lo que no se haya codificado ya, y devuelve el lote entero.
 
-    El lote sale completo y en su orden pase lo que pase: el ahorro está en lo
-    que se le pide al encoder, nunca en lo que se le entrega al índice.
+    El ahorro está en lo que se le pide al encoder, nunca en lo que se le entrega
+    al índice: el lote sale completo y en su orden pase lo que pase.
     """
     pendientes: list[str] = []
     for texto in textos:
@@ -301,14 +264,8 @@ def lotes_por_presupuesto(
     """Agrupa índices en lotes que caben en memoria, en el orden de entrada.
 
     Dos topes a la vez: ``config.lote`` textos y ``config.presupuesto_atencion``
-    en ``lote × longitud²``. El segundo es el que importa, porque el coste de la
-    máscara de atención de ModernBERT no lo fija el número de textos sino el
-    cuadrado del más largo del lote, multiplicado por el lote entero.
-
-    Un texto que por sí solo excede el presupuesto viaja en su propio lote: no
-    se puede partir sin romper el fragmento, así que lo único que cabe hacer es
-    no arrastrar a nadie con él (y, si ni así entra en la GPU, el encoder lo
-    reintenta en CPU).
+    en ``lote × longitud²``, que es el que de verdad acota la memoria. Un texto
+    que por sí solo excede el presupuesto viaja en su propio lote.
 
     El orden de salida es el de entrada, sin excepción: la fila ``i`` del índice
     tiene que seguir siendo la línea ``i`` de la metadata.
@@ -359,7 +316,7 @@ def _contar(valores: Iterator[str]) -> dict[str, int]:
 
 
 def _percentil(valores: list[int], percentil: int) -> int:
-    """Percentil por rango, sin interpolar: el resultado es un conteo real."""
+    """Percentil por rango, sin interpolar: devuelve un conteo real."""
     ordenados = sorted(valores)
     indice = round((percentil / 100) * len(ordenados) + 0.5) - 1
     return ordenados[max(0, min(indice, len(ordenados) - 1))]
@@ -380,9 +337,7 @@ class Consulta:
 class Candidato:
     """Un fragmento del top-k, antes de agregar a documento."""
 
-    fila: int
-    """Fila del índice, que es la línea de ``metadata.jsonl``."""
-
+    fila: int  # fila del índice, que es la línea de metadata.jsonl
     score: float
     metadata: dict[str, Any]
 
@@ -393,10 +348,7 @@ class Recuperado:
 
     doc_id: str
     score: float
-    n_fragmentos: int
-    """Cuántos fragmentos suyos entraron en el top-k. Diagnóstico, no criterio:
-    el puesto lo decide el mejor fragmento, no cuántos aporte."""
-
+    n_fragmentos: int  # diagnóstico, no criterio: el puesto lo da el mejor
     metadata: dict[str, Any]
 
 
@@ -412,9 +364,8 @@ class ReporteConsultas:
     top_documentos: int
     idioma: str | None
     n_duplicados_descartados: int
+    # Cada una es un F1@3 mermado por construcción: salen nombradas, no contadas.
     consultas_sin_top_completo: list[str]
-    """Consultas que no llegaron a ``top`` documentos distintos. Cada una es un
-    F1@3 mermado por construcción, así que salen nombradas y no como un total."""
 
 
 def responder_consultas(
@@ -429,16 +380,12 @@ def responder_consultas(
 ) -> ReporteConsultas:
     """Responde las consultas contra el índice de ``indice`` y escribe ``salida``.
 
-    ``indice`` es el directorio que escribió :func:`generar_indice` (o el propio
-    ``index.faiss``, y entonces se usa su carpeta). El índice se lee de disco:
-    responder no reconstruye nada. ``codificar`` se inyecta igual que en la
-    indexación, para que las pruebas no descarguen los pesos.
+    ``indice`` es el directorio que escribió :func:`generar_indice`, o el propio
+    ``index.faiss``. Se lee de disco: responder no reconstruye nada.
 
-    La consulta se codifica con el **mismo** encoder y la misma dimensión con
-    los que se construyó el índice. No se comprueba que el modelo sea el mismo
-    —el índice no guarda de quién es cada vector—, así que responder con un
-    modelo distinto del que indexó da resultados sin sentido y sin aviso: por
-    eso ``reporte_indice.json`` deja escrito cuál fue.
+    Nadie comprueba que el encoder sea el mismo con el que se indexó —el índice no
+    guarda de quién es cada vector—, así que responder con otro modelo da
+    resultados sin sentido y sin aviso. Por eso el reporte deja escrito cuál fue.
     """
     import faiss
 
@@ -455,9 +402,8 @@ def responder_consultas(
     banco = faiss.read_index(str(ruta_indice))
     desplazamientos = _desplazamientos_de_lineas(ruta_metadata)
 
-    # La correspondencia fila ↔ línea es la única forma que tiene el buscador
-    # de saber qué documento devolvió. Si no cuadra, todo lo que salga a
-    # continuación es metadata de otro fragmento, y con muy buena pinta.
+    # Si fila y línea no cuadran, todo lo que salga a continuación es metadata de
+    # otro fragmento, y con muy buena pinta.
     if banco.ntotal != len(desplazamientos):
         raise ValueError(
             f"{ruta_indice.name} tiene {banco.ntotal} vectores y "
@@ -536,9 +482,8 @@ def _codificar_consultas(
 ) -> np.ndarray:
     """Vectores de consulta, normalizados igual que los del índice.
 
-    Se agrupa solo por ``config.lote``, sin el presupuesto de atención de la
-    indexación: una consulta son dos líneas, no un fragmento de 450 tokens, y
-    el cuadrado de la longitud aquí no llega a apretar.
+    Se agrupa solo por ``config.lote``, sin presupuesto de atención: una consulta
+    son dos líneas y el cuadrado de la longitud aquí no llega a apretar.
     """
     textos = [texto_de_consulta(c.texto, config) for c in consultas]
     crudos = np.vstack(
@@ -550,10 +495,7 @@ def _codificar_consultas(
 def filtrar_por_idioma(candidatos: list[Candidato], idioma: str | None) -> list[Candidato]:
     """Post-filtro por idioma (§8.7). Sin ``idioma``, no filtra nada.
 
-    Apagado por defecto a propósito: las consultas vienen en español y la mayor
-    parte del corpus está en inglés, así que filtrar a ``es`` no afina la
-    respuesta, la vacía. El encoder es multilingüe justamente para no necesitar
-    esto. Queda expuesto porque el enunciado lo pide como capacidad.
+    Apagado por defecto: filtrar a ``es`` no afina la respuesta, la vacía.
     """
     if idioma is None:
         return candidatos
@@ -563,21 +505,9 @@ def filtrar_por_idioma(candidatos: list[Candidato], idioma: str | None) -> list[
 def deduplicar_por_texto(candidatos: list[Candidato]) -> tuple[list[Candidato], int]:
     """Quita del top-k los fragmentos repetidos **dentro de un mismo documento**.
 
-    Se queda el primero, que por venir ya ordenado es el de mejor score.
-
-    La clave incluye el ``doc_id`` a propósito, y esto es lo delicado: el corpus
-    trae el mismo dataset en dos formatos (lit-covid, ``F1-AIINDEX-041`` en CSV
-    y ``F1-AIINDEX-042`` en XLSX) con texto idéntico y vectores idénticos.
-    Deduplicar solo por texto parece más limpio y cuesta un acierto: el jurado
-    empareja por ``fuente`` (§10.2.1), así que son dos documentos distintos, y
-    al descartar uno se le quita el único vector con el que podía llegar al
-    top-3. Si la consulta va sobre lit-covid, lo más probable es que los dos
-    estén en el ground truth y que compitiendo por separado se lleven dos de
-    los tres puestos.
-
-    Dentro de un mismo documento sí es ruido: §8.6 lo puntúa con su mejor
-    fragmento, así que el repetido no cambia su score y solo ocupa un puesto
-    del top-k que otro documento podría usar.
+    Se queda el primero, que por venir ordenado es el de mejor score. La clave
+    incluye el ``doc_id`` a propósito: deduplicar también entre documentos parece
+    más limpio y cuesta aciertos. Ver ``docs/decisiones/recuperacion-y-entregable.md``.
     """
     vistos: set[tuple[str, str]] = set()
     unicos: list[Candidato] = []
@@ -598,14 +528,9 @@ def agregar_por_documento(
 ) -> list[Recuperado]:
     """Del top-k de fragmentos al top-N de documentos (§8.6).
 
-    El score del documento es el de su **mejor** fragmento, no la suma de los
-    suyos: sumar premia al documento largo por ser largo —más fragmentos, más
-    ocasiones de rozar la consulta— cuando lo que se evalúa es si el documento
-    responde.
-
-    El desempate por ``doc_id`` no es cosmético: dos documentos con el mismo
-    score tienen que salir siempre en el mismo orden o la corrida deja de ser
-    reproducible (§1.4).
+    El score del documento es el de su **mejor** fragmento, no la suma: sumar
+    premia al documento largo por ser largo. El desempate por ``doc_id`` no es
+    cosmético; sin él, dos corridas del mismo índice ordenarían distinto.
     """
     mejor: dict[str, Candidato] = {}
     conteo: dict[str, int] = {}
@@ -633,11 +558,8 @@ def registro_de_resultado(consulta: Consulta, documentos: list[Recuperado]) -> d
     """Una línea de ``resultados.jsonl``, con los campos de la Tabla 2.
 
     **Este es el único sitio que hay que tocar si ADL fija otros nombres de
-    campo.** Todo lo de arriba trabaja con ``Recuperado``, no con el JSON.
-
-    Cada documento va con el fragmento que lo metió en el top-3: es la
-    evidencia de por qué está ahí, y sin ella el jurado tiene un ``doc_id`` y
-    nada con que comprobarlo.
+    campo.** Cada documento va con el fragmento que lo metió en el top-3, que es
+    la evidencia de por qué está ahí.
     """
     return {
         "query_id": consulta.id,
@@ -667,10 +589,8 @@ def registro_de_resultado(consulta: Consulta, documentos: list[Recuperado]) -> d
 def _desplazamientos_de_lineas(ruta: Path) -> list[int]:
     """Byte de arranque de cada línea de ``metadata.jsonl``.
 
-    El archivo son 200 MB para el corpus completo: cargarlo entero a dicts
-    costaría del orden de un giga de RAM para leer, de cada consulta, cincuenta
-    líneas. Con los desplazamientos se lee solo lo que el índice devuelve, y lo
-    que queda en memoria son 140k enteros.
+    Son 200 MB: con los desplazamientos se lee solo lo que el índice devuelve y en
+    memoria quedan 134k enteros, en vez de un giga de dicts.
     """
     desplazamientos: list[int] = []
     posicion = 0
@@ -689,8 +609,8 @@ def _metadata_en(archivo: Any, desplazamiento: int) -> dict[str, Any]:
 # --- lectura de las consultas ----------------------------------------------------
 
 
-# ADL numera las consultas ``q001``, ``q002``… y el identificador es suyo: el
-# entregable se casa con el de ellos, así que se lee, no se inventa.
+# ADL numera las consultas q001, q002… El identificador es suyo: se lee, no se
+# inventa, porque el entregable se casa con el de ellos.
 _MARCA_CONSULTA = re.compile(r"(?im)^[^\S\n]*(q\s?\d{1,4})[\s.:)\-]+")
 
 _CLAVES_ID = ("query_id", "id", "consulta_id", "id_consulta")
@@ -698,13 +618,8 @@ _CLAVES_TEXTO = ("consulta", "texto", "pregunta", "query", "text")
 
 
 def cargar_consultas(ruta: Path) -> list[Consulta]:
-    """Las consultas de ADL, vengan como vengan.
-
-    Se acepta el PDF tal cual lo entregan (``Extracto_Preguntas_50_v2.pdf``),
-    un JSONL, o un texto plano con una consulta por línea. El formato del día
-    de la prueba no está prometido, y quedarse esperando al que sea es perder
-    la corrida entera por un parser.
-    """
+    """Las consultas de ADL, vengan como vengan: el PDF tal cual lo entregan, un
+    JSONL o un texto plano con una consulta por línea."""
     ruta = Path(ruta)
     if not ruta.is_file():
         raise ValueError(f"no existe el archivo de consultas: {ruta}")
@@ -733,12 +648,8 @@ def _texto_de_pdf(ruta: Path) -> str:
 def _consultas_de_texto(texto: str) -> list[Consulta]:
     """Parte el texto por las marcas ``q001``.
 
-    Las consultas del PDF vienen partidas en varias líneas, así que el corte lo
-    marca el identificador siguiente y no el salto de línea: todo lo que hay
-    entre dos marcas es el cuerpo de la primera.
-
-    Sin marcas, se cae a una consulta por línea con identificadores generados,
-    que es lo que hace falta para probar con un ``.txt`` a mano.
+    Las del PDF vienen partidas en varias líneas, así que el corte lo marca el
+    identificador siguiente y no el salto de línea. Sin marcas, una por línea.
     """
     partes = _MARCA_CONSULTA.split(texto)
     if len(partes) < 3:
@@ -751,8 +662,7 @@ def _consultas_de_texto(texto: str) -> list[Consulta]:
 
     consultas: list[Consulta] = []
     vistos: set[str] = set()
-    # partes[0] es lo que precede a la primera marca (cabeceras, título); de ahí
-    # en adelante van en pares (identificador, cuerpo).
+    # partes[0] precede a la primera marca; de ahí van en (identificador, cuerpo).
     for identificador, cuerpo in zip(partes[1::2], partes[2::2]):
         identificador = identificador.replace(" ", "").lower()
         if identificador in vistos:
@@ -903,9 +813,8 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     if args.entrada is not None and not _construir(args, config):
-        # Un índice con fragmentos truncados no vale para la entrega, así que
-        # tampoco vale para responder: se para aquí en vez de escribir un
-        # resultados.jsonl que parecería bueno.
+        # Un índice con fragmentos truncados no vale para la entrega: se para
+        # aquí en vez de escribir un resultados.jsonl que parecería bueno.
         return 1
 
     if args.consultas is not None and not _responder(args, config, parser):
@@ -989,10 +898,9 @@ def _responder(
 def avisador() -> Callable[[int, int], None]:
     """Avisa cada ``PROGRESO_CADA`` fragmentos, y siempre al terminar.
 
-    Lleva la cuenta del último aviso en vez de mirar el resto de la división:
-    los lotes no caen en múltiplos exactos del umbral, así que con el resto o
-    no avisaría nunca o avisaría en cada lote —4 400 líneas de ruido para el
-    corpus completo, con el avance real perdido dentro—.
+    Lleva la cuenta del último aviso porque los lotes no caen en múltiplos
+    exactos del umbral: con el resto de la división, o no avisa nunca o avisa en
+    cada lote.
     """
     ultimo = 0
 

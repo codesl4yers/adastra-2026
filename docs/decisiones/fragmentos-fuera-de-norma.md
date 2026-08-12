@@ -1,7 +1,8 @@
 # Decisión — Títulos huérfanos y fragmentos fuera de norma
 
-CODEFEST Ad Astra 2026 · Etapa 1 · 5 ago 2026
-Estado: **A y B corregidos y verificados**; C documentado como limitación conocida.
+CODEFEST Ad Astra 2026 · Etapa 1 · 5 ago 2026 (§7 añadido el 6 ago)
+Estado: **A y B corregidos y verificados**; C corregido el 6 ago mandando a OCR
+las páginas ilegibles (§7), con dos limitaciones que siguen abiertas (§7.4).
 
 ---
 
@@ -116,7 +117,7 @@ cortaría a mitad de un nombre propio. Es el caso que §3.3 protege de verdad, y
 el exceso es modesto. Se aceptan y quedan registrados como violación de tamaño
 por `validar_fragmento`, con el motivo "oración indivisible".
 
-## 5. Problema C — texto de PDF ilegible (limitación conocida, no corregido)
+## 5. Problema C — texto de PDF ilegible (diagnóstico; la corrección está en §7)
 
 **5 877 fragmentos (5,76 % de los de PDF)** tienen más del 35 % de sus palabras
 formadas por una sola letra, y muchos llegan al 100 %:
@@ -263,7 +264,7 @@ sería mejorar `detectar_corte_de_columnas` para esos casos. Queda pendiente.
 páginas solo se reconoce una portada vacía, y sus 174 973 caracteres chinos
 quedan intactos.
 
-## 6. Párrafo para el informe técnico
+## 8. Párrafo para el informe técnico
 
 > El control de calidad de la fragmentación se hizo sobre la distribución de
 > tamaños del corpus completo, no sobre una muestra. El análisis reveló que la

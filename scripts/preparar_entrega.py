@@ -11,18 +11,9 @@
             ├── index.faiss
             └── metadata.jsonl
 
-Dos decisiones que conviene tener claras:
-
-**Las dependencias viajan junto a ``generador.py``.** La estructura solo lo
-nombra a él, pero importa ``encoder``, ``contrato``, ``fragmentador``,
-``limpieza`` y ``segmentador``: entregarlo solo es entregar un ``ImportError``.
-Van al mismo directorio y no a un subpaquete porque Python añade la carpeta del
-script al ``sys.path``, así que ``python entrega/generador.py`` funciona sin
-que haya que tocar nada del entorno.
-
-**La lista de módulos no está escrita a mano**, se calcula del cierre
-transitivo de los ``import`` reales. Una lista escrita a mano se queda vieja el
-día que alguien añade un import, y el fallo aparece en la máquina del jurado.
+``generador.py`` no viaja solo: importa media raíz del proyecto, así que se copia
+el cierre transitivo de sus imports —calculado del AST, no de una lista a mano
+que se quedaría vieja— al mismo directorio, que es donde Python lo busca.
 
 Uso::
 
@@ -58,24 +49,17 @@ class ReporteEntrega:
     """Qué quedó en la carpeta de entrega."""
 
     destino: Path
-    encoder: str
-    """Nombre del directorio bajo ``base_vectorial/``."""
-
-    modulos: list[str]
-    """Archivos ``.py`` copiados junto al generador, en orden alfabético."""
-
+    encoder: str        # nombre del directorio bajo base_vectorial/
+    modulos: list[str]  # .py copiados junto al generador, en orden alfabético
     n_vectores: int
     n_consultas: int
-    falta_informe: bool
-    """El informe técnico no lo genera el pipeline; se avisa si no está."""
+    falta_informe: bool  # el informe no lo genera el pipeline; se avisa si falta
 
 
 def nombre_de_encoder(modelo: str) -> str:
     """``ibm-granite/granite-embedding-311m…`` → ``encoder_granite-embedding-311m…``
 
-    Se queda con la última parte del identificador porque la organización no
-    identifica al modelo y una barra dentro del nombre lo convertiría en un
-    subdirectorio.
+    Solo la última parte: una barra dentro del nombre haría un subdirectorio.
     """
     return f"encoder_{modelo.rstrip('/').split('/')[-1]}"
 
@@ -83,9 +67,8 @@ def nombre_de_encoder(modelo: str) -> str:
 def modulos_necesarios(raiz: Path, entrada: str = MODULO_DE_ENTRADA) -> list[Path]:
     """Los ``.py`` de ``raiz`` que ``entrada`` necesita, directa o indirectamente.
 
-    Solo mira el primer nivel de cada import y solo sigue los que existen como
-    módulo suelto en ``raiz``: los paquetes externos los resuelve el intérprete
-    del jurado, y ``extractores/`` no entra porque el generador no extrae nada.
+    Solo sigue los imports que existen como módulo suelto en ``raiz``: los
+    paquetes externos los resuelve el intérprete del jurado.
     """
     raiz = Path(raiz)
     propios = {ruta.stem for ruta in raiz.glob("*.py")}
@@ -126,8 +109,7 @@ def preparar_entrega(
 ) -> ReporteEntrega:
     """Copia todo lo que va en la entrega y devuelve qué quedó dentro.
 
-    Comprueba **antes** de escribir nada: una entrega a medio copiar es peor
-    que una que no se copió, porque parece completa.
+    Comprueba antes de escribir nada: una entrega a medio copiar parece completa.
     """
     raiz, indice, resultados, destino = map(Path, (raiz, indice, resultados, destino))
 
@@ -162,12 +144,9 @@ def preparar_entrega(
 
 
 def _copiar(origen: Path, destino: Path) -> None:
-    """Copia salvo que el archivo ya esté donde tiene que estar.
-
-    Pasa de verdad: ``generador.py`` escribe ``resultados.jsonl`` directamente
-    en ``entrega/``, así que origen y destino son el mismo archivo. En Windows
-    eso no es un no-op, es un ``PermissionError``.
-    """
+    """Copia salvo que el archivo ya esté donde tiene que estar: ``generador.py``
+    escribe ``resultados.jsonl`` en ``entrega/``, y en Windows copiarlo sobre sí
+    mismo es un ``PermissionError``."""
     if destino.exists() and origen.samefile(destino):
         return
     shutil.copy2(origen, destino)

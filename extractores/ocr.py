@@ -1,31 +1,12 @@
 """Reconocimiento óptico de caracteres, compartido por imagen y PDF escaneado.
 
-Lo usan dos extractores: :mod:`extractores.imagen` para los 9 archivos de
-imagen del corpus y :mod:`extractores.pdf` para el ~3 % de PDF que vienen
-escaneados y devuelven cero caracteres sin dar ningún error.
+Tesseract es un binario del sistema, no un paquete de Python: si falta, este
+módulo informa en vez de reventar, y por eso se comprueba antes de cada uso.
 
-Tesseract es un **binario del sistema**, no un paquete de Python. Si no está
-instalado, este módulo no revienta: informa. Ese es todo el contrato de
-:func:`hay_ocr`, y por eso se comprueba antes de cada uso en vez de dejar que
-salte una excepción a mitad de una corrida de 1826 documentos.
-
-Determinismo
-------------
-Tesseract no es determinista de fábrica entre versiones: la misma imagen puede
-dar texto ligeramente distinto con otro binario o con otros ``tessdata``. Fijar
-semillas en Python no sirve de nada porque el proceso es externo. Lo que sí se
-hace: fijar idiomas y configuración (:data:`IDIOMAS`, :data:`CONFIGURACION`) y
-registrar la versión usada en ``meta``, de modo que un cambio de versión se
-pueda tratar por lo que es —un cambio de corpus que obliga a reindexar— en vez
-de como una diferencia inexplicable entre dos corridas.
-
-El filtro de confianza
-----------------------
-El OCR nunca falla: ante una imagen sin texto devuelve basura plausible
-(``"|| ,-. l1"``). Sin filtro, esa basura entra al índice indistinguible del
-texto bueno. Se descarta por línea, no por palabra, porque una palabra dudosa
-dentro de una frase legible casi siempre es correcta y quitarla dejaría un
-hueco en mitad de la oración.
+Dos cosas que conviene tener presentes: no es determinista entre versiones —de
+ahí que se fijen idiomas y configuración y se registre la versión en ``meta``— y
+nunca falla, porque ante una imagen sin texto devuelve basura plausible. De ahí
+el filtro de confianza por línea.
 """
 
 from __future__ import annotations
@@ -35,19 +16,15 @@ from pathlib import Path
 from typing import Any
 
 IDIOMAS = "spa+eng+por"
-"""Los tres idiomas del contrato. Cambiarlos cambia el texto reconocido."""
 
+# Motor LSTM y segmentación automática de página. Cambiarlos cambia el texto.
 CONFIGURACION = "--oem 3 --psm 3"
-"""Motor LSTM y segmentación automática de página. Fijos en todas las corridas."""
 
+# Confianza media mínima de una línea, en la escala 0-100 de Tesseract.
 UMBRAL_CONFIANZA = 60.0
-"""Confianza media mínima de una línea, en la escala 0-100 de Tesseract."""
 
-# Rutas donde el instalador oficial de Tesseract para Windows deja el binario.
-# ``pytesseract`` busca "tesseract" por PATH y nada más; en Windows eso falla
-# seguido porque el instalador no siempre lo agrega, o queda una entrada de
-# PATH de una instalación anterior en otra carpeta que ya no existe. Probar
-# estas rutas por defecto evita depender de que el PATH esté bien configurado.
+# pytesseract solo busca "tesseract" por PATH, y en Windows el instalador no
+# siempre lo agrega.
 _RUTAS_TESSERACT_WINDOWS = (
     r"C:\Program Files\Tesseract-OCR\tesseract.exe",
     r"C:\Program Files (x86)\Tesseract-OCR\tesseract.exe",
@@ -58,13 +35,9 @@ _RUTAS_TESSERACT_WINDOWS = (
 def hay_ocr() -> bool:
     """``True`` si se puede reconocer texto ahora mismo.
 
-    Comprueba las dos mitades: el paquete de Python y el binario. Tener
-    ``pytesseract`` instalado sin Tesseract detrás es el caso habitual y el que
-    más despista, porque el import funciona y el fallo aparece mucho después.
-
-    Primero prueba el PATH tal cual (lo normal en Linux/macOS, donde el
-    instalador de paquetes sí lo deja accesible); si falla, prueba las rutas de
-    instalación por defecto de Windows antes de rendirse.
+    Comprueba las dos mitades, el paquete y el binario: tener ``pytesseract`` sin
+    Tesseract detrás es el caso habitual y el que más despista. Prueba el PATH y
+    luego las rutas de instalación por defecto de Windows.
     """
     try:
         import pytesseract
@@ -105,9 +78,8 @@ def version() -> str | None:
 def texto_de_imagen(imagen: Any) -> tuple[str, float]:
     """Reconoce el texto de una imagen PIL. Devuelve ``(texto, confianza media)``.
 
-    Sin OCR disponible devuelve ``("", 0.0)`` en vez de lanzar: quien llama ya
-    tiene que manejar el caso de una imagen sin texto reconocible, y son el
-    mismo caso desde el punto de vista del documento resultante.
+    Sin OCR disponible devuelve ``("", 0.0)``: para el documento resultante es el
+    mismo caso que una imagen sin texto reconocible.
     """
     if not hay_ocr():
         return "", 0.0
@@ -134,12 +106,7 @@ def texto_de_imagen(imagen: Any) -> tuple[str, float]:
 
 
 def _preparar(imagen: Any) -> Any:
-    """Escala de grises antes de reconocer.
-
-    Es el preprocesado que más aporta y el único que no puede empeorar el
-    resultado. Binarizar con un umbral fijo sí lo empeora en mapas y gráficos,
-    que es la mitad de las imágenes de este corpus.
-    """
+    """Escala de grises: el único preprocesado que no puede empeorar el resultado."""
     try:
         return imagen.convert("L")
     except Exception:  # noqa: BLE001 - si no se puede convertir, se usa tal cual
@@ -149,9 +116,8 @@ def _preparar(imagen: Any) -> Any:
 def lineas_fiables(datos: dict, umbral: float) -> list[tuple[str, float]]:
     """Reagrupa la salida de ``image_to_data`` en líneas y descarta las dudosas.
 
-    ``image_to_data`` devuelve una fila por palabra con su confianza y su
-    posición en la jerarquía bloque/párrafo/línea. Las filas con ``conf`` -1 son
-    separadores estructurales, no palabras.
+    Viene una fila por palabra, con su posición en bloque/párrafo/línea. Las de
+    ``conf`` -1 son separadores estructurales, no palabras.
     """
     palabras: dict[tuple[int, int, int], list[tuple[str, float]]] = {}
 

@@ -1,25 +1,15 @@
-"""Extractores por formato.
+"""Extractores por formato: pdf, json, tabular (csv/xlsx), imagen, pbf y texto.
 
-Todos exponen exactamente la misma firma::
+Todos exponen la misma firma, sin estado global y sin escribir a disco::
 
     def extraer(path: Path, fenomeno: int) -> Documento
 
-Sin estado global, sin efectos secundarios y sin escribir a disco: la
-persistencia es responsabilidad de :mod:`orquestador`.
+Ninguno propaga excepciones: ante un archivo corrupto devuelve un ``Documento``
+válido con ``bloques=[]`` y el motivo en ``errores``.
 
-Ningún extractor puede propagar una excepción. Ante un archivo corrupto,
-ilegible o de un formato que no entiende, devuelve un ``Documento`` válido con
-``bloques=[]`` y el motivo en ``errores``.
+:mod:`extractores.comun` (pila de encabezados, filtros de ruido, construcción del
+``Documento``) y :mod:`extractores.ocr` (Tesseract) no son extractores.
 
-Formatos registrados: pdf, json, tabular (csv/xlsx), imagen (con OCR), pbf
-(tiles vectoriales) y texto (txt/md). No hay extractor de HTML: el corpus real
-de ADL no trae archivos de ese formato.
-
-Dos módulos no son extractores y no exponen ``extraer``:
-
-- :mod:`extractores.comun` — la pila de encabezados que exige el contrato, el
-  filtro de lo que no es lenguaje natural y la construcción del ``Documento``.
-  Tres cosas que se repetían en PDF, JSON y texto y que es fácil implementar
-  mal de forma distinta en cada sitio.
-- :mod:`extractores.ocr` — Tesseract, compartido por imagen y PDF escaneado.
+Qué se extrae de cada formato y qué se descarta:
+``docs/decisiones/extraccion-por-formato.md``.
 """

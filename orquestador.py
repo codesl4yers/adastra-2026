@@ -1,19 +1,12 @@
 """Recorre un directorio de entrada, extrae cada documento y lo persiste.
 
-Es el único módulo que escribe a disco. Los extractores son funciones puras.
+Es el único módulo que escribe a disco; los extractores son funciones puras.
+Produce un ``{doc_id}.json`` por archivo y un ``manifiesto.jsonl`` ordenado por
+``(fuente, ruta_relativa)``, que es la herramienta de regresión: si el diff entre
+dos corridas sale vacío, no cambió nada.
 
-Produce:
-
-- ``{salida}/{doc_id}.json``: un ``Documento`` serializado por archivo.
-- ``{salida}/manifiesto.jsonl``: una línea por documento, ordenada por
-  ``(fuente, ruta_relativa)``.
-
-El manifiesto existe para hacer ``diff`` entre corridas y detectar regresiones,
-así que su estabilidad importa tanto como su contenido: claves ordenadas,
-saltos de línea Unix y orden por ``(fuente, ruta_relativa)``. Se desempata por
-ruta porque hay 59 nombres de archivo repetidos en 186 archivos del corpus de
-ADL: ordenar solo por ``fuente`` dejaría el orden relativo de esos homónimos a
-merced del sistema de archivos.
+Identidad, precedencia del fenómeno, paralelismo y determinismo:
+``docs/decisiones/orquestacion-y-determinismo.md``.
 
 Uso::
 
@@ -40,37 +33,17 @@ from indice import EntradaIndice, cargar_indice
 
 NOMBRE_MANIFIESTO = "manifiesto.jsonl"
 
-# Cada cuántos documentos se recicla el pool de workers.
-#
-# pdfminer (bajo pdfplumber) no le devuelve al sistema operativo toda la
-# memoria que reserva por PDF: medido sobre el corpus real, un worker que
-# extrae el atlas de RESDAL (250 páginas) retiene ~200 MB después de liberar
-# el documento, y ese poso se acumula con cada PDF grande siguiente. No hay
-# forma de pedirle a pdfminer que libere esa memoria, así que la única forma
-# de recuperarla es que el sistema operativo se quede con el proceso entero.
-#
-# ``ProcessPoolExecutor(max_tasks_per_child=...)`` haría esto por worker
-# individual, pero tiene un deadlock conocido de CPython: el pool se cuelga en
-# cuanto un worker llega a su cupo y se recicla a mitad de una tanda de envíos
-# (https://github.com/python/cpython/issues/115634), sin corregir hasta Python
-# 3.14. Este proyecto pide 3.11+, así que en vez de eso se recicla el **pool
-# entero** cada ``procesos * DOCUMENTOS_POR_RECICLAJE`` documentos: se cierra
-# con el `with` normal (el único camino de arranque/cierre que de verdad está
-# probado) y se abre uno nuevo para el siguiente lote.
+# Documentos por worker antes de reciclar el pool entero. pdfminer no devuelve
+# toda la memoria que reserva por PDF y la única forma de recuperarla es cerrar
+# el proceso. Se recicla el pool completo y no el worker porque
+# max_tasks_per_child tiene un deadlock de CPython sin corregir hasta 3.14.
 DOCUMENTOS_POR_RECICLAJE = 25
 
-# MB de RAM reservados por proceso al calcular el valor por defecto de
-# --procesos. Viene de la misma medición: un worker llegó a ~330 MB de RSS
-# tras dos atlas grandes seguidos (250 y 371 páginas). Se deja margen porque
-# una racha de PDF grandes puede superar esa cifra antes del siguiente
-# reciclaje.
+# MB reservados por proceso al calcular el valor por defecto de --procesos.
 RAM_MB_POR_PROCESO = 600
 
-# Extensión -> (módulo extractor, formato declarado en el contrato).
-# Una extensión que no esté aquí se ignora, pero no en silencio: el reporte de
-# cobertura de `main()` la lista en stderr con su extensión.
-# Sin `.html`/`.htm`: el corpus real de ADL no trae ese formato, así que no
-# tiene extractor registrado.
+# Extensión -> (módulo extractor, formato del contrato). Una extensión que no
+# esté aquí se ignora, pero no en silencio: sale en el reporte de cobertura.
 EXTRACTORES: dict[str, tuple[ModuleType, str]] = {
     ".pdf": (pdf, "pdf"),
     ".json": (json_, "json"),
@@ -106,9 +79,8 @@ _PATRONES_FENOMENO = (_CARPETA_FENOMENO_ADL, _CARPETA_FENOMENO_LEGADO)
 class _Identidad:
     """Quién es un archivo, resuelto antes de extraerlo.
 
-    Se calcula para todos los archivos de golpe porque la ambigüedad de un
-    nombre solo se sabe mirando el conjunto, y porque el choque de ``doc_id``
-    hay que detectarlo antes de escribir el primer JSON, no a mitad.
+    Se calcula para todos de golpe: la ambigüedad de un nombre solo se ve mirando
+    el conjunto, y el choque de ``doc_id`` hay que detectarlo antes de escribir.
     """
 
     ruta: Path
@@ -124,38 +96,16 @@ class _Identidad:
 
 @dataclass(frozen=True)
 class ReporteCobertura:
-    """Qué quedó fuera y por qué.
+    """Qué quedó fuera y por qué. Existe porque la versión anterior filtraba en
+    silencio y nadie se enteraba hasta el cierre."""
 
-    Existe porque la versión anterior filtraba en silencio: una extensión sin
-    extractor desaparecía sin dejar rastro y nadie se enteraba hasta el cierre.
-    """
-
-    sin_extractor: list[str]
-    """Rutas relativas de archivos en disco cuya extensión no está en ``EXTRACTORES``."""
-
-    huerfanos_del_indice: list[str]
-    """Rutas que el índice lista pero que no existen en disco.
-
-    Se calcula contra **todos** los archivos del disco, tengan o no extractor:
-    uno indexado sin extractor sigue estando ahí y sale en ``sin_extractor``,
-    no aquí. Confundir ambos casos mandaría a un operador a buscar un archivo
-    que sí existe.
-    """
-
-    fuera_del_indice: list[str]
-    """Rutas con extractor que están en disco pero el índice no lista."""
-
-    por_origen_doc_id: dict[str, int]
-    """Cuántos ``doc_id`` salieron de "indice" y cuántos de "derivado"."""
-
-    por_origen_fenomeno: dict[str, int]
-    """Cuántos fenómenos salieron de "indice", "carpeta" y "defecto"."""
-
-    nombres_ambiguos: int
-    """Nombres de archivo que aparecen en más de una ruta."""
-
-    archivos_ambiguos: int
-    """Archivos afectados por esos nombres."""
+    sin_extractor: list[str]        # en disco, con una extensión que nadie extrae
+    huerfanos_del_indice: list[str]  # el índice los lista y no están en disco
+    fuera_del_indice: list[str]      # están en disco y el índice no los lista
+    por_origen_doc_id: dict[str, int]      # "indice" / "derivado"
+    por_origen_fenomeno: dict[str, int]    # "indice" / "carpeta" / "defecto"
+    nombres_ambiguos: int   # nombres que aparecen en más de una ruta
+    archivos_ambiguos: int  # archivos afectados por esos nombres
 
 
 def procesar_corpus(
@@ -170,21 +120,13 @@ def procesar_corpus(
 ) -> tuple[list[Documento], ReporteCobertura]:
     """Como :func:`procesar_directorio`, pero devolviendo también la cobertura.
 
-    Cuando hay índice, el índice manda: solo se procesa lo que ADL lista. Un
-    archivo en disco que el índice no menciona no es un documento de la entrega
-    —en el corpus real son el enunciado, el propio índice y los catálogos de
-    scraping—, así que se reporta y no se procesa.
+    Cuando hay índice, el índice manda: lo que no lista se reporta y no se
+    procesa.
 
-    ``solo_doc_ids``, si se pasa, restringe la extracción a esos ``doc_id`` y
-    deja el resto del corpus intacto: sus JSON no se tocan y sus líneas del
-    manifiesto se conservan tal cual. Existe para no repetir una corrida
-    entera de 1826 documentos —30+ minutos con varios procesos— cuando solo
-    unos pocos fallaron por una causa ya corregida (el caso típico: Tesseract
-    no estaba disponible en la corrida anterior). En ese modo la función
-    **devuelve solo los documentos reprocesados**, no el corpus completo, y
-    requiere que ``salida`` ya tenga un manifiesto de una corrida previa —si
-    no lo tiene, no hay nada que conservar y no sabría qué está intacto.
-    Incompatible con ``limpiar``: borraría justo lo que hay que conservar.
+    ``solo_doc_ids`` restringe la extracción a esos ``doc_id`` y deja el resto del
+    corpus intacto —JSON y líneas del manifiesto—, para no repetir una corrida
+    entera por unos pocos fallos ya corregidos. En ese modo devuelve solo los
+    documentos reprocesados, exige un manifiesto previo y no admite ``limpiar``.
     """
     if solo_doc_ids is not None and limpiar:
         raise ValueError(
@@ -215,9 +157,7 @@ def procesar_corpus(
     ]
     _verificar_doc_ids(identidades)
 
-    # Se crea y limpia la salida antes de extraer, no después: cada documento
-    # se escribe en cuanto termina su extracción (ver `_extraer_todos`), así
-    # que el directorio ya tiene que estar listo cuando llegue el primero.
+    # Antes de extraer: cada documento se escribe en cuanto termina.
     salida.mkdir(parents=True, exist_ok=True)
     if limpiar:
         _limpiar_salida(salida)
@@ -282,16 +222,8 @@ def procesar_directorio(
     """Extrae todos los documentos de ``entrada`` y los escribe en ``salida``.
 
     Devuelve los documentos ordenados por ``(fuente, ruta_relativa)``, el mismo
-    orden en que se escribe el manifiesto. Se desempata por ruta porque hay
-    nombres repetidos y ordenar solo por ``fuente`` dejaría su orden relativo a
-    merced del sistema de archivos.
-
-    Lanza ``ValueError`` únicamente si dos archivos acaban con el mismo
-    ``doc_id``: entonces uno sobrescribiría al otro. Un nombre repetido ya no
-    detiene nada, solo se marca en ``meta["fuente_ambigua"]``.
-
-    Con ``solo_doc_ids`` (ver :func:`procesar_corpus`), devuelve solo los
-    documentos reprocesados, no el corpus completo.
+    orden del manifiesto. Lanza ``ValueError`` solo si dos archivos acaban con el
+    mismo ``doc_id``; un nombre repetido se marca en ``meta["fuente_ambigua"]``.
     """
     documentos, _ = procesar_corpus(
         entrada,
@@ -314,18 +246,9 @@ def _cruzar_con_indice(
 ) -> tuple[list[Path], list[str], list[str]]:
     """Reparte los archivos entre los que el índice lista y los que no.
 
-    Sin índice no hay nada que cruzar: se procesa todo lo que tenga extractor.
-    Se compara con ``is None`` y no con verdad/falsedad: un índice vacío
-    (``{}``) es un índice real —un xlsx con cabecera y sin filas— y debe seguir
-    filtrando a "nada", no comportarse como si no se hubiera pasado ``--indice``.
-
-    Los archivos que sí procesa el pipeline (``listadas``) y los que sobran del
-    disco (``sueltas``) se calculan solo sobre ``con_extractor``, porque eso es
-    lo único que se puede llegar a extraer. Los huérfanos, en cambio, se
-    calculan contra ``todos`` los archivos del disco: un archivo que el índice
-    lista y que existe en disco pero sin extractor registrado no es un
-    huérfano, es un caso de ``sin_extractor``. Cruzarlo solo contra
-    ``con_extractor`` lo reportaría como "no existe en disco" cuando sí existe.
+    Se compara con ``is None``: un índice vacío es un índice real y debe filtrar
+    a "nada". Los huérfanos se calculan contra **todos** los archivos del disco y
+    no solo los extraíbles, o uno sin extractor se reportaría como inexistente.
     """
     if indice is None:
         return con_extractor, [], []
@@ -339,7 +262,7 @@ def _cruzar_con_indice(
             sueltas.append(relativa)
 
     existentes = {_ruta_relativa(ruta, entrada) for ruta in todos}
-    # Se recorre el índice, no un set, para que el orden sea el del archivo.
+    # Se recorre el índice y no el set, para que el orden sea el del archivo.
     huerfanos = [relativa for relativa in indice if relativa not in existentes]
     return listadas, sueltas, huerfanos
 
@@ -368,11 +291,7 @@ def _avisar_colisiones(colisiones: dict[str, list[str]]) -> None:
 
 
 def _pluralizar(sustantivo: str, cantidad: int) -> str:
-    """Añade una "s" si ``cantidad`` no es 1.
-
-    El vocabulario del pipeline ("nombre", "archivo") es lo bastante simple
-    como para no necesitar una librería de pluralización.
-    """
+    """Añade una "s" si ``cantidad`` no es 1."""
     return sustantivo if cantidad == 1 else f"{sustantivo}s"
 
 
@@ -384,9 +303,6 @@ def _listar_archivos(entrada: Path) -> list[Path]:
 
     Se ordena explícitamente: el orden de ``rglob`` depende del sistema de
     archivos y bastaría para que dos corridas difieran.
-
-    Los metadatos del sistema de archivos no cuentan como archivos del corpus:
-    ver :func:`_es_ruido_del_sistema`.
     """
     if not entrada.is_dir():
         raise ValueError(f"el directorio de entrada no existe: {entrada}")
@@ -401,21 +317,15 @@ def _listar_archivos(entrada: Path) -> list[Path]:
     )
 
 
-# Metadatos que dejan Finder y el Explorador de Windows en cada carpeta. El
-# corpus de ADL viene de un Mac y trae nueve `.DS_Store`, uno por carpeta.
+# Metadatos que dejan Finder y el Explorador. El corpus viene de un Mac.
 _RUIDO_DEL_SISTEMA = frozenset({".ds_store", "thumbs.db", "desktop.ini"})
 
 
 def _es_ruido_del_sistema(ruta: Path) -> bool:
     """``True`` para los metadatos que deja el sistema de archivos.
 
-    No son "formatos sin extractor" —eso es un `.docx`, algo que se podría
-    soportar y no se soporta— sino basura del sistema operativo. Listarlos como
-    lo primero esconde a los segundos, que son los que hay que mirar.
-
-    ``._nombre`` es la otra mitad del par de AppleDouble: cuando un volumen no
-    soporta los metadatos extendidos de macOS, cada archivo viene acompañado de
-    su gemelo con ese prefijo.
+    No son "formatos sin extractor" —eso es un `.docx`— y contarlos como tales
+    escondería a los que sí hay que mirar. ``._nombre`` es el gemelo AppleDouble.
     """
     return ruta.name.lower() in _RUIDO_DEL_SISTEMA or ruta.name.startswith("._")
 
@@ -432,13 +342,8 @@ def _ruta_relativa(ruta: Path, raiz: Path) -> str:
 def _agrupar_colisiones(rutas: list[Path], raiz: Path) -> dict[str, list[str]]:
     """Nombres de archivo que aparecen en más de una ruta.
 
-    Ya no lanza: en el corpus de ADL hay 59 nombres repartidos en 186 archivos y
-    son colisiones legítimas —el mismo informe archivado por tipo, el mismo tile
-    en varios niveles de zoom—. Abortar por ellas dejaba el pipeline sin
-    procesar nada. Se registran como ``fuente_ambigua`` y se sigue.
-
-    El orden es determinista: ``rutas`` viene ordenada y los dict de Python
-    conservan el orden de inserción.
+    No lanza: en el corpus hay 59 nombres en 186 archivos y son colisiones
+    legítimas. Se marcan como ``fuente_ambigua`` y se sigue.
     """
     por_nombre: dict[str, list[str]] = {}
     for ruta in rutas:
@@ -447,12 +352,8 @@ def _agrupar_colisiones(rutas: list[Path], raiz: Path) -> dict[str, list[str]]:
 
 
 def _verificar_doc_ids(identidades: list[_Identidad]) -> None:
-    """Única condición que sigue deteniendo la corrida.
-
-    Un nombre repetido es un problema del corpus y se anota. Un ``doc_id``
-    repetido es un problema de identidad: el JSON de un documento sobrescribiría
-    al del otro y el manifiesto tendría dos líneas apuntando al mismo archivo.
-    """
+    """Única condición que sigue deteniendo la corrida: con dos ``doc_id``
+    iguales, el JSON de uno sobrescribe al del otro."""
     vistos: dict[str, str] = {}
     for identidad in identidades:
         anterior = vistos.get(identidad.doc_id)
@@ -468,10 +369,8 @@ def _verificar_doc_ids(identidades: list[_Identidad]) -> None:
 def _fenomeno_de_carpeta(ruta_relativa: str) -> int | None:
     """Fenómeno declarado por alguna carpeta del camino, o ``None``.
 
-    Devuelve ``None`` en vez del valor por defecto para que quien llame pueda
-    distinguir "lo dice la carpeta" de "no lo dice nadie" y registrarlo en
-    ``origen_fenomeno``. Con la versión anterior los 1367 documentos de F2 y F3
-    se etiquetaban como fenómeno 1 en silencio.
+    ``None`` y no el valor por defecto, para que quien llame pueda distinguir "lo
+    dice la carpeta" de "no lo dice nadie" y anotarlo en ``origen_fenomeno``.
     """
     for parte in PurePosixPath(ruta_relativa).parts[:-1]:
         for patron in _PATRONES_FENOMENO:
@@ -490,13 +389,11 @@ def _identidad_de(
 ) -> _Identidad:
     """Resuelve identidad y fenómeno, del más fiable al menos.
 
-    ``doc_id`` sale del índice de ADL si el archivo está listado. Si no, se
-    deriva de la **ruta relativa** y no del nombre: derivarlo del nombre le daba
-    el mismo ``doc_id`` a los 7 PDF homónimos de CSET.
+    ``doc_id`` sale del índice si el archivo está listado; si no, de la **ruta
+    relativa** y no del nombre, que se repite.
     """
     ruta_relativa = _ruta_relativa(ruta, raiz)
-    # ``is not None`` y no verdad/falsedad: un índice vacío sigue siendo un
-    # índice (nada listado, luego nada tiene entrada), no la ausencia de uno.
+    # ``is not None``: un índice vacío sigue siendo un índice.
     entrada = indice.get(ruta_relativa) if indice is not None else None
 
     if entrada is not None:
@@ -529,8 +426,7 @@ def _identidad_de(
 def _meta_de(identidad: _Identidad) -> dict:
     """Metadata que el orquestador añade a la que traiga el extractor.
 
-    ``observatorio`` no es decorativo: sirve de post-filtro y, más adelante, de
-    prefijo para enriquecer el texto del chunk antes de codificarlo.
+    ``observatorio`` no es decorativo: es post-filtro y prefijo de contexto.
     """
     meta = {
         "ruta_relativa": identidad.ruta_relativa,
@@ -556,27 +452,10 @@ def _extraer_todos(
     """Extrae todos los documentos, repartiéndolos entre procesos si se pide.
 
     El paralelismo no cambia el resultado: cada extracción es independiente y la
-    lista se ordena después por ``(fuente, ruta_relativa)``, así que el orden en
-    que terminen los procesos da igual. Merece la pena porque el PDF domina la
-    corrida —2,9 GB y ~31.000 páginas, y el 99 % de ese tiempo está dentro de
-    pdfplumber, no en código propio que se pueda optimizar—.
-
-    Cada documento se escribe a disco en cuanto termina, en vez de esperar a
-    que acaben los 1826: con el corpus real, acumularlos todos en memoria antes
-    de escribir el primer byte es un segundo consumidor de RAM en el proceso
-    orquestador —menor que el de los workers, pero real—. Por eso se recorre
-    con ``as_completed`` (orden de llegada) y no con ``pool.map`` (orden de
-    envío): así el primer resultado que llega es el primero que se escribe,
-    sin esperar a que termine el documento más lento.
-
-    El pool entero se recicla cada ``procesos * reciclar_cada`` documentos (ver
-    ``DOCUMENTOS_POR_RECICLAJE``), para que el sistema operativo recupere lo
-    que pdfminer deja retenido. No se usa ``max_tasks_per_child`` —recicla por
-    worker individual, pero tiene un deadlock conocido de CPython sin corregir
-    hasta 3.14— así que se abren pools sucesivos, uno por lote.
-
-    Con ``procesos=1`` no se arranca ningún pool: en un corpus pequeño, levantar
-    intérpretes cuesta más que el trabajo.
+    lista se ordena después. Cada documento se escribe en cuanto termina —de ahí
+    ``as_completed`` y no ``pool.map``— y el pool entero se recicla cada
+    ``procesos * reciclar_cada`` documentos para recuperar la memoria que
+    pdfminer retiene. Con ``procesos=1`` no se arranca ningún pool.
     """
     if procesos <= 1 or len(identidades) < 2:
         documentos = []
@@ -600,12 +479,8 @@ def _extraer_todos(
 
 
 def _extraer_documento(identidad: _Identidad) -> Documento:
-    """Invoca al extractor correspondiente, blindando el pipeline.
-
-    Los stubs aún no implementados lanzan ``NotImplementedError``, y un
-    extractor nuevo puede tener errores. Ninguno de los dos casos puede detener
-    la corrida: se devuelve un documento válido con el motivo en ``errores``.
-    """
+    """Invoca al extractor correspondiente, blindando el pipeline: cualquier
+    fallo se convierte en un documento válido con el motivo en ``errores``."""
     modulo, formato = EXTRACTORES[identidad.ruta.suffix.lower()]
     try:
         documento = modulo.extraer(identidad.ruta, identidad.fenomeno)
@@ -625,9 +500,8 @@ def _extraer_documento(identidad: _Identidad) -> Documento:
 def _con_identidad(documento: Documento, identidad: _Identidad) -> Documento:
     """Impone la identidad resuelta sobre lo que devolvió el extractor.
 
-    El extractor solo ve su archivo, así que no puede saber su ``DOC_ID`` de ADL
-    ni si su nombre choca con otro. ``fuente`` no se toca nunca: es el campo de
-    emparejamiento con el jurado.
+    El extractor solo ve su archivo: no sabe su ``DOC_ID`` ni si su nombre choca
+    con otro. ``fuente`` no se toca nunca.
     """
     meta = dict(documento.meta)
     meta.update(_meta_de(identidad))
@@ -656,12 +530,8 @@ def _documento_fallido(identidad: _Identidad, formato: str, motivo: str) -> Docu
 def _limpiar_salida(salida: Path) -> None:
     """Borra los productos de una corrida anterior.
 
-    Sin esto, los documentos de un corpus previo quedan como huérfanos y
-    ensucian el diff. Se restringe por patrón (``*.json`` y
-    ``manifiesto.jsonl``), no por autoría: no distingue un ``.json`` que
-    escribió este módulo de uno ajeno que viva en el mismo directorio de
-    salida, así que quien pase ``--salida`` debe usar un directorio dedicado
-    al pipeline, no uno donde guarde otra cosa.
+    Por patrón y no por autoría: no distingue un ``.json`` propio de uno ajeno,
+    así que ``--salida`` tiene que ser un directorio dedicado al pipeline.
     """
     for archivo in sorted(salida.glob("*.json")):
         archivo.unlink()
@@ -671,12 +541,8 @@ def _limpiar_salida(salida: Path) -> None:
 
 
 def _escribir_json(ruta: Path, datos: dict) -> None:
-    """Escribe JSON de forma reproducible byte a byte.
-
-    ``sort_keys`` fija el orden de las claves, ``indent`` la forma, y
-    ``newline="\\n"`` evita que Windows escriba CRLF y rompa el diff con las
-    corridas hechas en Linux.
-    """
+    """Escribe JSON reproducible byte a byte: claves ordenadas y saltos Unix
+    aunque se corra en Windows."""
     contenido = json.dumps(datos, ensure_ascii=False, sort_keys=True, indent=2)
     ruta.write_text(contenido + "\n", encoding="utf-8", newline="\n")
 
@@ -684,10 +550,8 @@ def _escribir_json(ruta: Path, datos: dict) -> None:
 def _escribir_manifiesto(entradas: list[dict], ruta: Path) -> None:
     """Escribe entradas ya resueltas, una por línea.
 
-    Toma diccionarios y no ``Documento`` porque el modo ``solo_doc_ids`` de
-    :func:`procesar_corpus` mezcla entradas nuevas (recién extraídas) con
-    entradas viejas leídas tal cual del manifiesto anterior, que ya no traen el
-    ``Documento`` completo detrás.
+    Toma dicts y no ``Documento`` porque ``solo_doc_ids`` mezcla entradas recién
+    extraídas con otras leídas tal cual del manifiesto anterior.
     """
     lineas = [json.dumps(entrada, ensure_ascii=False, sort_keys=True) for entrada in entradas]
     contenido = "".join(f"{linea}\n" for linea in lineas)
@@ -695,11 +559,8 @@ def _escribir_manifiesto(entradas: list[dict], ruta: Path) -> None:
 
 
 def _entrada_de_manifiesto(documento: Documento) -> dict:
-    """Resumen de una línea del manifiesto.
-
-    ``observatorio`` y ``fuente_ambigua`` están aquí y no solo en el JSON para
-    poder filtrar y auditar el corpus entero sin abrir 1826 archivos.
-    """
+    """Resumen de una línea del manifiesto: lo justo para auditar el corpus
+    entero sin abrir 1826 archivos."""
     return {
         "doc_id": documento.doc_id,
         "fuente": documento.fuente,
@@ -783,14 +644,7 @@ def _construir_parser() -> argparse.ArgumentParser:
 
 
 def _procesos_por_defecto() -> int:
-    """Procesos en paralelo que caben en la RAM disponible, sin superar los núcleos.
-
-    Antes el valor por defecto era 1 (secuencial: ~3 horas sobre el corpus
-    real) y usar más procesos exigía que el operador adivinara un número y se
-    arriesgara a un ``MemoryError`` a mitad de una corrida de horas si se
-    pasaba. Esta cuenta lo hace explícito: cuánta RAM hay libre ahora mismo,
-    entre cuánta se reserva por proceso (``RAM_MB_POR_PROCESO``).
-    """
+    """Procesos que caben en la RAM libre ahora mismo, sin superar los núcleos."""
     disponible_mb = psutil.virtual_memory().available / (1024 * 1024)
     por_ram = max(1, int(disponible_mb // RAM_MB_POR_PROCESO))
     return max(1, min(por_ram, os.cpu_count() or 1))
@@ -868,13 +722,8 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def _informar_cobertura(reporte: ReporteCobertura, muestra: int = 10) -> None:
-    """Vuelca el reporte a stderr.
-
-    No devuelve código de error: los tres conteos en cero es lo deseable, pero
-    en el corpus de ADL hay 13 archivos legítimos fuera del índice —el
-    enunciado, el propio índice y los catálogos de scraping— y abortar por eso
-    sería peor que informarlo.
-    """
+    """Vuelca el reporte a stderr. No devuelve error: en el corpus hay 13
+    archivos legítimos fuera del índice y abortar por eso sería peor."""
     print("--- cobertura ---", file=sys.stderr)
     print(f"  doc_id por origen:   {reporte.por_origen_doc_id}", file=sys.stderr)
     print(f"  fenomeno por origen: {reporte.por_origen_fenomeno}", file=sys.stderr)

@@ -1,15 +1,12 @@
-"""Contrato de datos de la capa de extracción.
+"""Contrato de datos de la capa de extracción: ``Bloque``, ``Documento`` y el
+validador de sus invariantes.
 
-Define las dos únicas estructuras que cruzan la frontera entre extractores y el
-resto del pipeline, y la función que verifica sus invariantes.
+Depende solo de :mod:`limpieza`. Las dos clases son ``frozen`` pero contienen
+listas y dicts: trátalas como valores, constrúyelas de una vez y no las mutes.
 
-Regla de dependencias: este módulo depende de :mod:`limpieza` (para saber qué
-es un texto normalizado) y de nada más. Los extractores dependen de ambos.
-
-Nota sobre inmutabilidad: ambas clases son ``frozen``, pero contienen listas y
-diccionarios. "Frozen" impide reasignar campos, no mutar su contenido, y hace
-que las instancias no sean hashables. Trátalas como valores: constrúyelas de
-una vez y no las modifiques.
+Las reglas de identidad —de dónde sale cada ``doc_id``, por qué ``fuente`` es
+inmutable, qué detiene la corrida— están en
+``docs/decisiones/orquestacion-y-determinismo.md``.
 """
 
 from __future__ import annotations
@@ -28,8 +25,7 @@ FENOMENOS: tuple[int, ...] = (1, 2, 3)
 
 NIVEL_MINIMO, NIVEL_MAXIMO = 1, 6
 
-# 8 bytes de blake2b => 16 caracteres hexadecimales. Suficiente para decenas de
-# miles de documentos y corto para usarse como nombre de archivo.
+# 8 bytes de blake2b => 16 caracteres hexadecimales.
 BYTES_DOC_ID = 8
 
 
@@ -37,76 +33,36 @@ BYTES_DOC_ID = 8
 class Bloque:
     """Unidad mínima de texto extraída de un documento."""
 
-    texto: str
-    """Texto limpio, sin marcado, normalizado según :func:`limpieza.normalizar_texto`."""
+    texto: str          # normalizado según limpieza.normalizar_texto
+    tipo: str           # uno de TIPOS_BLOQUE
+    nivel: int | None   # 1..6 si y solo si tipo == "titulo"
+    ruta: list[str]     # breadcrumb de encabezados ancestros vigentes
+    pagina: int | None  # 1-based si el formato tiene páginas
+    atomico: bool       # unidad indivisible: no se parte ni se fusiona
 
-    tipo: str
-    """Uno de :data:`TIPOS_BLOQUE`."""
-
-    nivel: int | None
-    """1..6 si y solo si ``tipo == "titulo"``; ``None`` en el resto."""
-
-    ruta: list[str]
-    """Breadcrumb de encabezados ancestros vigentes, del más externo al más interno."""
-
-    pagina: int | None
-    """Página de origen (1-based) si el formato la tiene; ``None`` si no."""
-
-    atomico: bool
-    """``True`` si es una unidad indivisible que no debe fusionarse con vecinas."""
-
+    # Campos del registro que no entran al texto (identificadores tabulares).
+    # Viajan hasta metadata.jsonl como campos extra, que §3.4 permite.
     datos: dict[str, str] = field(default_factory=dict)
-    """Campos del bloque que **no** entran en :attr:`texto`.
-
-    Existe para los identificadores de los registros tabulares —PMID, DOI,
-    PMCID— que se recuperan mal por semejanza pero se citan y se verifican.
-    Sacarlos del texto mejora el vector; borrarlos perdería datos del corpus.
-    Viajan hasta ``metadata.jsonl`` como campos extra, que §3.4 permite.
-
-    Va con default porque los demás extractores no tienen nada que poner aquí:
-    en un PDF, todo lo que hay es texto."""
 
 
 @dataclass(frozen=True)
 class Documento:
     """Un archivo del corpus, ya extraído."""
 
-    doc_id: str
-    """Identificador interno, estable entre corridas. Sale del ``DOC_ID`` del
-    índice de ADL cuando lo hay; si no, se deriva de ``meta["ruta_relativa"]``
-    o de :attr:`fuente`. Ver :func:`calcular_doc_id` y
-    :func:`_doc_id_es_admisible` para las tres formas admitidas y el orden de
-    preferencia entre ellas."""
-
-    fuente: str
-    """Nombre o URL EXACTA del archivo original. Campo inmutable de emparejamiento."""
-
-    formato: str
-    """Uno de :data:`FORMATOS`."""
-
-    fenomeno: int
-    """1, 2 o 3."""
-
-    idioma: str
-    """ISO 639-1 predominante: uno de :data:`IDIOMAS`."""
-
-    bloques: list[Bloque]
-    """En orden de lectura del documento original."""
-
-    meta: dict[str, Any]
-    """Campos descriptivos: url, fecha, autores, titulo, hoja..."""
-
-    errores: list[str]
-    """Vacía si la extracción fue limpia."""
+    doc_id: str            # ver _doc_id_es_admisible: tres formas, por preferencia
+    fuente: str            # nombre EXACTO del archivo. Inmutable: empareja el jurado
+    formato: str           # uno de FORMATOS
+    fenomeno: int          # 1, 2 o 3
+    idioma: str            # uno de IDIOMAS
+    bloques: list[Bloque]  # en orden de lectura
+    meta: dict[str, Any]   # url, fecha, autores, titulo, hoja...
+    errores: list[str]     # vacía si la extracción fue limpia
 
 
 def calcular_doc_id(fuente: str) -> str:
     """Identificador estable derivado de la fuente.
 
-    Se usa blake2b y no ``hash()`` porque ``hash()`` de una cadena depende de
-    ``PYTHONHASHSEED`` y cambiaría entre corridas. El resultado solo depende de
-    los bytes UTF-8 de ``fuente``, así que dos corridas sobre el mismo corpus
-    producen los mismos nombres de archivo.
+    blake2b y no ``hash()``: el de Python depende de ``PYTHONHASHSEED``.
     """
     digest = hashlib.blake2b(fuente.encode("utf-8"), digest_size=BYTES_DOC_ID)
     return digest.hexdigest()
@@ -118,17 +74,7 @@ def documento_a_dict(doc: Documento) -> dict[str, Any]:
 
 
 def documento_desde_dict(datos: dict[str, Any]) -> Documento:
-    """Inverso de :func:`documento_a_dict`.
-
-    Existe porque la capa de fragmentación no vuelve a extraer nada: lee los
-    ``extraidos/{doc_id}.json`` que dejó el orquestador. Sin esto, cada
-    consumidor reconstruiría los ``Bloque`` a mano y el contrato dejaría de ser
-    un único punto de verdad.
-
-    Lanza ``ValueError`` si faltan campos: un JSON incompleto significa que el
-    archivo no lo escribió este pipeline, y seguir adelante con valores
-    inventados enmascararía el problema hasta el índice.
-    """
+    """Inverso de :func:`documento_a_dict`. Lanza si faltan campos del contrato."""
     campos_documento = {campo.name for campo in fields(Documento)}
     faltan = sorted(campos_documento - datos.keys())
     if faltan:
@@ -141,12 +87,8 @@ def documento_desde_dict(datos: dict[str, Any]) -> Documento:
 
 
 def _bloque_desde_dict(crudo: dict[str, Any]) -> Bloque:
-    """Reconstruye un bloque. Los campos con default pueden faltar.
-
-    Que puedan faltar no es laxitud: un ``extraidos/`` de una corrida anterior
-    no tiene por qué traer los campos que se añadieron después, y hacerlo
-    fallar obligaría a reextraer el corpus entero para leer un solo documento.
-    """
+    """Reconstruye un bloque. Los campos con default pueden faltar: un
+    ``extraidos/`` anterior no trae los que se añadieron después."""
     campos = fields(Bloque)
     obligatorios = {
         campo.name
@@ -164,17 +106,10 @@ _DOC_ID_ADL = re.compile(r"^F[123]-[A-Z0-9]+-\d+$")
 
 
 def _doc_id_es_admisible(doc: Documento) -> bool:
-    """Un ``doc_id`` vale si es trazable a algo estable, no si es cualquier cosa.
+    """Un ``doc_id`` vale si es trazable a algo estable.
 
-    Son tres formas, por orden de preferencia del pipeline:
-
-    1. El ``DOC_ID`` que entrega ADL en su índice maestro. Es la identidad
-       oficial del documento y la que el jurado puede rastrear.
-    2. Derivado de ``meta["ruta_relativa"]``. Necesario porque 59 nombres de
-       archivo se repiten en el corpus (186 archivos): derivarlo de ``fuente``
-       le daría el mismo ``doc_id`` a documentos distintos y uno sobrescribiría
-       al otro.
-    3. Derivado de ``fuente``. El caso simple, sin índice y sin colisiones.
+    Tres formas, por orden de preferencia: el ``DOC_ID`` de ADL, derivado de
+    ``meta["ruta_relativa"]`` o derivado de ``fuente``.
     """
     if _DOC_ID_ADL.match(doc.doc_id):
         return True
@@ -203,7 +138,6 @@ def _violaciones_de_bloque(indice: int, bloque: Bloque) -> list[str]:
     if bloque.tipo not in TIPOS_BLOQUE:
         violaciones.append(f"{prefijo}: tipo {bloque.tipo!r} no está en {TIPOS_BLOQUE}")
 
-    # nivel es no nulo si y solo si el bloque es un título.
     if bloque.tipo == "titulo":
         if bloque.nivel is None:
             violaciones.append(f"{prefijo}: un titulo debe llevar nivel")
@@ -241,9 +175,7 @@ def _violaciones_de_bloque(indice: int, bloque: Bloque) -> list[str]:
 def _violaciones_de_jerarquia(bloques: list[Bloque]) -> list[str]:
     """Comprueba que cada ``ruta`` sean los ancestros vigentes, no el histórico.
 
-    Reconstruye la pila de encabezados recorriendo los bloques en orden y la
-    compara con la ruta declarada. Un título de nivel N cierra todos los títulos
-    de nivel >= N que estuvieran abiertos.
+    Un título de nivel N cierra todos los de nivel >= N que estuvieran abiertos.
     """
     violaciones: list[str] = []
     pila: list[tuple[int, str]] = []  # (nivel, texto)
@@ -257,8 +189,7 @@ def _violaciones_de_jerarquia(bloques: list[Bloque]) -> list[str]:
         )
 
         if bloque.tipo == "titulo" and not es_titulo_valido:
-            # El nivel ya se reportó como inválido; sin él no se puede situar
-            # el título en la jerarquía, así que no se arrastra el error.
+            # El nivel ya se reportó inválido; sin él no se puede situar el título.
             continue
 
         if es_titulo_valido:
@@ -281,9 +212,7 @@ def _violaciones_de_jerarquia(bloques: list[Bloque]) -> list[str]:
 def validar_documento(doc: Documento) -> list[str]:
     """Devuelve la lista de invariantes violados por ``doc``; vacía si está bien.
 
-    Pensada para los tests y para depurar un extractor nuevo. El pipeline en
-    producción no la llama: un documento inválido debe ser imposible de
-    construir, no algo que se detecte al final.
+    Para los tests y para depurar un extractor nuevo. El pipeline no la llama.
     """
     violaciones: list[str] = []
 

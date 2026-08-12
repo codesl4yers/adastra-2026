@@ -1,7 +1,10 @@
 # Qué columnas de un dataset entran al vector
 
 **Fecha:** 2026-08-09
-**Estado:** implementado (`extractores/tabular.py`), tope de filas pendiente de decisión
+**Estado:** implementado (`extractores/tabular.py`) y aplicado al corpus.
+El escenario A —agrupar registros cortos— es el que se corrió: la fragmentación
+vigente tiene 31 396 fragmentos de csv y 681 de xlsx. El tope de filas se
+mantiene en `MAXIMO_FILAS = 5000`; ver §El tope de filas.
 
 ## El problema
 
@@ -96,3 +99,21 @@ miden lo mismo, no hay padding que pagar y el lote grande gana.
 La consecuencia práctica: si los exports bibliográficos pasan a ser mayoría de
 los vectores, conviene **volver a medir** el lote óptimo sobre la mezcla nueva
 en vez de heredar el 2 de la tabla anterior.
+
+## El tope de filas
+
+`MAXIMO_FILAS = 5000` por archivo, y lo que sobra se cuenta en
+`meta["filas_truncadas"]` y se anota en `errores`. Afecta a 7 de los 30 archivos
+tabulares del corpus. Se mantiene por dos razones:
+
+- Un dataset de decenas de miles de filas produce decenas de miles de vectores
+  casi idénticos que ahogan el índice: los 26 CSV ya aportan 17,6 M de
+  caracteres frente a los 90,7 M de los 759 PDF, y el jurado evalúa documentos,
+  no filas.
+- Truncar es reversible y silenciar no: la fila 5001 sigue en el corpus, y subir
+  el tope es cambiar una constante y reindexar.
+
+Es una limitación consciente y **no está medida contra el ground truth**. Si una
+consulta del ground truth apunta a una fila truncada, el tope pasa de decisión de
+coste a fallo de cobertura; con la corrida actual no ocurre, porque ninguna de
+las 250 referencias del ground truth cae en un archivo tabular truncado.
