@@ -9,6 +9,51 @@ real está en `docs/superpowers/plans/2026-08-02-orquestador-corpus-adl.md`.
 
 ---
 
+## 0. El contrato de datos
+
+Las dos únicas estructuras que cruzan la frontera entre extractores y el resto
+del pipeline:
+
+```python
+@dataclass(frozen=True)
+class Bloque:
+    texto: str          # limpio, sin marcado, NFC, sin espacios redundantes
+    tipo: str           # "titulo" | "parrafo" | "lista" | "fila" | "ocr"
+    nivel: int | None   # 1..6 si y solo si tipo == "titulo"
+    ruta: list[str]     # breadcrumb de encabezados ancestros vigentes
+    pagina: int | None  # 1-based si el formato tiene páginas
+    atomico: bool       # True => unidad indivisible (fila de CSV, feature)
+    datos: dict[str, str]   # campos que no entran al texto (identificadores)
+
+@dataclass(frozen=True)
+class Documento:
+    doc_id: str         # del índice de ADL, o derivado de la ruta relativa
+    fuente: str         # nombre EXACTO del archivo original
+    formato: str        # "pdf"|"json"|"csv"|"xlsx"|"imagen"|"pbf"|"texto"
+    fenomeno: int       # 1, 2 o 3
+    idioma: str         # "es" | "en" | "pt"
+    bloques: list[Bloque]
+    meta: dict
+    errores: list[str]
+```
+
+`validar_documento(doc) -> list[str]` devuelve los invariantes violados, vacía si
+está correcto. Ver §8.
+
+### Las cinco reglas que no se negocian
+
+1. **Nada de modelos generativos.** Ni para limpiar, ni para resumir, ni para
+   clasificar. Solo reglas, parsers y modelos encoder.
+2. **`fuente` es inmutable.** Es el nombre exacto del archivo entregado, con su
+   extensión, sin renombrar ni normalizar. La evaluación empareja por este campo.
+   `doc_id` es interno y derivado; `fuente` es el contrato con el jurado.
+3. **Determinismo total.** Nada de iterar `set()` sin ordenar, nada de depender
+   del orden de `rglob`, nada de `hash()` nativo. Ver §5.
+4. **Ningún extractor tumba el pipeline.** Un archivo corrupto produce un
+   `Documento` válido con `bloques=[]` y el motivo en `errores`.
+5. **Lo único que detiene la corrida es una identidad inconsistente**, detectada
+   antes de escribir nada. Ver §3.
+
 ## 1. Quién es un documento
 
 Tres campos y tres reglas distintas.
@@ -160,6 +205,33 @@ intacto.
 `--limpiar` borra por patrón (`*.json` y el manifiesto), no por autoría: no
 distingue un `.json` que escribió el pipeline de uno ajeno que viva en el mismo
 directorio. Quien pase `--salida` debe usar un directorio dedicado.
+
+## 7.1 Lo que se verificó contra el corpus real
+
+`validar_documento` corrido sobre los 1826 documentos reales, no sobre una
+muestra ni sobre fixtures sintéticas:
+
+| Formato | Documentos | Con bloques | Bloques | Caracteres | Violaciones del contrato |
+|---|---:|---:|---:|---:|---:|
+| `pdf` | 759 | 757 | 522.971 | 90,7 M | 0 |
+| `json` | 954 | 953 | 13.412 | 4,7 M | 0 |
+| `csv` | 26 | 26 | 38.558 | 17,6 M | 0 |
+| `xlsx` | 4 | 4 | 5.039 | 0,8 M | 0 |
+| `pbf` | 73 | 73 | 11.979 | 5,5 M | 0 |
+| `texto` | 1 | 1 | 1 | 12 K | 0 |
+| `imagen` | 9 | 4 | 48 | 1,8 K | 0 |
+| **total** | **1826** | **1818** | **592.008** | **119,4 M** | **0** |
+
+Los 8 documentos sin bloques son legítimos: 1 JSON de origen vacío, 2 PDF
+corruptos (`PdfminerException: No /Root object!`) y 5 imágenes donde Tesseract
+corrió y no encontró texto fiable —son fotografías—. Sumando los 7 CSV/XLSX
+truncados a 5000 filas por diseño, quedan 15 documentos con algo anotado en
+`errores`; ninguno es un fallo del pipeline.
+
+Dos cosas que conviene saber antes de indexar: los 26 CSV aportan casi tanto
+texto como los 759 PDF —17,6 M de caracteres frente a 90,7 M, aun con el
+truncado—, así que pesan desproporcionadamente en el índice; y entre el 5 y el
+11 % de los PDF vienen escaneados.
 
 ## 8. `validar_documento` es para los tests
 

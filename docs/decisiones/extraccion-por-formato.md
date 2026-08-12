@@ -7,6 +7,17 @@ de `extractores/`.
 
 ---
 
+## 0. Resumen por formato
+
+| Formato | Unidad de bloque | Jerarquía | Notas |
+|---|---|---|---|
+| `pdf` | párrafo | por tamaño de fuente | detecta dos columnas por el corredor vertical; cabeceras y pies repetidos se descartan |
+| `json` | párrafo | `title` → `sections[].heading` | reconoce el esquema de artículo del scraper; cae a recorrido genérico si no lo encuentra |
+| `csv` / `xlsx` | fila **atómica** | hoja (xlsx) | `columna: valor` en cada fila, para que se recupere sin la cabecera |
+| `pbf` | feature **atómica** | capa | solo `properties`; la geometría nunca entra al índice |
+| `texto` | párrafo | encabezados Markdown | párrafos por línea en blanco, no por salto de línea |
+| `imagen` | línea de OCR | — | metadata EXIF siempre; texto solo si hay Tesseract |
+
 ## 1. La regla común
 
 Un extractor es una función pura `extraer(path, fenomeno) -> Documento` que
@@ -256,3 +267,58 @@ y gráficos, que son la mitad de las imágenes de este corpus.
 El corpus real de ADL no trae `.html` ni `.htm`. Mantener un extractor para un
 formato que el corpus no tiene es complejidad muerta que arrastra dependencias
 (`beautifulsoup4`, `lxml`) y fixtures que ningún archivo real ejercita.
+
+## 11. Cómo añadir un extractor nuevo
+
+Los seis formatos del corpus ya están; esto vale para uno nuevo.
+
+**0. Usa `extractores/comun.py`.** `Jerarquia` lleva la pila de encabezados que
+`validar_documento` va a reconstruir y comparar; llevarla por tu cuenta produce
+documentos que no validan por un detalle de bookkeeping. `es_texto_natural`,
+`serializar_registro` y `construir_documento` cubren el resto.
+
+**1. Escribe primero las fixtures y las pruebas.** Al menos un archivo bien
+formado, uno con boilerplate y uno corrupto.
+
+**2. Implementa la firma exacta.** Sin excepciones, sin estado global, sin
+escribir a disco:
+
+```python
+def extraer(path: Path, fenomeno: int) -> Documento:
+```
+
+**3. Envuelve todo en el blindaje**, con `bloques` asignado de una sola vez al
+final del `try`. Si algo falla a mitad, queda `[]` en lugar de una lista a medio
+llenar, que es peor que nada porque parece válida:
+
+```python
+def extraer(path: Path, fenomeno: int) -> Documento:
+    fuente = path.name          # nunca path.stem, nunca una ruta normalizada
+    errores, meta, bloques = [], {}, []
+    try:
+        ...
+        bloques = _extraer_bloques(...)
+    except ExtraccionFallida as exc:
+        errores.append(str(exc))
+    except Exception as exc:
+        errores.append(f"error inesperado ({type(exc).__name__}): {exc}")
+    ...
+```
+
+**4. Usa `limpieza`, no reinventes.** `normalizar_texto` en todo texto antes de
+construir el `Bloque`. `es_ruido_estructural` para numeración de páginas.
+`lineas_repetidas` para cabeceras y pies, pasándole como "unidades" lo que en tu
+formato se repite: páginas en PDF, hojas en XLSX.
+
+**5. Mantén el breadcrumb.** Una pila de `(nivel, texto)`; un título de nivel N
+cierra los de nivel >= N. **Construye una lista nueva para cada `ruta`**: si
+compartes la misma lista entre bloques, todos acaban viendo el último breadcrumb.
+
+**6. Ordena todo lo que recorras.** Claves de diccionario, resultados de `glob`,
+features de una capa. Si el orden lo decide una librería, ordénalo tú.
+
+**7. Regístralo** en `EXTRACTORES` de `orquestador.py`, mapeando extensión a
+`(módulo, formato)`.
+
+**8. Comprueba el contrato.** `validar_documento` debe salir vacía para todas tus
+fixtures, y dos corridas deben dar bytes idénticos.

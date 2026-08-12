@@ -159,7 +159,32 @@ Cada documento va acompañado del fragmento que lo metió en el top-3: es la
 evidencia de por qué está ahí, y sin ella el jurado tiene un `doc_id` y nada con
 que comprobarlo.
 
-## 8. La verificación de piso
+## 8. El ground truth interno
+
+`ground/ground_truth.json`: 50 consultas etiquetadas a mano —las mismas de ADL,
+`q001`–`q050`— con cinco fragmentos relevantes cada una ordenados por `rank`. Son
+250 referencias sobre 234 `chunk_id` distintos y 132 archivos de origen, todos
+`pdf` (221) y `json` (29).
+
+Cómo se construyó, según `ground/ground_truth_metodologia.pdf`: un índice BM25
+disperso sobre el corpus completo, expansión bilingüe de cada consulta escrita a
+mano —el corpus es 75 % inglés y las preguntas están en español—, filtrado
+automático de índices, bibliografías y filas tabulares, y selección final por
+juicio humano sobre el pool recuperado. Los `chunk_id` se copian del corpus, no
+se inventan: los 234 resuelven contra el `metadata.jsonl` vigente (comprobado,
+234 de 234).
+
+Tres límites al interpretar cualquier métrica que salga de aquí:
+
+- **No es exhaustivo.** Marca cinco fragmentos por consulta, no todos los
+  relevantes: un acierto fuera de la lista no es necesariamente un fallo.
+- **14 consultas llevan salvedades** en `notes`, y en tres de ellas el supuesto
+  de la pregunta no existe en el corpus (q031, q046, q047).
+- **Amazon Underworld no aparece**, pese a aportar ~11.000 fragmentos al
+  fenómeno 3: son tiles vectoriales y CSV geoespaciales, sin prosa que pueda
+  sustentar una respuesta.
+
+## 9. La verificación de piso
 
 `scripts/verificar_cobertura.py` es la única comprobación que detecta la forma
 garantizada de perder F1@3: un documento sin un solo vector no puede aparecer en

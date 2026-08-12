@@ -3,8 +3,8 @@
 Se prueba solo, contra ``fixtures/oraciones_doradas.jsonl``. El portugués usa el
 motor español, que es lo más cercano que trae pysbd 0.3.4.
 
-Por qué pysbd y no otro, y por qué la re-fusión es deliberadamente agresiva: el
-README (§Segmentación de oraciones) y el §3 del spec del fragmentador.
+Por qué pysbd y no otro, y por qué la re-fusión es deliberadamente agresiva:
+``docs/decisiones/segmentacion-de-oraciones.md``.
 """
 
 from __future__ import annotations
