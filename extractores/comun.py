@@ -167,12 +167,24 @@ class Jerarquia:
     def ocr(self, texto: str, pagina: int | None = None) -> Bloque | None:
         return self._simple(texto, "ocr", pagina=pagina)
 
-    def fila(self, texto: str, pagina: int | None = None) -> Bloque | None:
-        """Un registro completo: no se parte ni se fusiona con sus vecinos."""
-        return self._simple(texto, "fila", pagina=pagina, atomico=True)
+    def fila(
+        self, texto: str, pagina: int | None = None, datos: dict[str, str] | None = None
+    ) -> Bloque | None:
+        """Un registro completo: no se parte ni se fusiona con sus vecinos.
+
+        ``datos`` recoge los campos del registro que no entran al texto —los
+        identificadores— para que sigan viajando con la fila sin pesar en el
+        vector.
+        """
+        return self._simple(texto, "fila", pagina=pagina, atomico=True, datos=datos)
 
     def _simple(
-        self, texto: str, tipo: str, pagina: int | None, atomico: bool = False
+        self,
+        texto: str,
+        tipo: str,
+        pagina: int | None,
+        atomico: bool = False,
+        datos: dict[str, str] | None = None,
     ) -> Bloque | None:
         limpio = normalizar_texto(texto)
         if not limpio:
@@ -184,6 +196,7 @@ class Jerarquia:
             ruta=self.ruta,
             pagina=pagina,
             atomico=atomico,
+            datos=dict(datos or {}),
         )
 
 

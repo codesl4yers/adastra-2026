@@ -53,6 +53,7 @@ def bloque(
     ruta: list[str] | None = None,
     pagina: int | None = None,
     atomico: bool = False,
+    datos: dict[str, str] | None = None,
 ) -> Bloque:
     """``Bloque`` con los valores por defecto del caso más común: prosa suelta."""
     return Bloque(
@@ -62,6 +63,7 @@ def bloque(
         ruta=list(ruta) if ruta else [],
         pagina=pagina,
         atomico=atomico,
+        datos=dict(datos or {}),
     )
 
 

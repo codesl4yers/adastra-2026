@@ -384,14 +384,40 @@ def _listar_archivos(entrada: Path) -> list[Path]:
 
     Se ordena explícitamente: el orden de ``rglob`` depende del sistema de
     archivos y bastaría para que dos corridas difieran.
+
+    Los metadatos del sistema de archivos no cuentan como archivos del corpus:
+    ver :func:`_es_ruido_del_sistema`.
     """
     if not entrada.is_dir():
         raise ValueError(f"el directorio de entrada no existe: {entrada}")
 
     return sorted(
-        (ruta for ruta in entrada.rglob("*") if ruta.is_file()),
+        (
+            ruta
+            for ruta in entrada.rglob("*")
+            if ruta.is_file() and not _es_ruido_del_sistema(ruta)
+        ),
         key=lambda ruta: ruta.as_posix(),
     )
+
+
+# Metadatos que dejan Finder y el Explorador de Windows en cada carpeta. El
+# corpus de ADL viene de un Mac y trae nueve `.DS_Store`, uno por carpeta.
+_RUIDO_DEL_SISTEMA = frozenset({".ds_store", "thumbs.db", "desktop.ini"})
+
+
+def _es_ruido_del_sistema(ruta: Path) -> bool:
+    """``True`` para los metadatos que deja el sistema de archivos.
+
+    No son "formatos sin extractor" —eso es un `.docx`, algo que se podría
+    soportar y no se soporta— sino basura del sistema operativo. Listarlos como
+    lo primero esconde a los segundos, que son los que hay que mirar.
+
+    ``._nombre`` es la otra mitad del par de AppleDouble: cuando un volumen no
+    soporta los metadatos extendidos de macOS, cada archivo viene acompañado de
+    su gemelo con ese prefijo.
+    """
+    return ruta.name.lower() in _RUIDO_DEL_SISTEMA or ruta.name.startswith("._")
 
 
 def _tiene_extractor(ruta: Path) -> bool:

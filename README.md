@@ -1,14 +1,22 @@
-# Capas de extracción y fragmentación — CODEFEST Ad Astra 2026 (Etapa 1)
+# Pipeline de extracción, fragmentación e indexación — CODEFEST Ad Astra 2026 (Etapa 1)
 
-Contrato de datos, extractores y fragmentador del pipeline RAG. La primera capa
-convierte cada archivo del corpus en un `Documento` normalizado; la segunda lo
-parte en `Fragmento` listos para codificar. **No** hay embeddings, indexación ni
-recuperación: eso vive en capas posteriores y consume `fragmentos.jsonl`.
+Contrato de datos, extractores, fragmentador e índice vectorial del pipeline
+RAG. La primera capa convierte cada archivo del corpus en un `Documento`
+normalizado; la segunda lo parte en `Fragmento`; la tercera los codifica y
+construye el `IndexFlatIP`; la misma tercera etapa responde las consultas contra
+ese índice y escribe `resultados.jsonl`. **No** hay reranking: eso vive en capas
+posteriores y consume `indice/`.
 
 Estado: todas las capas implementadas —contrato, limpieza, orquestador,
-extractores, segmentador y fragmentador—, con 545 pruebas, y corrida completa
-sobre los 1826 archivos del corpus real de ADL: extracción, OCR, fragmentación
-y validación de contrato, las tres al 100 %, no sobre una muestra.
+extractores, segmentador, fragmentador, encoder y generador—, con 675 pruebas, y
+corrida completa sobre los 1826 archivos del corpus real de ADL: extracción, OCR,
+fragmentación y validación de contrato, las tres al 100 %, no sobre una muestra.
+
+El encoder es `ibm-granite/granite-embedding-311m-multilingual-r2`
+(ModernBERT, encoder-only, 768 dims, Apache 2.0), elegido en
+`docs/specs/spec-encoder-addendum.md` §16. La arquitectura se verifica contra el
+`config.json` del checkpoint antes de cargar los pesos: usar un decoder es
+riesgo de descalificación por §4.2 del enunciado.
 
 ### Qué se ha verificado contra el corpus
 
@@ -39,12 +47,34 @@ texto como los 759 PDF —17,6 M de caracteres frente a 90,7 M, aun con el
 truncado a 5000 filas por archivo—, así que pesarán desproporcionadamente en
 el índice; y entre el 5 y el 11 % de los PDF vienen escaneados.
 
+**No todas las columnas de un dataset entran al vector.** Los siete exports
+bibliográficos del corpus (cinco de PubMed, lit-covid en CSV y en XLSX) traen
+más de la mitad del texto en identificadores —`PMID`, `PMCID`, `NIHMS ID`,
+`DOI`, `Citation`— que nadie recupera por semejanza y que diluyen el título,
+que es lo único que sí se recupera. `ESQUEMAS` en `extractores/tabular.py`
+declara qué columnas indexa cada export conocido; el resto viaja en
+`Bloque.datos` → `Fragmento.datos` → `metadata.jsonl` como campo adicional de
+los que permite §3.4. Son 29 palabras por fila en vez de 52. Una cabecera que
+no case con ningún esquema se indexa entera. El detalle y las mediciones están
+en `docs/decisiones/campos-indexables-tabulares.md`.
+
 **El OCR ya está operativo.** `pytesseract` + Tesseract (`spa+eng+por`)
 reconocen los PDF escaneados y las imágenes con texto real. En Windows, si el
 binario no aparece por PATH —el instalador no siempre lo agrega, o queda una
 entrada de una instalación anterior en otra carpeta—, `extractores/ocr.py`
 prueba antes de rendirse las rutas de instalación por defecto
 (`C:\Program Files\Tesseract-OCR\tesseract.exe` y su variante `(x86)`).
+
+**La decisión de reconocer es por página, y solo si mejora.** Un PDF puede
+tener capa de texto y aun así no poder leerse: si la fuente embebida no trae
+tabla `ToUnicode`, pdfplumber devuelve `(cid:NN)` por carácter; si el PDF dibuja
+cada letra suelta, salen separadas por espacios. La densidad de caracteres no
+los detecta —`(cid:47)` son nueve caracteres por letra— así que
+`_texto_ilegible` los busca explícitamente. Se reconoce **solo la página
+afectada**, conservando el texto nativo del resto, y solo si el resultado aporta
+más texto útil que el original: hay páginas mixtas donde el diagnóstico es
+correcto pero el OCR devolvería menos de lo que había. Los detalles y las
+mediciones están en `docs/decisiones/fragmentos-fuera-de-norma.md` §7.
 
 No hay extractor de HTML ni entrada en `EXTRACTORES` para `.html`/`.htm`: el
 corpus real de ADL no trae archivos de ese formato.
@@ -210,11 +240,136 @@ python fragmentador.py --entrada extraidos --salida fragmentos \
 python scripts/barrido_fragmentacion.py --entrada extraidos --salida docs/barrido.md
 ```
 
-El conteo de tokens es inyectable (`ConfigFragmentacion.contar_tokens`). Por
-defecto usa la estimación conservadora `ceil(palabras × 1.6)`, porque **todavía
-no hay encoder elegido**. En cuanto se elija hay que cambiarlo por su
-`AutoTokenizer` y **re-fragmentar el corpus completo**: los `num_tokens`
-estimados no valen para la entrega.
+El conteo de tokens es inyectable (`ConfigFragmentacion.contar_tokens`). El
+valor por defecto sigue siendo la estimación `ceil(palabras × 1.6)`, para que el
+módulo funcione sin `transformers` instalado; **para la entrega hay que pasarle
+el tokenizador real**:
+
+```python
+from encoder import config_fragmentacion_con_tokenizador
+from fragmentador import fragmentar_corpus
+
+fragmentar_corpus(Path("extraidos"), Path("fragmentos"),
+                  config_fragmentacion_con_tokenizador())
+```
+
+La estimación **no era conservadora**, en contra de lo que decía este README
+hasta ahora: medida contra el tokenizador de granite, la mediana real del corpus
+es de 1,77 tokens por palabra —3,50 en tiles vectoriales, 2,81 en datos
+tabulares, 1,48 en prosa PDF— y el 8,2 % de los fragmentos de la corrida actual
+excede el tope de 450. Ninguno supera la ventana de 32 768 del modelo, así que
+no hay truncamiento, pero la re-fragmentación sigue siendo obligatoria. El
+detalle y los números están en `docs/decisiones/conteo-de-tokens.md`.
+
+### Índice vectorial
+
+```bash
+python generador.py --entrada fragmentos --salida indice
+python generador.py --entrada fragmentos --salida indice --desarrollo  # modelo 97M
+```
+
+Produce `index.faiss` (`IndexFlatIP`, vectores normalizados explícitamente),
+`metadata.jsonl` —una línea por vector, **en el mismo orden que el índice**, con
+los ocho campos obligatorios y sin `texto_enriquecido`— y
+`reporte_indice.json`, que deja por escrito la evidencia de las dos
+comprobaciones que fallan en silencio: fragmentos truncados (debe ser 0) y norma
+de los vectores (debe ser 1,0). Si algún fragmento se trunca, el CLI sale con
+código 1: un índice con fragmentos a medias no vale para la entrega.
+
+Lo que se codifica es `texto_enriquecido` —observatorio, título y breadcrumb de
+secciones por delante del texto—, no `texto`. La justificación completa, con
+cobertura y coste medidos sobre el corpus, está en
+`docs/decisiones/enriquecimiento-de-contexto.md`.
+
+### Responder las consultas
+
+```bash
+python generador.py --indice indice \
+    --consultas base_documental/Extracto_Preguntas_50_v2.pdf \
+    --resultados entrega/resultados.jsonl
+```
+
+Es la segunda etapa del mismo módulo: carga el índice de disco —no reconstruye
+nada— y escribe el entregable `resultados.jsonl`, una línea por consulta con el
+top-3 de **documentos** (§8.6). Con `--entrada`/`--salida` además de
+`--consultas`, construye y responde en la misma corrida; si el índice sale con
+fragmentos truncados, se para ahí y no escribe resultados.
+
+| Flag | Para qué |
+|---|---|
+| `--indice` | Directorio del índice ya construido. |
+| `--consultas` | El PDF de ADL tal cual, un `.jsonl`, o un texto con una consulta por línea. |
+| `--resultados` | Ruta del entregable. Por defecto, `resultados.jsonl` junto al índice. |
+| `--k` | Fragmentos que se piden a FAISS antes de agregar a documento (50). |
+| `--top` | Documentos por consulta (3). |
+| `--idioma` | Post-filtro por idioma (§8.7). Apagado por defecto. |
+
+Tres decisiones que el entregable hereda y conviene tener a mano para el informe:
+
+- **El score del documento es el de su mejor fragmento**, no la suma de los
+  suyos. Sumar corona al documento largo por ser largo —más fragmentos, más
+  ocasiones de rozar la consulta—, y lo que se evalúa es si el documento
+  responde. Los empates se rompen por `doc_id` para que dos corridas del mismo
+  índice ordenen igual (§1.4).
+- **Se piden 50 fragmentos para entregar 3 documentos.** El top-k viene en
+  fragmentos y varios caen en el mismo `doc_id`; pedir 3 puede dar un solo
+  documento. Si aun así alguna consulta no llega a tres documentos distintos, el
+  CLI la nombra por stderr en vez de entregar un top-3 corto en silencio.
+- **El post-filtro por idioma está apagado.** Las consultas vienen en español y
+  el grueso del corpus está en inglés: filtrar a `es` no afina la respuesta, la
+  vacía. El encoder es multilingüe justamente para no necesitarlo. En la corrida
+  contra el corpus completo las 50 consultas en español recuperan documentos en
+  inglés con scores de 0,87 a 0,95.
+
+**El descarte de texto repetido es dentro de un mismo documento, nunca entre
+documentos.** La distinción decide un acierto: el corpus trae lit-covid dos
+veces, `F1-AIINDEX-041` en CSV y `F1-AIINDEX-042` en XLSX, con texto y vectores
+idénticos. Deduplicar solo por texto parece más limpio y le quita a uno de los
+dos el único vector con el que podía llegar al top-3 —el jurado empareja por
+`fuente` (§10.2.1), así que son dos documentos distintos y probablemente los
+dos estén en el ground truth de una consulta sobre lit-covid—. Dentro de un
+mismo documento sí es ruido: §8.6 lo puntúa con su mejor fragmento, así que el
+repetido no cambia su score y solo ocupa un puesto del top-k. En la corrida de
+50 consultas se descartaron 17; deduplicando también entre documentos habrían
+sido 113, y esos 96 de diferencia son oportunidades de acierto tiradas.
+
+#### Memoria de la GPU
+
+ModernBERT materializa una máscara de atención de `(lote, 1, L, L)` en float32
+—dos, en realidad: global y sliding window— donde `L` es el fragmento **más
+largo del lote**. El coste no lo fija el número de textos sino el cuadrado del
+más largo multiplicado por el lote entero: un lote de 32 con un fragmento de
+8 200 tokens reserva 8,67 GB de una sentada. Este corpus tiene 4 237 fragmentos
+por encima de 450 tokens y 57 por encima de 8 192, con un máximo de 17 803, así
+que el caso ocurre de verdad.
+
+Dos mecanismos lo contienen:
+
+- **Lotes por presupuesto** (`--presupuesto-atencion`, 128 M por defecto): el
+  lote se encoge cuando aparece un fragmento largo y el más grande viaja solo.
+- **Respaldo en CPU**: si aun así un lote no cabe, se codifica en CPU con un
+  aviso en lugar de perder la corrida. Los vectores de CPU y GPU difieren en el
+  último bit, así que si el respaldo se dispara el índice deja de ser
+  reproducible bit a bit; el aviso queda en stderr para que conste.
+
+**Con esta GPU, lote pequeño es más rápido, no más lento.** Medido sobre una
+muestra sistemática del corpus en una RTX 4050 de 6 GB:
+
+| `--lote` | fragmentos/s | corpus completo | VRAM pico |
+|---:|---:|---:|---:|
+| 2 | 26,2 | 93 min | 2,68 GB |
+| 4 | 23,6 | 104 min | 2,82 GB |
+| 8 | 19,2 | 128 min | 3,10 GB |
+| 16 | 14,7 | 167 min | 3,66 GB |
+| 32 | 9,6 | 255 min | 4,78 GB |
+
+El padding al texto más largo del lote es lo que se paga, y con poca VRAM el
+cuello es la memoria y no el cómputo. En una GPU con más memoria el óptimo será
+mayor: súbelo con `--lote` y **mide**, no lo supongas.
+
+Si Windows empieza a volcar a memoria compartida —VRAM llena y GPU al 0 % de
+uso— conviene poner el panel de NVIDIA en *CUDA - Sysmem Fallback Policy →
+Prefer No Sysmem Fallback*: así falla rápido en vez de arrastrarse durante horas.
 
 ### Segmentación de oraciones
 
@@ -236,6 +391,37 @@ sin descarga de modelos). Dos avisos:
   Force`. Encima va una capa de re-fusión de cortes falsos, deliberadamente
   agresiva: partir una oración viola §3.3, fusionar dos de más solo engorda un
   fragmento.
+
+### Verificación de piso: ningún documento sin vectores
+
+```bash
+python scripts/verificar_cobertura.py \
+    --indice base_documental/Indice_Datos_Codefest.xlsx \
+    --metadata indice/metadata.jsonl
+```
+
+Es la única comprobación que detecta la forma garantizada de perder F1@3: un
+documento sin un solo vector no puede aparecer en el top-3 de ninguna consulta.
+No es que recupere mal —es que es imposible que recupere—, y nada más en el
+pipeline avisa: un extractor que falla en silencio produce un `Documento`
+válido con cero bloques, el fragmentador produce cero fragmentos y el generador
+no echa de menos lo que nunca llegó. Devuelve 1 si hay huecos.
+
+Empareja por `doc_id` y no por `fuente` porque 59 nombres de archivo se repiten
+en el corpus: con el nombre, un documento cubierto taparía el hueco de otro que
+comparte nombre.
+
+Sobre el índice actual salen **8 huecos, los 8 conocidos**: el JSON de origen
+vacío, las 5 imágenes sin texto reconocible y los 2 PDF que en realidad son
+páginas HTML mal descargadas.
+
+### Duplicados exactos
+
+El corpus trae lit-covid dos veces —`F1-AIINDEX-041` en CSV y `F1-AIINDEX-042`
+en XLSX, las mismas 8 866 filas—. El generador **codifica ese texto una sola
+vez y lo inserta las dos**: cada `fuente` conserva su fila en el índice, porque
+omitir una garantiza perder ese acierto, pero el pase del encoder no se repite.
+`reporte_indice.json` lo deja anotado en `n_reutilizados`.
 
 ## Correr las pruebas
 
@@ -279,6 +465,50 @@ base_documental/     corpus real de ADL (solo lectura, no se toca un byte)
 scripts/             herramientas fuera del pipeline (verificación y barrido)
 tests/               pytest
 ```
+
+### La carpeta de entrega
+
+```
+entrega/
+├── resultados.jsonl
+├── generador.py
+├── informe_tecnico.pdf
+├── base_vectorial/
+│   └── encoder_granite-embedding-311m-multilingual-r2/
+│       ├── index.faiss
+│       └── metadata.jsonl
+└── grafo/                  (bonus)
+    └── grafo.graphml
+```
+
+Se ensambla con un comando, no a mano:
+
+```bash
+python scripts/preparar_entrega.py --indice indice \
+    --resultados entrega/resultados.jsonl --destino entrega
+```
+
+**`generador.py` no viaja solo.** La estructura solo lo nombra a él, pero
+importa `contrato`, `encoder`, `fragmentador`, `limpieza` y `segmentador`:
+entregarlo suelto es entregar un `ImportError`. El script copia el cierre
+transitivo de sus imports —calculado del AST, no de una lista escrita a mano
+que se quedaría vieja al primer import nuevo— al mismo directorio, porque
+Python añade la carpeta del script al `sys.path` y así `python
+entrega/generador.py` corre sin tocar el entorno. Verificado ejecutándolo desde
+dentro de `entrega/`: 50 consultas, 50 líneas.
+
+**Los `.py` de `entrega/` son copias: se edita el original de la raíz y se
+vuelve a ensamblar.** Van versionados para que el entregable sea auditable tal
+como se envía, pero editarlos ahí es perder el cambio en el siguiente
+`preparar_entrega.py`. Si `git status` muestra uno de ellos modificado sin que
+lo esté su original, alguien tocó la copia.
+
+Lo único que no se versiona es `base_vectorial/`: son 585 MB —412 el índice y
+200 la metadata— y GitHub rechaza cualquier archivo de más de 100 MB, así que
+un `git add .` dejaría el historial ya escrito y el push roto. Se reconstruye
+con el mismo comando.
+
+`informe_tecnico.pdf` no lo genera el pipeline; el script avisa si falta.
 
 Dependencias: `contrato` → `limpieza`. Los extractores dependen de ambos y de
 `extractores.comun`. `limpieza` no depende de nada del proyecto, así que se
@@ -443,9 +673,26 @@ funcionales. Ambos caminos son deterministas.
 
 ## Pendiente
 
-- **Elegir el encoder** y sustituir `estimar_tokens` por su tokenizador real.
-  Bloquea la re-fragmentación del corpus completo, así que cuanto más tarde se
-  cierre, más cara sale la re-corrida.
+- **Re-fragmentar el corpus completo** con el tokenizador real
+  (`config_fragmentacion_con_tokenizador()`). El encoder ya está elegido y
+  cableado; lo que falta es lanzar la re-corrida y revisar el histograma de
+  palabras contra el objetivo de 150–220 de §8.2, porque con el contador real el
+  tope de tokens pasa a ser la restricción activa en csv y pbf.
+- **Construir el índice del corpus completo** (`generador.py`) una vez
+  re-fragmentado. Verificado de punta a punta sobre 200 fragmentos reales con el
+  checkpoint de granite; los 140k restantes son cuestión de tiempo de cómputo.
+- **Relanzar las consultas contra ese índice.** La etapa está implementada y
+  verificada contra el índice de la corrida anterior —las 50 preguntas de ADL,
+  50 líneas con top-3 completo—, pero ese índice es de antes del tokenizador
+  real y de la limpieza de campos: el `resultados.jsonl` de la entrega tiene que
+  salir del índice reconstruido.
+- **Confirmar los nombres de campo de la Tabla 2** contra el enunciado. El
+  entregable se escribe hoy con `query_id`, `consulta` y `documentos[]`; si ADL
+  los fija de otro modo, el único sitio que cambia es
+  `registro_de_resultado()` en `generador.py`.
+- **Medir la ablación del enriquecimiento de contexto** (con y sin prefijo)
+  contra el ground truth interno. La decisión de mantenerlo es provisional hasta
+  esa medición; ver `docs/decisiones/enriquecimiento-de-contexto.md` §6.
 - **Ejecutar el barrido de configuraciones** (`scripts/barrido_fragmentacion.py`)
   sobre el corpus ya extraído. La tabla no elige la configuración: elegirla
   exige medir NDCG@10 y F1@3 contra un ground truth interno que aún no existe.
