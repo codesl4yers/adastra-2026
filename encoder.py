@@ -16,7 +16,7 @@ Uso::
     from encoder import config_fragmentacion_con_tokenizador
     from fragmentador import fragmentar_corpus
 
-    fragmentar_corpus(Path("extraidos"), Path("fragmentos"),
+    fragmentar_corpus(Path("extraidos"), Path("chunks"),
                       config_fragmentacion_con_tokenizador())
 """
 

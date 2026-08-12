@@ -55,7 +55,7 @@ from encoder import (
     truncar_dimension,
 )
 
-NOMBRE_ENTRADA = "fragmentos.jsonl"
+NOMBRE_ENTRADA = "chunks.jsonl"
 NOMBRE_INDICE = "index.faiss"
 NOMBRE_METADATA = "metadata.jsonl"
 NOMBRE_REPORTE = "reporte_indice.json"
@@ -108,7 +108,7 @@ def generar_indice(
 ) -> ReporteIndice:
     """Codifica los fragmentos de ``entrada`` y escribe el índice en ``salida``.
 
-    ``entrada`` puede ser el ``fragmentos.jsonl`` o su directorio. ``codificar`` y
+    ``entrada`` puede ser el ``chunks.jsonl`` o su directorio. ``codificar`` y
     ``contar_tokens`` se inyectan para que las pruebas no descarguen los pesos.
     """
     import faiss
@@ -730,7 +730,7 @@ def _construir_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--entrada",
         type=Path,
-        help="directorio de fragmentos o el propio fragmentos.jsonl; construye el índice",
+        help="directorio de fragmentos o el propio chunks.jsonl; construye el índice",
     )
     parser.add_argument("--salida", type=Path, help="directorio del índice a construir")
     parser.add_argument(

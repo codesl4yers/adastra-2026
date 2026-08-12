@@ -62,7 +62,7 @@ informes distintos.
 
 ## 4. Cobertura y coste, medidos
 
-Sobre la salida real del fragmentador (`fragmentos/fragmentos.jsonl`,
+Sobre la salida real del fragmentador (`chunks/chunks.jsonl`,
 140 686 fragmentos de 1 826 documentos):
 
 | Medida | Valor |
@@ -109,7 +109,7 @@ La decisión de mantenerlo es **provisional hasta la ablación**. El ground trut
 interno que la bloqueaba ya existe —50 consultas etiquetadas, cinco fragmentos
 por consulta, `ground/ground_truth.json`—, así que la medición está pendiente de
 lanzar y no de construir: NDCG@10 y F1@3 con y sin prefijo, misma configuración
-de chunking y mismo encoder. Es una re-corrida del generador sobre el mismo `fragmentos.jsonl`,
+de chunking y mismo encoder. Es una re-corrida del generador sobre el mismo `chunks.jsonl`,
 porque el campo `texto` no cambia: basta codificar `texto` en vez de
 `texto_enriquecido`. Si el prefijo no aporta, se quita y se documenta.
 

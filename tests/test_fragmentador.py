@@ -666,27 +666,27 @@ def corpus_extraido(tmp_path, documento_con_bloques):
 
 
 def test_fragmentar_corpus_escribe_una_linea_por_fragmento(corpus_extraido, tmp_path):
-    salida = tmp_path / "fragmentos"
+    salida = tmp_path / "chunks"
     reporte = fragmentar_corpus(corpus_extraido, salida, CONFIG_POR_DEFECTO)
 
-    lineas = (salida / "fragmentos.jsonl").read_text(encoding="utf-8").splitlines()
+    lineas = (salida / "chunks.jsonl").read_text(encoding="utf-8").splitlines()
     assert len(lineas) == reporte.n_fragmentos
     assert reporte.n_documentos == 3
 
 
 def test_fragmentar_corpus_registra_los_documentos_sin_bloques(corpus_extraido, tmp_path):
     """Se registra la ruta y no la fuente: 59 nombres se repiten en el corpus."""
-    reporte = fragmentar_corpus(corpus_extraido, tmp_path / "fragmentos", CONFIG_POR_DEFECTO)
+    reporte = fragmentar_corpus(corpus_extraido, tmp_path / "chunks", CONFIG_POR_DEFECTO)
     assert reporte.documentos_sin_bloques == ["F1/vacio.pdf"]
 
 
 def test_fragmentar_corpus_cuenta_los_fragmentos_por_formato(corpus_extraido, tmp_path):
-    reporte = fragmentar_corpus(corpus_extraido, tmp_path / "fragmentos", CONFIG_POR_DEFECTO)
+    reporte = fragmentar_corpus(corpus_extraido, tmp_path / "chunks", CONFIG_POR_DEFECTO)
     assert set(reporte.fragmentos_por_formato) == {"pdf", "json"}
 
 
 def test_el_histograma_reparte_en_bins_de_25(corpus_extraido, tmp_path):
-    reporte = fragmentar_corpus(corpus_extraido, tmp_path / "fragmentos", CONFIG_POR_DEFECTO)
+    reporte = fragmentar_corpus(corpus_extraido, tmp_path / "chunks", CONFIG_POR_DEFECTO)
     assert sum(reporte.histograma_palabras.values()) == reporte.n_fragmentos
 
 
@@ -696,17 +696,17 @@ def test_dos_corridas_producen_fragmentos_identicos_byte_a_byte(corpus_extraido,
     fragmentar_corpus(corpus_extraido, primera, CONFIG_POR_DEFECTO)
     fragmentar_corpus(corpus_extraido, segunda, CONFIG_POR_DEFECTO)
 
-    assert (primera / "fragmentos.jsonl").read_bytes() == (
-        segunda / "fragmentos.jsonl"
+    assert (primera / "chunks.jsonl").read_bytes() == (
+        segunda / "chunks.jsonl"
     ).read_bytes()
 
 
 def test_la_salida_no_lleva_el_texto_enriquecido_en_texto(corpus_extraido, tmp_path):
     """§1.3: lo que se reporta al jurado es el texto original."""
-    salida = tmp_path / "fragmentos"
+    salida = tmp_path / "chunks"
     fragmentar_corpus(corpus_extraido, salida, CONFIG_POR_DEFECTO)
 
-    for linea in (salida / "fragmentos.jsonl").read_text(encoding="utf-8").splitlines():
+    for linea in (salida / "chunks.jsonl").read_text(encoding="utf-8").splitlines():
         registro = json.loads(linea)
         assert registro["texto_enriquecido"].endswith(registro["texto"])
 
@@ -721,10 +721,10 @@ def test_todos_los_fragmentos_del_corpus_pasan_la_validacion(corpus_extraido):
 
 def test_ningun_fragmento_del_corpus_supera_las_250_palabras(corpus_extraido, tmp_path):
     """8.2, sobre fixtures: el límite de §9.2.1 se comprueba en la salida real."""
-    salida = tmp_path / "fragmentos"
+    salida = tmp_path / "chunks"
     fragmentar_corpus(corpus_extraido, salida, CONFIG_POR_DEFECTO)
 
-    for linea in (salida / "fragmentos.jsonl").read_text(encoding="utf-8").splitlines():
+    for linea in (salida / "chunks.jsonl").read_text(encoding="utf-8").splitlines():
         registro = json.loads(linea)
         assert registro["num_palabras"] <= 250
         assert registro["texto"].strip()
@@ -732,7 +732,7 @@ def test_ningun_fragmento_del_corpus_supera_las_250_palabras(corpus_extraido, tm
 
 def test_el_reporte_trae_la_mediana_y_el_p95_de_palabras(corpus_extraido, tmp_path):
     """§8.3: la tabla del barrido se construye con estas dos cifras."""
-    reporte = fragmentar_corpus(corpus_extraido, tmp_path / "fragmentos", CONFIG_POR_DEFECTO)
+    reporte = fragmentar_corpus(corpus_extraido, tmp_path / "chunks", CONFIG_POR_DEFECTO)
 
     assert 0 < reporte.mediana_palabras <= reporte.p95_palabras
     assert reporte.p95_palabras <= CONFIG_POR_DEFECTO.max_palabras
@@ -762,12 +762,12 @@ def test_fragmentar_documentos_no_escribe_a_disco(corpus_extraido, tmp_path):
 
 
 def test_el_cli_escribe_los_fragmentos_y_el_reporte(corpus_extraido, tmp_path, capsys):
-    salida = tmp_path / "fragmentos"
+    salida = tmp_path / "chunks"
 
     codigo = main(["--entrada", str(corpus_extraido), "--salida", str(salida)])
 
     assert codigo == 0
-    assert (salida / "fragmentos.jsonl").is_file()
+    assert (salida / "chunks.jsonl").is_file()
     assert json.loads((salida / "reporte_fragmentacion.json").read_text(encoding="utf-8"))
     assert "fragmentos" in capsys.readouterr().out
 
@@ -780,7 +780,7 @@ def test_el_cli_pasa_la_configuracion_al_algoritmo(corpus_extraido, tmp_path):
     main(["--entrada", str(corpus_extraido), "--salida", str(estrechos), "--objetivo-palabras", "60"])
 
     def lineas(directorio):
-        return (directorio / "fragmentos.jsonl").read_text(encoding="utf-8").splitlines()
+        return (directorio / "chunks.jsonl").read_text(encoding="utf-8").splitlines()
 
     assert len(lineas(estrechos)) > len(lineas(anchos))
 
@@ -825,7 +825,7 @@ def test_un_corpus_sin_fragmentos_no_revienta_los_percentiles(tmp_path, document
         json.dumps(documento_a_dict(vacio), ensure_ascii=False), encoding="utf-8"
     )
 
-    reporte = fragmentar_corpus(entrada, tmp_path / "fragmentos", CONFIG_POR_DEFECTO)
+    reporte = fragmentar_corpus(entrada, tmp_path / "chunks", CONFIG_POR_DEFECTO)
 
     assert reporte.n_fragmentos == 0
     assert reporte.mediana_palabras == 0

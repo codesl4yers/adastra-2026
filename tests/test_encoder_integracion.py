@@ -117,9 +117,9 @@ def test_ningun_fragmento_del_corpus_real_excede_la_ventana(raiz_proyecto):
     indexado a medias. Se mide sobre la salida real del fragmentador."""
     from encoder import contar_tokens
 
-    ruta = raiz_proyecto / "fragmentos" / "fragmentos.jsonl"
+    ruta = raiz_proyecto / "chunks" / "chunks.jsonl"
     if not ruta.is_file():
-        pytest.skip("no hay fragmentos/fragmentos.jsonl; corre antes el fragmentador")
+        pytest.skip("no hay chunks/chunks.jsonl; corre antes el fragmentador")
 
     excedidos = 0
     with ruta.open(encoding="utf-8") as archivo:

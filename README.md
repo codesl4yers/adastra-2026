@@ -57,7 +57,7 @@ python orquestador.py --entrada base_documental --salida extraidos \
     --indice base_documental/Indice_Datos_Codefest.xlsx --procesos 6 --limpiar
 
 # 2. fragmentar         extraidos/ -> fragmentos/
-python fragmentador.py --entrada extraidos --salida fragmentos --tokenizador real
+python fragmentador.py --entrada extraidos --salida chunks --tokenizador real
 
 # 3. indexar y responder
 python generador.py --entrada fragmentos --salida indice
@@ -99,7 +99,7 @@ instalado.
 
 ### 2. Fragmentar — `fragmentador.py`
 
-Produce `fragmentos/fragmentos.jsonl` y `fragmentos/reporte_fragmentacion.json`
+Produce `chunks/chunks.jsonl` y `fragmentos/reporte_fragmentacion.json`
 (histograma, mediana, p95, atómicos, huérfanos fusionados, indivisibles).
 
 | Flag | Efecto |

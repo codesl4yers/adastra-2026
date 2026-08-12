@@ -18,7 +18,7 @@ El porqué de cada capa y de sus parámetros está en
 
 Uso::
 
-    python fragmentador.py --entrada extraidos --salida fragmentos
+    python fragmentador.py --entrada extraidos --salida chunks
 """
 
 from __future__ import annotations
@@ -44,7 +44,7 @@ from contrato import (
 from limpieza import normalizar_texto
 from segmentador import segmentar
 
-NOMBRE_SALIDA = "fragmentos.jsonl"
+NOMBRE_SALIDA = "chunks.jsonl"
 NOMBRE_REPORTE = "reporte_fragmentacion.json"
 NOMBRE_MANIFIESTO = "manifiesto.jsonl"
 
@@ -716,7 +716,7 @@ def _palabras(oraciones: list[_Oracion]) -> int:
 def fragmentar_corpus(
     entrada: Path, salida: Path, config: ConfigFragmentacion = CONFIG_POR_DEFECTO
 ) -> ReporteFragmentacion:
-    """Fragmenta el ``extraidos/`` de ``entrada`` y escribe ``fragmentos.jsonl``
+    """Fragmenta el ``extraidos/`` de ``entrada`` y escribe ``chunks.jsonl``
     y ``reporte_fragmentacion.json``. Dos corridas dan los mismos bytes."""
     documentos = cargar_extraidos(entrada)
     fragmentos, reporte = fragmentar_documentos(documentos, config, on_progreso=_avisar_progreso)
@@ -779,7 +779,7 @@ def cargar_extraidos(entrada: Path) -> list[Documento]:
     """Lee los ``Documento`` que dejó el orquestador, en orden estable.
 
     En el orden del manifiesto cuando existe, y por nombre de archivo cuando no:
-    ese orden es el de las líneas de ``fragmentos.jsonl``.
+    ese orden es el de las líneas de ``chunks.jsonl``.
     """
     entrada = Path(entrada)
     if not entrada.is_dir():

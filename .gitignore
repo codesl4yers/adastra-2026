@@ -227,7 +227,7 @@ __marimo__/
 # `python fragmentador.py`; versionarla provocaría conflictos constantes. Para
 # comparar corridas, usa el manifiesto y el reporte de fragmentación.
 extraidos/
-fragmentos/
+chunks/
 indice/
 
 # entrega/ se ensambla con scripts/preparar_entrega.py a partir de indice/ y

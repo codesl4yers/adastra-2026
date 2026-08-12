@@ -91,7 +91,7 @@ def generar(entrada, salida, config=CONFIG_PRUEBA, codificar=None, contar_tokens
 
 @pytest.fixture
 def fragmentos_jsonl(tmp_path, documento_con_bloques):
-    """Un ``fragmentos.jsonl`` real, salido del fragmentador."""
+    """Un ``chunks.jsonl`` real, salido del fragmentador."""
     documento = documento_con_bloques(
         bloque("Capacidades espaciales", "titulo", 1),
         bloque(
@@ -113,7 +113,7 @@ def fragmentos_jsonl(tmp_path, documento_con_bloques):
     fragmentos = fragmentar(documento, CONFIG_CHUNKER)
     assert len(fragmentos) >= 2, "la fixture necesita varios fragmentos"
 
-    ruta = tmp_path / "fragmentos.jsonl"
+    ruta = tmp_path / "chunks.jsonl"
     ruta.write_text(
         "".join(
             json.dumps(fragmento_a_dict(f), ensure_ascii=False, sort_keys=True) + "\n"
@@ -437,7 +437,7 @@ def test_el_avisador_siempre_anuncia_el_final(capsys):
 
 
 def test_un_jsonl_vacio_es_un_error(tmp_path):
-    vacio = tmp_path / "fragmentos.jsonl"
+    vacio = tmp_path / "chunks.jsonl"
     vacio.write_text("", encoding="utf-8")
 
     with pytest.raises(ValueError, match="sin fragmentos"):
@@ -455,7 +455,7 @@ def test_acepta_el_directorio_de_fragmentos(fragmentos_jsonl, tmp_path):
 
 
 def test_una_linea_sin_texto_enriquecido_es_un_error(tmp_path):
-    roto = tmp_path / "fragmentos.jsonl"
+    roto = tmp_path / "chunks.jsonl"
     roto.write_text(json.dumps({"chunk_id": "X-c0000"}) + "\n", encoding="utf-8")
 
     with pytest.raises(ValueError, match="texto_enriquecido"):
@@ -466,7 +466,7 @@ def test_una_linea_sin_texto_enriquecido_es_un_error(tmp_path):
 
 
 def jsonl_con_textos(ruta, textos):
-    """Un fragmentos.jsonl mínimo con los textos dados, uno por línea."""
+    """Un chunks.jsonl mínimo con los textos dados, uno por línea."""
     ruta.write_text(
         "".join(
             json.dumps(
@@ -495,7 +495,7 @@ def jsonl_con_textos(ruta, textos):
 
 def test_un_texto_repetido_se_codifica_una_sola_vez(tmp_path):
     """lit-covid viene en CSV y en XLSX: mismas filas, dos fuente distintos."""
-    entrada = jsonl_con_textos(tmp_path / "fragmentos.jsonl", ["igual", "otro", "igual"])
+    entrada = jsonl_con_textos(tmp_path / "chunks.jsonl", ["igual", "otro", "igual"])
     lotes = []
 
     generar(entrada, tmp_path / "indice", codificar=codificador(lotes))
@@ -507,7 +507,7 @@ def test_un_texto_repetido_se_codifica_una_sola_vez(tmp_path):
 def test_el_duplicado_conserva_su_vector_y_su_fila(tmp_path):
     """Ahorrar el pase del encoder no puede costar una fila del índice: sin
     vector propio, ese archivo jamás aparecería en el top-3 (§10.2.1)."""
-    entrada = jsonl_con_textos(tmp_path / "fragmentos.jsonl", ["igual", "otro", "igual"])
+    entrada = jsonl_con_textos(tmp_path / "chunks.jsonl", ["igual", "otro", "igual"])
     salida = tmp_path / "indice"
 
     reporte = generar(entrada, salida, codificar=codificador())
@@ -528,7 +528,7 @@ def test_el_duplicado_conserva_su_vector_y_su_fila(tmp_path):
 
 def test_el_reporte_cuenta_los_pases_de_encoder_ahorrados(tmp_path):
     """Sin el número, el informe técnico no puede justificar el ahorro."""
-    entrada = jsonl_con_textos(tmp_path / "fragmentos.jsonl", ["igual", "otro", "igual"])
+    entrada = jsonl_con_textos(tmp_path / "chunks.jsonl", ["igual", "otro", "igual"])
 
     reporte = generar(entrada, tmp_path / "indice", codificar=codificador())
 
@@ -554,7 +554,7 @@ def leer_resultados(ruta):
 def indice_de_cuatro(tmp_path):
     """Cuatro documentos de un fragmento cada uno; el primero y el último, iguales."""
     entrada = jsonl_con_textos(
-        tmp_path / "fragmentos.jsonl", ["alfa", "beta", "gamma", "alfa"]
+        tmp_path / "chunks.jsonl", ["alfa", "beta", "gamma", "alfa"]
     )
     salida = tmp_path / "indice"
     generar(entrada, salida, codificar=codificador())
