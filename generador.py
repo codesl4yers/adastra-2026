@@ -64,6 +64,9 @@ NOMBRE_RESULTADOS = "resultados.jsonl"
 # El top-3 de §8.6: F1@3 se mide exactamente sobre tres.
 TOP_DOCUMENTOS = 3
 
+# El 10 de NDCG@10. Con menos, la métrica tiene un techo por construcción.
+TOP_FRAGMENTOS = 10
+
 # Fragmentos que se piden a FAISS antes de agregar a documento. Sobra por encima
 # de TOP_DOCUMENTOS porque varios fragmentos caen en el mismo doc_id.
 K_FRAGMENTOS = 50
@@ -521,6 +524,17 @@ def deduplicar_por_texto(candidatos: list[Candidato]) -> tuple[list[Candidato], 
         vistos.add(clave)
         unicos.append(candidato)
     return unicos, len(candidatos) - len(unicos)
+
+
+def mejores_fragmentos(candidatos: list[Candidato], top: int) -> list[Candidato]:
+    """Los ``top`` mejores fragmentos, ya filtrados y deduplicados.
+
+    Es un corte: los candidatos llegan ordenados por score. Tiene función propia
+    porque es donde se engancharía un reranking, entre la dedup y el corte.
+    """
+    if top <= 0:
+        return []
+    return candidatos[:top]
 
 
 def agregar_por_documento(

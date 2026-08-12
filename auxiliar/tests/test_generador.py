@@ -32,6 +32,7 @@ from generador import (  # noqa: E402
     deduplicar_por_texto,
     filtrar_por_idioma,
     generar_indice,
+    mejores_fragmentos,
     responder_consultas,
 )
 
@@ -744,6 +745,32 @@ def test_el_duplicado_que_sobrevive_es_el_de_mejor_score():
 
     assert [(c.fila, c.score) for c in unicos] == [(0, 0.9), (2, 0.7)]
     assert descartados == 1
+
+
+def test_el_top_de_fragmentos_corta_donde_se_le_pide():
+    candidatos = [candidato(n, 0.9 - n / 10, f"D{n}") for n in range(5)]
+
+    assert [c.fila for c in mejores_fragmentos(candidatos, 3)] == [0, 1, 2]
+
+
+def test_el_top_de_fragmentos_respeta_el_orden_de_llegada():
+    """Vienen ordenados por score desde FAISS: cortar no puede reordenar."""
+    candidatos = [candidato(0, 0.9, "A"), candidato(1, 0.8, "B"), candidato(2, 0.7, "C")]
+
+    assert [c.score for c in mejores_fragmentos(candidatos, 3)] == [0.9, 0.8, 0.7]
+
+
+def test_con_menos_candidatos_que_el_tope_salen_todos():
+    candidatos = [candidato(0, 0.9, "A"), candidato(1, 0.8, "B")]
+
+    assert len(mejores_fragmentos(candidatos, 10)) == 2
+
+
+def test_un_tope_de_cero_apaga_los_fragmentos():
+    """Con --top-fragmentos 0 el entregable sale como antes de esta pieza."""
+    candidatos = [candidato(0, 0.9, "A")]
+
+    assert mejores_fragmentos(candidatos, 0) == []
 
 
 # --- consultas: lectura del archivo de ADL ---------------------------------------
