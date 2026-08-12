@@ -23,6 +23,7 @@ from fragmentador import CONFIG_POR_DEFECTO as CONFIG_CHUNKER  # noqa: E402
 from fragmentador import fragmentar, fragmento_a_dict  # noqa: E402
 from generador import (  # noqa: E402
     NOMBRE_INDICE,
+    TOP_FRAGMENTOS,
     NOMBRE_METADATA,
     NOMBRE_REPORTE,
     Candidato,
@@ -35,6 +36,7 @@ from generador import (  # noqa: E402
     mejores_fragmentos,
     responder_consultas,
 )
+from generador import _construir_parser  # noqa: E402
 
 from conftest import bloque  # noqa: E402
 
@@ -651,6 +653,39 @@ def test_el_top_de_documentos_no_cambia_por_emitir_fragmentos(indice_de_cuatro, 
     assert [r["documentos"] for r in leer_resultados(con)] == [
         r["documentos"] for r in leer_resultados(sin)
     ]
+
+
+def test_el_reporte_registra_cuantos_fragmentos_se_pidieron(indice_de_cuatro, tmp_path):
+    reporte = responder(
+        indice_de_cuatro,
+        [Consulta("q001", "alfa")],
+        tmp_path / "r.jsonl",
+        top_fragmentos=7,
+    )
+
+    assert reporte.top_fragmentos == 7
+
+
+def test_una_consulta_que_no_llena_el_top_de_fragmentos_se_nombra(
+    indice_de_cuatro, tmp_path
+):
+    """El índice tiene cuatro vectores y uno se cae por duplicado: pedir diez
+    no puede dar diez, y callarlo esconde un NDCG@10 mermado por construcción."""
+    reporte = responder(
+        indice_de_cuatro,
+        [Consulta("q001", "alfa")],
+        tmp_path / "r.jsonl",
+        top_fragmentos=10,
+    )
+
+    assert reporte.consultas_sin_fragmentos_completos == ["q001"]
+
+
+def test_la_cli_acepta_el_tope_de_fragmentos():
+    parser = _construir_parser()
+
+    assert parser.parse_args(["--top-fragmentos", "5"]).top_fragmentos == 5
+    assert parser.parse_args([]).top_fragmentos == TOP_FRAGMENTOS
 
 
 def test_un_documento_no_ocupa_dos_puestos(fragmentos_jsonl, tmp_path):

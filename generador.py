@@ -39,7 +39,7 @@ import json
 import re
 import sys
 from collections.abc import Callable, Iterator, Sequence
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -370,6 +370,9 @@ class ReporteConsultas:
     n_duplicados_descartados: int
     # Cada una es un F1@3 mermado por construcción: salen nombradas, no contadas.
     consultas_sin_top_completo: list[str]
+    top_fragmentos: int = 0
+    # Lo mismo para NDCG@10: menos de diez puestos es techo, no mal ranking.
+    consultas_sin_fragmentos_completos: list[str] = field(default_factory=list)
 
 
 def responder_consultas(
@@ -483,6 +486,8 @@ def responder_consultas(
         idioma=idioma,
         n_duplicados_descartados=descartados,
         consultas_sin_top_completo=incompletas,
+        top_fragmentos=top_fragmentos,
+        consultas_sin_fragmentos_completos=fragmentos_cortos,
     )
 
 
@@ -807,6 +812,12 @@ def _construir_parser() -> argparse.ArgumentParser:
         help="documentos por consulta en el entregable (§8.6)",
     )
     parser.add_argument(
+        "--top-fragmentos",
+        type=int,
+        default=TOP_FRAGMENTOS,
+        help="fragmentos por consulta en el entregable (NDCG@10); 0 los apaga",
+    )
+    parser.add_argument(
         "--idioma",
         default=None,
         help="post-filtro por idioma (§8.7); sin él no se filtra, que es lo que conviene",
@@ -907,6 +918,7 @@ def _responder(
         config,
         k=args.k,
         top=args.top,
+        top_fragmentos=args.top_fragmentos,
         idioma=args.idioma,
     )
 
@@ -933,6 +945,15 @@ def _responder(
             f"({', '.join(reporte.consultas_sin_top_completo[:10])}). Sube --k: "
             f"el top-{reporte.k_fragmentos} de fragmentos se agotó en menos "
             f"documentos de los que pide la entrega.",
+            file=sys.stderr,
+        )
+
+    if reporte.consultas_sin_fragmentos_completos:
+        print(
+            f"AVISO: {len(reporte.consultas_sin_fragmentos_completos)} consultas "
+            f"no llegaron a {reporte.top_fragmentos} fragmentos "
+            f"({', '.join(reporte.consultas_sin_fragmentos_completos[:10])}). "
+            f"NDCG@{reporte.top_fragmentos} tiene techo en esas.",
             file=sys.stderr,
         )
     return True
