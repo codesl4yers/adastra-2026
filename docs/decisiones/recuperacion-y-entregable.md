@@ -127,9 +127,9 @@ vectores idénticos, y deduplicar solo por texto le quita a uno de los dos el
 documentos distintos y probablemente los dos estén en el ground truth de una
 consulta sobre lit-covid. Dentro de un mismo documento sí es ruido: el repetido
 no cambia su score y solo ocupa un puesto del top-k que otro documento podría
-usar. En la corrida de 50 consultas se descartaron 17; deduplicando también entre
-documentos habrían sido 113, y esos 96 de diferencia son oportunidades de acierto
-tiradas.
+usar. En la corrida de 50 consultas se descartaron 21; deduplicando también entre
+documentos habrían sido 113 —cifra de la corrida del 9 de agosto—, y esa
+diferencia son oportunidades de acierto tiradas.
 
 **El post-filtro por idioma está apagado.** Las consultas vienen en español y el
 grueso del corpus está en inglés: filtrar a `es` no afina la respuesta, la vacía.
@@ -149,15 +149,25 @@ el corte lo marca el identificador siguiente y no el salto de línea. Un
 identificador duplicado detiene la corrida: `resultados.jsonl` saldría con dos
 líneas para la misma consulta y sin saber cuál vale.
 
-## 7. El entregable
+## 7. El entregable, con dos vistas
 
 `registro_de_resultado()` es **el único sitio que hay que tocar si ADL fija otros
 nombres de campo** para la Tabla 2; todo lo demás trabaja con objetos, no con el
-JSON. Hoy se escribe `query_id`, `consulta` y `documentos[]`.
+JSON. Cada línea lleva `query_id`, `consulta` y **dos listas**:
 
-Cada documento va acompañado del fragmento que lo metió en el top-3: es la
-evidencia de por qué está ahí, y sin ella el jurado tiene un `doc_id` y nada con
-que comprobarlo.
+- `documentos[]` — el top-3 de §8.6, sobre el que se mide F1@3. Cada documento va
+  acompañado del fragmento que lo metió ahí: es la evidencia de por qué está, y
+  sin ella el jurado tiene un `doc_id` y nada con que comprobarlo.
+- `fragmentos[]` — el top-10 sobre el que se mide NDCG@10.
+
+**Son dos vistas del mismo top-k de FAISS, no dos búsquedas.** Van en el mismo
+archivo porque dos archivos hay que mantenerlos alineados, y una desalineación
+entre ellos sería del mismo tipo que la que §4 vigila entre índice y metadata.
+
+La segunda lista se añadió porque **entregar 3 ítems le pone a NDCG@10 un techo
+de 0,7227** —`DCG(3)/IDCG(5)` con ganancia binaria—: se perdían 27 puntos de la
+métrica aunque las tres fueran perfectas. Con `--top-fragmentos 0` el campo no se
+escribe y el entregable sale como antes de esta pieza.
 
 ## 8. El ground truth interno
 
@@ -196,3 +206,79 @@ fragmentos y el generador no echa de menos lo que nunca llegó—.
 Empareja por `doc_id` y no por `fuente` porque 59 nombres de archivo se repiten:
 con el nombre, un documento cubierto taparía el hueco de otro homónimo. Sobre el
 índice actual salen 8 huecos, los 8 conocidos.
+
+## 10. La medición
+
+`auxiliar/scripts/evaluar.py` mide F1@3 y NDCG@10 contra el ground truth interno.
+Es un script **puro sobre artefactos**: lee `resultados.jsonl` y
+`ground_truth.json`, no importa `torch` ni `faiss`, no carga el índice y corre en
+un segundo. Eso no es una comodidad, es lo que permite comparar dos
+configuraciones —un reranking, el grafo, otro `k`— sin reconstruir nada.
+
+### 10.1 Qué número manda
+
+**NDCG@10 binario** es el que se reporta: es la lectura estándar y la que casi con
+seguridad aplica el jurado. El **graduado** (`6 - rank`, o sea 5 para el rank 1)
+se imprime al lado como diagnóstico: si sale muy por debajo del binario,
+encontramos los fragmentos correctos y los ordenamos mal.
+
+El graduado no manda a propósito. Quien etiquetó el ground truth ordenó por
+juicio humano sobre un pool de BM25, no midió utilidad relativa; tratar ese orden
+como una escala calibrada le daría un peso que no tiene.
+
+Un predicho sin ganancia **consume su puesto** con un cero: no se salta. Es lo que
+hace que colocar ruido en el puesto 1 duela.
+
+### 10.2 Por qué se reporta el techo
+
+El F1@3 sale acompañado de su máximo alcanzable, que sobre este ground truth es
+**0,7989**: 28 consultas tienen 5 documentos relevantes distintos, 20 tienen 4,
+una tiene 3 y una tiene 2, y entregando 3 el máximo por consulta es 0,75 / 0,857
+/ 1,0 / 0,8. Se calcula, no se escribe a mano.
+
+Sin esa columna, un 0,17 se lee como fracaso absoluto cuando en realidad hay que
+leerlo contra 0,799. El techo de NDCG@10 con 10 fragmentos es 1,0, y por eso no
+se imprime.
+
+### 10.3 Lo que detiene la evaluación
+
+Si falta en `resultados.jsonl` una consulta del ground truth, **se para**:
+promediar sobre las que sí están devuelve un número que no se compara con nada.
+Un `chunk_id` con formato inesperado también para, porque derivar mal un `doc_id`
+inventa aciertos o los pierde y ninguna de las dos cosas se nota en el resultado.
+Las consultas de más se ignoran con aviso. El código de salida es siempre 0: esto
+mide, no verifica; el que falla con 1 es `verificar_cobertura.py`.
+
+### 10.4 La primera medición (12 ago 2026)
+
+```
+consultas evaluadas   50
+
+F1@3         0.169   de 0.799 alcanzable   (21.2%)
+NDCG@10      0.123   binario
+NDCG@10      0.114   graduado
+```
+
+**El número es real y es malo.** Antes de aceptarlo se descartó la explicación
+cómoda: los 234 `chunk_id` y los 134 `doc_id` del ground truth existen todos en
+el `metadata.jsonl` vigente, así que no es un problema de alineación entre el
+ground truth y el índice.
+
+Dónde se pierde: **23 de las 50 consultas no aciertan ni un documento** y 30 no
+aciertan ni un fragmento. Que el binario (0,123) y el graduado (0,114) queden tan
+cerca dice que el problema no es de ordenación —cuando acertamos, el orden es
+razonable— sino de no recuperar.
+
+El diagnóstico cualitativo matiza el desastre. En q001, sobre IA y amenazas NBQR,
+el ground truth espera `F1-CSET-034`, `F1-CSET-061` y `F1-CSET-110`, y el sistema
+devuelve `F3-SIPRI-111`, `F1-AIINDEX-017` y `F1-CSET-032`: documentos del mismo
+observatorio y del mismo tema, vecinos de los correctos. El recuperador está en el
+barrio adecuado y falla el portal. No devuelve ruido.
+
+Dos cautelas al citar estas cifras en el informe:
+
+- **El ground truth no es exhaustivo** (§8): marca cinco fragmentos por consulta,
+  no todos los relevantes. Un acierto fuera de la lista cuenta como fallo aquí y
+  puede no serlo para el jurado.
+- **Se construyó con BM25**, así que cualquier medición futura de un híbrido
+  BM25 sobre este mismo conjunto saldrá sesgada a su favor.

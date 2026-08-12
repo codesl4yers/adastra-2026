@@ -105,13 +105,18 @@ puede empeorar la precisión dentro de un documento aunque mejore la
 recuperación entre documentos. Con p95 de 35 tokens sobre un fragmento mediano
 de 247, la proporción es baja, pero no es cero.
 
-La decisión de mantenerlo es **provisional hasta la ablación**. El ground truth
-interno que la bloqueaba ya existe —50 consultas etiquetadas, cinco fragmentos
-por consulta, `auxiliar/ground/ground_truth.json`—, así que la medición está pendiente de
-lanzar y no de construir: NDCG@10 y F1@3 con y sin prefijo, misma configuración
-de chunking y mismo encoder. Es una re-corrida del generador sobre el mismo `chunks.jsonl`,
-porque el campo `texto` no cambia: basta codificar `texto` en vez de
-`texto_enriquecido`. Si el prefijo no aporta, se quita y se documenta.
+La decisión de mantenerlo es **provisional hasta la ablación**, y desde el 12 de
+agosto ya no hay nada que la bloquee: existe el ground truth —50 consultas
+etiquetadas, cinco fragmentos cada una, `auxiliar/ground/ground_truth.json`— y
+existe con qué medirlo, `auxiliar/scripts/evaluar.py`. La línea base con prefijo
+es F1@3 = 0,169 y NDCG@10 = 0,123 (`recuperacion-y-entregable.md` §10.4).
+
+Falta lanzar la otra mitad: la misma medición **sin** prefijo, con idéntica
+configuración de chunking y encoder. Es una re-corrida del generador sobre el
+mismo `chunks.jsonl`, porque el campo `texto` no cambia: basta codificar `texto`
+en vez de `texto_enriquecido`. Cuesta re-codificar los 134.317 vectores —del
+orden de 1,5 h de GPU—, que es lo único que ahora la separa de estar decidida.
+Si el prefijo no aporta, se quita y se documenta.
 
 ## 7. Verificación en código
 

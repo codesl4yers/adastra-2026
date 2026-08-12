@@ -21,14 +21,18 @@ prohíbe las arquitecturas decoder en indexación y recuperación.
 | **Corpus** | 1826 documentos · 592.008 bloques · 119,4 M caracteres |
 | **Fragmentos** | 134.317 · mediana 140 palabras (p95 232) · p95 442 tokens · **0 truncados** |
 | **Vectores** | 134.317 × 768 · `index.faiss` 412 MB · `metadata.jsonl` 200 MB |
-| **Entregable** | `resultados.jsonl`: 50 consultas × top-3 documentos, scores 0,870–0,946 |
+| **Entregable** | `resultados.jsonl`: 50 consultas × top-3 documentos + top-10 fragmentos |
 | **Cobertura** | 1818 de 1826 documentos con vectores (los 8 huecos son conocidos y legítimos) |
-| **Métricas del reto** | **F1@3** sobre documentos (§8.6) y **NDCG@10** |
+| **Métricas del reto** | **F1@3** = 0,169 de 0,799 alcanzable · **NDCG@10** = 0,123 |
 | **Ground truth interno** | 50 consultas etiquetadas a mano × 5 fragmentos (`auxiliar/ground/`) |
-| **Pruebas** | 685, `python -m pytest` |
+| **Pruebas** | 724, `python -m pytest` |
 
-Las métricas del reto todavía **no están medidas** contra el ground truth: es lo
-primero de la lista de [Pendiente](#pendiente).
+Las dos métricas están medidas contra el ground truth interno del equipo, no
+contra el del jurado. **El techo de F1@3 sobre ese conjunto es 0,7989**, no 1,0:
+casi todas sus consultas marcan 4 o 5 documentos relevantes y el entregable solo
+admite 3. El número crudo se lee contra ese techo, y aun así es bajo — el
+análisis de dónde se pierde está en
+[`recuperacion-y-entregable.md` §10.4](docs/decisiones/recuperacion-y-entregable.md).
 
 ## Instalación
 
@@ -136,6 +140,7 @@ fragmentos a medias no vale para la entrega.
 | `--resultados` | Ruta del entregable. Por defecto, junto al índice. |
 | `--k` | Fragmentos que se piden a FAISS antes de agregar a documento (50). |
 | `--top` | Documentos por consulta (3). |
+| `--top-fragmentos` | Fragmentos por consulta, para NDCG@10 (10). `0` los apaga. |
 | `--idioma` | Post-filtro por idioma (§8.7). Apagado por defecto. |
 | `--lote` | Textos por lote del encoder (4). |
 | `--presupuesto-atencion` | Tope de `lote × longitud²` por pasada. Bájalo si la GPU se queda sin memoria; el valor por defecto está calculado para 6 GB. |
@@ -158,7 +163,13 @@ python auxiliar/scripts/verificar_cobertura.py \             # ningún documento
 
 python auxiliar/scripts/verificar_corpus.py \                # checklist de aceptación
     --corpus base_documental
+
+python auxiliar/scripts/evaluar.py \                        # F1@3 y NDCG@10
+    --resultados resultados.jsonl     --ground auxiliar/ground/ground_truth.json [--detalle]
 ```
+
+`evaluar.py` no carga el índice ni el encoder: lee los dos artefactos y corre en
+un segundo, así que sirve para comparar configuraciones sin reconstruir nada.
 
 `verificar_cobertura.py` es la comprobación de piso: un documento sin un solo
 vector no puede aparecer en el top-3 de ninguna consulta, y nada más en el
@@ -220,7 +231,7 @@ auxiliar/            todo lo que construye lo anterior y no se entrega
   orquestador.py     recorrido, persistencia y CLI de extracción
   indice.py          lectura del índice maestro de ADL (solo lee)
   extractores/       pdf, json_, tabular, imagen, pbf, texto + comun y ocr
-  scripts/           verificación, barrido y ensamblado
+  scripts/           verificación, evaluación, barrido y ensamblado
   tests/             685 pruebas       fixtures/  corpus sintético
   ground/            ground truth interno: 50 consultas + metodología
 
@@ -245,7 +256,7 @@ El README es el manual; las decisiones y sus mediciones viven en
 | `conteo-de-tokens.md` | por qué la estimación de 1,6 tokens/palabra no servía y qué salió de re-fragmentar |
 | `campos-indexables-tabulares.md` | qué columnas de un dataset entran al vector y cuáles viajan como metadata |
 | `enriquecimiento-de-contexto.md` | qué se codifica exactamente y por qué es legal bajo §4.2 |
-| `recuperacion-y-entregable.md` | memoria de GPU, orden índice↔metadata, top-k, score por documento, deduplicación, el ground truth interno |
+| `recuperacion-y-entregable.md` | memoria de GPU, orden índice↔metadata, las dos vistas del entregable, score por documento, deduplicación, el ground truth interno y **qué mide cada métrica** |
 
 `docs/specs/` guarda los specs de partida —fragmentador y selección de encoder—:
 son documentos fechados y no se reescriben, así que donde uno choque con una
@@ -253,9 +264,18 @@ decisión posterior, manda la decisión.
 
 ## Pendiente
 
-- **Medir F1@3 y NDCG@10** contra `auxiliar/ground/ground_truth.json`. Bloquea las dos
-  decisiones que siguen abiertas: la ablación del enriquecimiento de contexto y
-  la configuración de fragmentación del barrido.
+- **Subir la recuperación.** Medida, está en el 21 % de su techo. El siguiente
+  paso planificado es
+  [el grafo en la recuperación](docs/superpowers/plans/2026-08-12-grafo-en-recuperacion.md):
+  expansión de consulta con el gazetteer multilingüe y reordenamiento por
+  solape de entidades, cada uno tras su flag y medido por separado.
+- **Cerrar las dos decisiones que esperaban a poder medir**: la ablación del
+  enriquecimiento de contexto y la configuración de fragmentación del barrido.
+  Ya no están bloqueadas — `evaluar.py` las arbitra.
+- **Publicar la Release** con `index.faiss`, `metadata.jsonl`, `chunks.jsonl` y
+  `grafo.graphml`, y enlazarla desde aquí.
+- **Replantear `auxiliar/scripts/preparar_entrega.py`**, que ensamblaba una copia
+  en `entrega/` cuando esa carpeta era el entregable y ahora lo es la raíz.
 - **Confirmar los nombres de campo de la Tabla 2** contra el enunciado. Si ADL
   los fija de otro modo, el único sitio que cambia es `registro_de_resultado()`.
 - **Relanzar `auxiliar/scripts/verificar_corpus.py`** de punta a punta desde que cambió la
