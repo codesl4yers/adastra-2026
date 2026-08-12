@@ -597,6 +597,62 @@ def test_el_entregable_no_da_mas_documentos_de_los_pedidos(indice_de_cuatro, tmp
     assert len(leer_resultados(destino)[0]["documentos"]) == 2
 
 
+def test_el_entregable_lleva_el_top_de_fragmentos(indice_de_cuatro, tmp_path):
+    destino = tmp_path / "resultados.jsonl"
+
+    responder(indice_de_cuatro, [Consulta("q001", "alfa")], destino, top_fragmentos=3)
+
+    fragmentos = leer_resultados(destino)[0]["fragmentos"]
+    assert [f["puesto"] for f in fragmentos] == [1, 2, 3]
+    assert fragmentos[0]["texto"] == "alfa"
+
+
+def test_cada_fragmento_lleva_su_chunk_id(indice_de_cuatro, tmp_path):
+    """Es la clave con la que el ground truth empareja: sin ella no hay NDCG."""
+    destino = tmp_path / "resultados.jsonl"
+
+    responder(indice_de_cuatro, [Consulta("q001", "beta")], destino, top_fragmentos=2)
+
+    primero = leer_resultados(destino)[0]["fragmentos"][0]
+    assert primero["chunk_id"] == "F1-DOC-001-c0000"
+    assert primero["doc_id"] == "F1-DOC-001"
+    assert primero["score"] == pytest.approx(1.0, abs=1e-5)
+
+
+def test_los_fragmentos_salen_ordenados_por_score(indice_de_cuatro, tmp_path):
+    destino = tmp_path / "resultados.jsonl"
+
+    responder(indice_de_cuatro, [Consulta("q001", "alfa")], destino, top_fragmentos=4)
+
+    scores = [f["score"] for f in leer_resultados(destino)[0]["fragmentos"]]
+    assert scores == sorted(scores, reverse=True)
+
+
+def test_sin_top_de_fragmentos_el_entregable_sale_como_antes(indice_de_cuatro, tmp_path):
+    """El entregable de la corrida anterior sigue siendo válido palabra por palabra."""
+    destino = tmp_path / "resultados.jsonl"
+
+    responder(indice_de_cuatro, [Consulta("q001", "alfa")], destino, top_fragmentos=0)
+
+    registro = leer_resultados(destino)[0]
+    assert "fragmentos" not in registro
+    assert len(registro["documentos"]) == 3
+
+
+def test_el_top_de_documentos_no_cambia_por_emitir_fragmentos(indice_de_cuatro, tmp_path):
+    """Las dos vistas salen del mismo top-k: emitir una no puede alterar la otra."""
+    con = tmp_path / "con.jsonl"
+    sin = tmp_path / "sin.jsonl"
+    consultas = [Consulta("q001", "alfa"), Consulta("q002", "beta")]
+
+    responder(indice_de_cuatro, consultas, con, top_fragmentos=10)
+    responder(indice_de_cuatro, consultas, sin, top_fragmentos=0)
+
+    assert [r["documentos"] for r in leer_resultados(con)] == [
+        r["documentos"] for r in leer_resultados(sin)
+    ]
+
+
 def test_un_documento_no_ocupa_dos_puestos(fragmentos_jsonl, tmp_path):
     """Todos los fragmentos de la fixture son del mismo documento: el top-3 de
     §8.6 es de documentos, así que el entregable tiene que traer uno solo."""

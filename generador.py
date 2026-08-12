@@ -7,8 +7,9 @@ modelo corre en ``eval()`` y float32.
 Escribe ``index.faiss`` (``IndexFlatIP``, vectores normalizados),
 ``metadata.jsonl`` —una línea por vector, en el mismo orden que el índice, sin
 ``texto_enriquecido``— y ``reporte_indice.json``. La segunda etapa carga ese
-índice de disco y escribe el entregable ``resultados.jsonl``, con el top-3 de
-documentos por consulta.
+índice de disco y escribe el entregable ``resultados.jsonl``, con dos vistas del
+mismo top-k: el top-3 de documentos de §8.6 y el top-10 de fragmentos que mide
+NDCG@10.
 
 Lo que se codifica es ``texto_enriquecido``, no ``texto``. Las decisiones de esta
 capa —lotes, orden, agregación a documento, deduplicación— están en
@@ -17,18 +18,18 @@ capa —lotes, orden, agregación a documento, deduplicación— están en
 
 Uso::
 
-    python generador.py --entrada fragmentos --salida indice
-    python generador.py --entrada fragmentos --salida indice --desarrollo
+    python generador.py --entrada chunks --salida base_vectorial/encoder_<modelo>
+    python generador.py --entrada chunks --salida base_vectorial/encoder_<modelo> --desarrollo
 
-    python generador.py --indice indice \\
+    python generador.py --indice base_vectorial/encoder_<modelo> \\
         --consultas base_documental/Extracto_Preguntas_50_v2.pdf \\
-        --resultados entrega/resultados.jsonl
+        --resultados resultados.jsonl
 
 Las dos etapas seguidas, si se quiere construir y responder en una sola corrida::
 
-    python generador.py --entrada fragmentos --salida indice \\
+    python generador.py --entrada chunks --salida base_vectorial/encoder_<modelo> \\
         --consultas base_documental/Extracto_Preguntas_50_v2.pdf \\
-        --resultados entrega/resultados.jsonl
+        --resultados resultados.jsonl
 """
 
 from __future__ import annotations
@@ -37,7 +38,7 @@ import argparse
 import json
 import re
 import sys
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterator, Sequence
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
@@ -379,6 +380,7 @@ def responder_consultas(
     codificar: Callable[[list[str]], np.ndarray] | None = None,
     k: int = K_FRAGMENTOS,
     top: int = TOP_DOCUMENTOS,
+    top_fragmentos: int = TOP_FRAGMENTOS,
     idioma: str | None = None,
 ) -> ReporteConsultas:
     """Responde las consultas contra el índice de ``indice`` y escribe ``salida``.
@@ -433,6 +435,7 @@ def responder_consultas(
 
     descartados = 0
     incompletas: list[str] = []
+    fragmentos_cortos: list[str] = []
     lineas: list[str] = []
 
     with ruta_metadata.open("rb") as archivo:
@@ -455,9 +458,14 @@ def responder_consultas(
             if len(documentos) < top:
                 incompletas.append(consulta.id)
 
+            fragmentos = mejores_fragmentos(candidatos, top_fragmentos)
+            if len(fragmentos) < top_fragmentos:
+                fragmentos_cortos.append(consulta.id)
+
             lineas.append(
                 json.dumps(
-                    registro_de_resultado(consulta, documentos), ensure_ascii=False
+                    registro_de_resultado(consulta, documentos, fragmentos),
+                    ensure_ascii=False,
                 )
             )
 
@@ -568,14 +576,19 @@ def agregar_por_documento(
     ]
 
 
-def registro_de_resultado(consulta: Consulta, documentos: list[Recuperado]) -> dict[str, Any]:
+def registro_de_resultado(
+    consulta: Consulta,
+    documentos: list[Recuperado],
+    fragmentos: Sequence[Candidato] = (),
+) -> dict[str, Any]:
     """Una línea de ``resultados.jsonl``, con los campos de la Tabla 2.
 
     **Este es el único sitio que hay que tocar si ADL fija otros nombres de
-    campo.** Cada documento va con el fragmento que lo metió en el top-3, que es
-    la evidencia de por qué está ahí.
+    campo.** ``documentos`` es el top-3 de §8.6, cada uno con el fragmento que lo
+    metió ahí; ``fragmentos`` es el top-10 que mide NDCG@10. Sin fragmentos, el
+    campo no se escribe.
     """
-    return {
+    registro: dict[str, Any] = {
         "query_id": consulta.id,
         "consulta": consulta.texto,
         "documentos": [
@@ -595,6 +608,22 @@ def registro_de_resultado(consulta: Consulta, documentos: list[Recuperado]) -> d
             for puesto, documento in enumerate(documentos, start=1)
         ],
     }
+
+    if fragmentos:
+        registro["fragmentos"] = [
+            {
+                "puesto": puesto,
+                "chunk_id": fragmento.metadata.get("chunk_id"),
+                "doc_id": fragmento.metadata.get("doc_id"),
+                "fuente": fragmento.metadata.get("fuente"),
+                "score": round(fragmento.score, 6),
+                "pagina": fragmento.metadata.get("pagina"),
+                "texto": fragmento.metadata.get("texto"),
+            }
+            for puesto, fragmento in enumerate(fragmentos, start=1)
+        ]
+
+    return registro
 
 
 # --- lectura del índice ----------------------------------------------------------
