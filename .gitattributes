@@ -1,0 +1,18 @@
+# Artefactos pesados del pipeline. Se versionan con Git LFS: GitHub rechaza
+# cualquier archivo de mas de 100 MB y estos van de 43 a 393 MiB.
+#
+# Los patrones son por nombre y no por ruta, para que sobrevivan a un cambio
+# de estructura de carpetas.
+*.faiss          filter=lfs diff=lfs merge=lfs -text
+*.graphml        filter=lfs diff=lfs merge=lfs -text
+metadata.jsonl   filter=lfs diff=lfs merge=lfs -text
+chunks.jsonl     filter=lfs diff=lfs merge=lfs -text
+
+# El resto del repo es texto: finales de linea normalizados a LF para que un
+# clon en Windows no reescriba archivos que se comparan byte a byte.
+*.py     text eol=lf
+*.md     text eol=lf
+*.json   text eol=lf
+*.jsonl  text eol=lf
+*.toml   text eol=lf
+*.txt    text eol=lf
