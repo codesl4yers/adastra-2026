@@ -24,8 +24,8 @@ dependencies = [
 dev = ["pytest>=8.0"]
 
 [tool.pytest.ini_options]
-pythonpath = ["."]
-testpaths = ["tests"]
+pythonpath = [".", "auxiliar"]
+testpaths = ["auxiliar/tests"]
 markers = [
     "integracion: necesita el checkpoint del encoder descargado (1,2 GB)",
 ]

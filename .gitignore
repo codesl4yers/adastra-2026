@@ -228,7 +228,7 @@ __marimo__/
 # comparar corridas, usa el manifiesto y el reporte de fragmentación.
 extraidos/
 chunks/
-indice/
+# indice/ ya no existe: el indice vive en base_vectorial/
 
 # entrega/ se ensambla con scripts/preparar_entrega.py a partir de indice/ y
 # del código de la raíz. Se versiona todo menos la base vectorial: son 585 MB

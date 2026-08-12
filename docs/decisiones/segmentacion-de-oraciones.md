@@ -73,7 +73,7 @@ puede morir porque un extractor devuelva un idioma inesperado.
 
 ## 5. El conjunto dorado
 
-`fixtures/oraciones_doradas.jsonl`: **65 casos etiquetados a mano**, 21 o más por
+`auxiliar/fixtures/oraciones_doradas.jsonl`: **65 casos etiquetados a mano**, 21 o más por
 idioma, con los venenos que exige §3.2 del spec —abreviaturas, decimales, siglas
 con puntos, citas, listas sin punto final, comillas que envuelven el punto,
 elipsis, encabezados sin puntuación—.

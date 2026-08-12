@@ -18,7 +18,8 @@ import sys
 import tempfile
 from pathlib import Path
 
-RAIZ = Path(__file__).resolve().parent.parent
+RAIZ = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(RAIZ / "auxiliar"))
 sys.path.insert(0, str(RAIZ))
 
 from indice import cargar_indice  # noqa: E402

@@ -6,13 +6,17 @@ import pytest
 
 from contrato import Bloque, Documento, calcular_doc_id
 
-RAIZ = Path(__file__).resolve().parent.parent
+# Dos raíces distintas desde que el entregable vive arriba y las herramientas
+# en auxiliar/: los fixtures acompañan a las pruebas, pero el corpus y los
+# artefactos del pipeline cuelgan de la raíz del repositorio.
+RAIZ_AUXILIAR = Path(__file__).resolve().parents[1]
+RAIZ = Path(__file__).resolve().parents[2]
 
 
 @pytest.fixture(scope="session")
 def dir_fixtures() -> Path:
     """Directorio con el corpus sintético."""
-    return RAIZ / "fixtures"
+    return RAIZ_AUXILIAR / "fixtures"
 
 
 @pytest.fixture(scope="session")

@@ -22,7 +22,9 @@ import json
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+_RAIZ = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(_RAIZ / "auxiliar"))
+sys.path.insert(0, str(_RAIZ))
 
 from indice import EntradaIndice, cargar_indice  # noqa: E402
 

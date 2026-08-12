@@ -24,7 +24,7 @@ prohíbe las arquitecturas decoder en indexación y recuperación.
 | **Entregable** | `resultados.jsonl`: 50 consultas × top-3 documentos, scores 0,870–0,946 |
 | **Cobertura** | 1818 de 1826 documentos con vectores (los 8 huecos son conocidos y legítimos) |
 | **Métricas del reto** | **F1@3** sobre documentos (§8.6) y **NDCG@10** |
-| **Ground truth interno** | 50 consultas etiquetadas a mano × 5 fragmentos (`ground/`) |
+| **Ground truth interno** | 50 consultas etiquetadas a mano × 5 fragmentos (`auxiliar/ground/`) |
 | **Pruebas** | 685, `python -m pytest` |
 
 Las métricas del reto todavía **no están medidas** contra el ground truth: es lo
@@ -53,17 +53,17 @@ Tesseract el pipeline no se detiene: los documentos que lo necesitan salen con
 
 ```bash
 # 1. extraer            base_documental/ -> extraidos/
-python orquestador.py --entrada base_documental --salida extraidos \
+python auxiliar/orquestador.py --entrada base_documental --salida extraidos \
     --indice base_documental/Indice_Datos_Codefest.xlsx --procesos 6 --limpiar
 
-# 2. fragmentar         extraidos/ -> fragmentos/
+# 2. fragmentar         extraidos/ -> chunks/
 python fragmentador.py --entrada extraidos --salida chunks --tokenizador real
 
 # 3. indexar y responder
-python generador.py --entrada fragmentos --salida indice
-python generador.py --indice indice \
+python generador.py --entrada chunks --salida base_vectorial/encoder_granite-embedding-311m-multilingual-r2
+python generador.py --indice base_vectorial/encoder_granite-embedding-311m-multilingual-r2 \
     --consultas base_documental/Extracto_Preguntas_50_v2.pdf \
-    --resultados entrega/resultados.jsonl
+    --resultados resultados.jsonl
 ```
 
 Tiempos con el corpus completo: ~30 min de extracción con 6 procesos (3 h en
@@ -99,7 +99,7 @@ instalado.
 
 ### 2. Fragmentar — `fragmentador.py`
 
-Produce `chunks/chunks.jsonl` y `fragmentos/reporte_fragmentacion.json`
+Produce `chunks/chunks.jsonl` y `chunks/reporte_fragmentacion.json`
 (histograma, mediana, p95, atómicos, huérfanos fusionados, indivisibles).
 
 | Flag | Efecto |
@@ -118,7 +118,7 @@ el algoritmo, para que el informe pueda citar la configuración exacta y el
 barrido pueda variarla sin editar código:
 
 ```bash
-python scripts/barrido_fragmentacion.py --entrada extraidos --salida docs/barrido.md
+python auxiliar/scripts/barrido_fragmentacion.py --entrada extraidos --salida docs/barrido.md
 ```
 
 ### 3. Indexar y responder — `generador.py`
@@ -152,11 +152,11 @@ más largo del lote. En una GPU con más memoria el óptimo será mayor — súb
 ```bash
 python -m pytest                                    # 685 pruebas
 
-python scripts/verificar_cobertura.py \             # ningún documento sin vectores
+python auxiliar/scripts/verificar_cobertura.py \             # ningún documento sin vectores
     --indice base_documental/Indice_Datos_Codefest.xlsx \
-    --metadata indice/metadata.jsonl
+    --metadata base_vectorial/encoder_granite-embedding-311m-multilingual-r2/metadata.jsonl
 
-python scripts/verificar_corpus.py \                # checklist de aceptación
+python auxiliar/scripts/verificar_corpus.py \                # checklist de aceptación
     --corpus base_documental
 ```
 
@@ -168,49 +168,68 @@ Las cinco pruebas que exige el enunciado:
 
 | Requisito | Dónde |
 |---|---|
-| 1. `validar_documento` limpio para toda salida de un extractor | `test_toda_salida_cumple_el_contrato` / `test_la_salida_cumple_el_contrato` en cada `tests/test_extractor_*.py` |
+| 1. `validar_documento` limpio para toda salida de un extractor | `test_toda_salida_cumple_el_contrato` / `test_la_salida_cumple_el_contrato` en cada `auxiliar/tests/test_extractor_*.py` |
 | 2. Archivo malformado → `bloques=[]` y `errores` no vacía | `test_un_*_ilegible_no_lanza` en cada extractor, y `test_un_archivo_corrupto_no_frena_a_los_demas` |
 | 3. Dos corridas → bytes idénticos | `test_dos_corridas_producen_bytes_identicos`, también con `--procesos` |
 | 4. `fuente` = nombre exacto del archivo | `test_todos_los_documentos_llevan_ruta_relativa`, `test_detecta_fuente_vacia` |
 | 5. Breadcrumb correcto a tres niveles | `test_la_jerarquia_produce_un_documento_que_valida`, `test_las_secciones_abren_subsecciones` |
 
 El fixture binario (`indice_minimo.xlsx`) se regenera con
-`python fixtures/generar_binarios.py`; no se edita a mano.
+`python auxiliar/fixtures/generar_binarios.py`; no se edita a mano.
 
 ## Preparar la entrega
 
 ```bash
-python scripts/preparar_entrega.py --indice indice \
-    --resultados entrega/resultados.jsonl --destino entrega
+python auxiliar/scripts/preparar_entrega.py --indice base_vectorial/encoder_granite-embedding-311m-multilingual-r2 \
+    --resultados resultados.jsonl --destino paquete
 ```
 
-Deja `entrega/` con `resultados.jsonl`, `generador.py` **y el cierre transitivo
-de sus imports** —calculado del AST, no de una lista a mano—, y
-`base_vectorial/encoder_<modelo>/` con el índice y la metadata.
+Ensambla un paquete de entrega en `--destino`: `resultados.jsonl`, `generador.py`
+**y el cierre transitivo de sus imports** —calculado del AST, no de una lista a
+mano—, más `base_vectorial/encoder_<modelo>/`.
 
-Dos cosas que conviene saber: los `.py` de `entrega/` son **copias**, así que se
-edita el original de la raíz y se vuelve a ensamblar; y `base_vectorial/` no se
-versiona (585 MB, por encima del límite de GitHub), se reconstruye con el mismo
-comando. `informe_tecnico.pdf` no lo genera el pipeline: el script avisa si falta.
+> **Este script quedó a medias tras la reorganización.** Ahora la raíz del
+> repositorio ya *es* la entrega, así que ensamblar una copia aparte solo sirve
+> para producir un ZIP suelto. Sigue funcionando y sus pruebas pasan, pero su
+> destino por defecto ya no tiene sentido y hay que replantearlo.
+
+`informe_tecnico.pdf` no lo genera el pipeline: el script avisa si falta.
 
 ## Estructura
 
+La raíz **es** el entregable: lo que un evaluador necesita está al abrir el
+repositorio, sin entrar en ninguna carpeta. Todo lo que construye ese entregable
+—pero no se entrega— vive en `auxiliar/`.
+
 ```
+resultados.jsonl     el entregable: 50 consultas x top-3 documentos
 contrato.py          Bloque, Documento, calcular_doc_id, validar_documento
-indice.py            lectura del índice maestro de ADL (solo lee)
 limpieza.py          normalización, idioma, detección de repetidos
-orquestador.py       recorrido, persistencia y CLI de extracción
 segmentador.py       fronteras de oración por idioma (pysbd + re-fusión)
 fragmentador.py      Fragmento, ConfigFragmentacion, cascada de tres capas y CLI
 encoder.py           configuración del encoder, carga del modelo, conteo de tokens
 generador.py         índice FAISS, recuperación y entregable
-extractores/         pdf, json_, tabular, imagen, pbf, texto + comun y ocr
-scripts/             verificación, barrido y ensamblado de la entrega
-fixtures/            corpus sintético            tests/     pytest
-base_documental/     corpus real de ADL (solo lectura)
-ground/              ground truth interno: 50 consultas + metodología
-docs/                bitácora del proyecto
+generador_grafo.py   componente bonus: léxico, NER, RE y grafo (§7)
+base_vectorial/
+  encoder_<modelo>/  index.faiss, metadata.jsonl, reporte_indice.json
+  grafo/             grafo.graphml, grafo_estadisticas.json
+chunks/              chunks.jsonl, la entrada del indexador
+docs/                bitácora: por qué cada decisión es la que es
+
+auxiliar/            todo lo que construye lo anterior y no se entrega
+  orquestador.py     recorrido, persistencia y CLI de extracción
+  indice.py          lectura del índice maestro de ADL (solo lee)
+  extractores/       pdf, json_, tabular, imagen, pbf, texto + comun y ocr
+  scripts/           verificación, barrido y ensamblado
+  tests/             685 pruebas       fixtures/  corpus sintético
+  ground/            ground truth interno: 50 consultas + metodología
+
+base_documental/     corpus real de ADL (solo lectura, fuera de git)
 ```
+
+`base_vectorial/` y `chunks/` no se versionan: son 910 MiB entre los tres
+archivos, muy por encima del límite de 100 MB por archivo de GitHub. Se
+descargan de la Release o se reconstruyen con el pipeline de arriba.
 
 ## Dónde está el porqué
 
@@ -234,12 +253,12 @@ decisión posterior, manda la decisión.
 
 ## Pendiente
 
-- **Medir F1@3 y NDCG@10** contra `ground/ground_truth.json`. Bloquea las dos
+- **Medir F1@3 y NDCG@10** contra `auxiliar/ground/ground_truth.json`. Bloquea las dos
   decisiones que siguen abiertas: la ablación del enriquecimiento de contexto y
   la configuración de fragmentación del barrido.
 - **Confirmar los nombres de campo de la Tabla 2** contra el enunciado. Si ADL
   los fija de otro modo, el único sitio que cambia es `registro_de_resultado()`.
-- **Relanzar `scripts/verificar_corpus.py`** de punta a punta desde que cambió la
+- **Relanzar `auxiliar/scripts/verificar_corpus.py`** de punta a punta desde que cambió la
   paralelización. Sus criterios se comprobaron a mano sobre la salida real —0
   violaciones de contrato en los 1826 documentos—, pero el script no.
-- **Escribir `entrega/informe_tecnico.pdf`.**
+- **Escribir `informe_tecnico.pdf`.**

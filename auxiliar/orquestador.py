@@ -27,9 +27,13 @@ from types import ModuleType
 
 import psutil
 
-from contrato import Documento, calcular_doc_id, documento_a_dict
-from extractores import imagen, json_, pbf, pdf, tabular, texto
-from indice import EntradaIndice, cargar_indice
+# El pipeline entregable vive en la raíz del repo y esto en auxiliar/: sin la
+# raíz en el path, ejecutar este archivo directamente no encuentra `contrato`.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from contrato import Documento, calcular_doc_id, documento_a_dict  # noqa: E402
+from extractores import imagen, json_, pbf, pdf, tabular, texto  # noqa: E402
+from indice import EntradaIndice, cargar_indice  # noqa: E402
 
 NOMBRE_MANIFIESTO = "manifiesto.jsonl"
 

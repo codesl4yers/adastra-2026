@@ -31,7 +31,9 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+_RAIZ = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(_RAIZ / "auxiliar"))
+sys.path.insert(0, str(_RAIZ))
 
 from encoder import CONFIG_POR_DEFECTO  # noqa: E402
 from generador import NOMBRE_INDICE, NOMBRE_METADATA  # noqa: E402

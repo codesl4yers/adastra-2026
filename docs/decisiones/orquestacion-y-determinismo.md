@@ -238,7 +238,7 @@ truncado—, así que pesan desproporcionadamente en el índice; y entre el 5 y 
 Devuelve la lista de invariantes violados y no lanza. **El pipeline en producción
 no la llama**: un documento inválido debe ser imposible de construir, no algo que
 se detecte al final. Existe para probar extractores y para auditar el corpus
-(`scripts/verificar_corpus.py`).
+(`auxiliar/scripts/verificar_corpus.py`).
 
 Las dataclasses del contrato son `frozen` pero contienen listas y diccionarios:
 "frozen" impide reasignar campos, no mutar su contenido. Se tratan como valores —

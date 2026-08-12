@@ -6,7 +6,7 @@ son de la corrida de 140 686 fragmentos (estimación de tokens); la corrida
 vigente son 134 317 fragmentos con el tokenizador real y la cobertura del
 prefijo no cambia, porque depende de la metadata del documento y no del tamaño
 del fragmento. La ablación de §6 sigue sin hacer, pero ya no está bloqueada: el
-ground truth existe (`ground/ground_truth.json`).
+ground truth existe (`auxiliar/ground/ground_truth.json`).
 
 ---
 
@@ -107,7 +107,7 @@ de 247, la proporción es baja, pero no es cero.
 
 La decisión de mantenerlo es **provisional hasta la ablación**. El ground truth
 interno que la bloqueaba ya existe —50 consultas etiquetadas, cinco fragmentos
-por consulta, `ground/ground_truth.json`—, así que la medición está pendiente de
+por consulta, `auxiliar/ground/ground_truth.json`—, así que la medición está pendiente de
 lanzar y no de construir: NDCG@10 y F1@3 con y sin prefijo, misma configuración
 de chunking y mismo encoder. Es una re-corrida del generador sobre el mismo `chunks.jsonl`,
 porque el campo `texto` no cambia: basta codificar `texto` en vez de

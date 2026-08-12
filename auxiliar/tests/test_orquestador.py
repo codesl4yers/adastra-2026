@@ -55,7 +55,7 @@ def test_determinismo_con_semilla_de_hash_distinta(dir_fixtures, tmp_path, raiz_
         resultado = subprocess.run(
             [
                 sys.executable,
-                "orquestador.py",
+                "auxiliar/orquestador.py",
                 "--entrada",
                 str(dir_fixtures),
                 "--salida",
@@ -93,7 +93,7 @@ def test_determinismo_con_indice_y_semilla_de_hash_distinta(
         resultado = subprocess.run(
             [
                 sys.executable,
-                "orquestador.py",
+                "auxiliar/orquestador.py",
                 "--entrada",
                 str(dir_fixtures),
                 "--salida",
@@ -736,7 +736,7 @@ def test_la_cli_acepta_indice(tmp_path, raiz_proyecto, indice_minimo):
 
     resultado = subprocess.run(
         [
-            sys.executable, "orquestador.py",
+            sys.executable, "auxiliar/orquestador.py",
             "--entrada", str(entrada),
             "--salida", str(salida),
             "--indice", str(indice_minimo),
@@ -759,7 +759,7 @@ def test_la_cli_funciona_sin_indice(tmp_path, raiz_proyecto):
     salida = tmp_path / "salida"
 
     resultado = subprocess.run(
-        [sys.executable, "orquestador.py", "--entrada", str(entrada), "--salida", str(salida)],
+        [sys.executable, "auxiliar/orquestador.py", "--entrada", str(entrada), "--salida", str(salida)],
         cwd=raiz_proyecto, capture_output=True, text=True, encoding="utf-8", errors="replace",
     )
     assert resultado.returncode == 0, resultado.stderr

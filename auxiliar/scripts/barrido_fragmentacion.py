@@ -19,7 +19,9 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+_RAIZ = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(_RAIZ / "auxiliar"))
+sys.path.insert(0, str(_RAIZ))
 
 from fragmentador import (  # noqa: E402  - tras ajustar sys.path
     ConfigFragmentacion,
