@@ -10,6 +10,9 @@ import pytest
 
 from scripts.evaluar import (
     cargar_ground,
+    cargar_resultados,
+    evaluar,
+    main,
     doc_id_de,
     f1_en_k,
     ndcg_en_k,
@@ -182,3 +185,125 @@ def test_con_tantos_relevantes_como_puestos_el_techo_es_uno():
 def test_con_menos_relevantes_que_puestos_el_techo_baja_por_precision():
     """2 relevantes y 3 puestos: uno sobra por fuerza. P=2/3, R=1, F1=0,8."""
     assert techo_f1(2, 3) == pytest.approx(0.8)
+
+
+# --- el script completo ----------------------------------------------------------
+
+
+def escribir_resultados(ruta, registros):
+    ruta.write_text(
+        "".join(json.dumps(r, ensure_ascii=False) + "\n" for r in registros),
+        encoding="utf-8",
+        newline="\n",
+    )
+    return ruta
+
+
+def registro(query_id, doc_ids, chunk_ids=None):
+    linea = {
+        "query_id": query_id,
+        "consulta": "da igual",
+        "documentos": [
+            {"puesto": n, "doc_id": doc_id} for n, doc_id in enumerate(doc_ids, start=1)
+        ],
+    }
+    if chunk_ids is not None:
+        linea["fragmentos"] = [
+            {"puesto": n, "chunk_id": chunk_id, "doc_id": doc_id_de(chunk_id)}
+            for n, chunk_id in enumerate(chunk_ids, start=1)
+        ]
+    return linea
+
+
+def test_el_acierto_perfecto_da_las_tres_metricas_al_maximo(tmp_path):
+    ground = escribir_ground(
+        tmp_path / "g.json",
+        [consulta_etiquetada("q001", [f"F1-A-00{n}-c0001" for n in range(1, 4)])],
+    )
+    resultados = escribir_resultados(
+        tmp_path / "r.jsonl",
+        [registro("q001", ["F1-A-001", "F1-A-002", "F1-A-003"],
+                  [f"F1-A-00{n}-c0001" for n in range(1, 4)])],
+    )
+
+    reporte = evaluar(cargar_ground(ground), cargar_resultados(resultados), 3, 10)
+
+    assert reporte.f1 == pytest.approx(1.0)
+    assert reporte.ndcg_binario == pytest.approx(1.0)
+    assert reporte.ndcg_graduado == pytest.approx(1.0)
+    assert reporte.techo_f1 == pytest.approx(1.0)
+
+
+def test_una_consulta_del_ground_que_falta_detiene_la_evaluacion(tmp_path):
+    """Promediar sobre las que si estan devuelve un numero que no compara con nada."""
+    ground = escribir_ground(
+        tmp_path / "g.json",
+        [consulta_etiquetada("q001", ["F1-A-001-c0001"]),
+         consulta_etiquetada("q002", ["F1-A-002-c0001"])],
+    )
+    resultados = escribir_resultados(
+        tmp_path / "r.jsonl", [registro("q001", ["F1-A-001"], ["F1-A-001-c0001"])]
+    )
+
+    with pytest.raises(ValueError, match="q002"):
+        evaluar(cargar_ground(ground), cargar_resultados(resultados), 3, 10)
+
+
+def test_las_consultas_de_mas_se_ignoran(tmp_path):
+    ground = escribir_ground(
+        tmp_path / "g.json", [consulta_etiquetada("q001", ["F1-A-001-c0001"])]
+    )
+    resultados = escribir_resultados(
+        tmp_path / "r.jsonl",
+        [registro("q001", ["F1-A-001"], ["F1-A-001-c0001"]),
+         registro("q999", ["F1-Z-999"], ["F1-Z-999-c0001"])],
+    )
+
+    reporte = evaluar(cargar_ground(ground), cargar_resultados(resultados), 3, 10)
+
+    assert reporte.n_consultas == 1
+    assert reporte.n_ignoradas == 1
+
+
+def test_sin_fragmentos_se_mide_f1_y_no_ndcg(tmp_path):
+    """Un entregable de antes de esta pieza sigue siendo medible a medias."""
+    ground = escribir_ground(
+        tmp_path / "g.json", [consulta_etiquetada("q001", ["F1-A-001-c0001"])]
+    )
+    resultados = escribir_resultados(
+        tmp_path / "r.jsonl", [registro("q001", ["F1-A-001"])]
+    )
+
+    reporte = evaluar(cargar_ground(ground), cargar_resultados(resultados), 3, 10)
+
+    assert reporte.f1 > 0.0
+    assert reporte.ndcg_binario is None
+    assert reporte.ndcg_graduado is None
+
+
+def test_un_query_id_repetido_en_los_resultados_es_un_error(tmp_path):
+    """Dos lineas para la misma consulta y no se sabe cual se evalua."""
+    resultados = escribir_resultados(
+        tmp_path / "r.jsonl",
+        [registro("q001", ["F1-A-001"]), registro("q001", ["F1-B-002"])],
+    )
+
+    with pytest.raises(ValueError, match="q001"):
+        cargar_resultados(resultados)
+
+
+def test_el_main_imprime_las_metricas_y_sale_con_cero(tmp_path, capsys):
+    """Mide, no verifica: el que falla con 1 es verificar_cobertura.py."""
+    ground = escribir_ground(
+        tmp_path / "g.json", [consulta_etiquetada("q001", ["F1-A-001-c0001"])]
+    )
+    resultados = escribir_resultados(
+        tmp_path / "r.jsonl", [registro("q001", ["F1-A-001"], ["F1-A-001-c0001"])]
+    )
+
+    codigo = main(["--resultados", str(resultados), "--ground", str(ground)])
+
+    salida = capsys.readouterr().out
+    assert codigo == 0
+    assert "F1@3" in salida
+    assert "NDCG@10" in salida
