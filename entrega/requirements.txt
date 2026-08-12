@@ -1,0 +1,42 @@
+# Dependencias de la capa de extracción.
+# Versiones fijadas por línea menor: cambiar de parser o de detector de idioma
+# cambia la salida, y la salida debe ser reproducible entre máquinas.
+
+langdetect>=1.0.9,<2         # detección de idioma (semilla fijada en limpieza.py)
+openpyxl>=3.1,<4            # índice maestro de ADL (indice.py) y XLSX (extractores/tabular.py)
+pysbd>=0.3.4,<0.4           # segmentación de oraciones por reglas, MIT (segmentador.py)
+pdfplumber>=0.11,<0.12      # PDF con coordenadas y tamaño de fuente, MIT (extractores/pdf.py)
+mapbox-vector-tile>=2.1,<3  # tiles vectoriales, BSD (extractores/pbf.py)
+Pillow>=10.0,<12            # apertura de imágenes y EXIF (extractores/imagen.py)
+pillow-avif-plugin>=1.4     # el único .avif del corpus (F2-SWF-065)
+
+# OCR. pytesseract es un envoltorio: necesita el binario Tesseract instalado
+# aparte, con los idiomas spa+eng+por. Sin él, los documentos escaneados salen
+# con bloques=[] y el motivo en `errores`; el pipeline no se detiene.
+pytesseract>=0.3.10,<0.4
+
+# RAM disponible, para el valor por defecto de --procesos (orquestador.py)
+psutil>=5.9,<7
+
+# Capa de codificación e indexación (encoder.py, generador.py).
+# El jurado tiene que poder ejecutar generador.py y obtener el mismo índice, así
+# que las versiones van fijadas por línea menor. transformers >= 4.53 no es
+# opcional: ModernBERT necesita una versión reciente (§14.6 del addendum).
+transformers>=4.57,<5        # AutoTokenizer y AutoConfig del checkpoint
+torch>=2.4,<3                # inferencia en float32; sin CUDA basta
+sentence-transformers>=5.0,<6  # carga el modelo con su pooling CLS declarado
+faiss-cpu>=1.8,<2            # IndexFlatIP exacto, sin entrenamiento ni aleatoriedad
+numpy>=1.26,<3
+
+# Grafo de conocimiento, componente bonus (§7): generador_grafo.py
+# (archivo autocontenido: léxico de dominio + NER + RE + construccion).
+# Es la ÚNICA dependencia de terceros del componente. El NER y la extracción
+# de relaciones son código propio del equipo, sin modelos preentrenados: la
+# organización confirmó que no se admite software con licencia CC BY-NC-SA 4.0,
+# lo que descarta los NER/RE multilingües habituales (WikiNEuRal, REBEL), y los
+# modelos spaCy de español (GPL-3.0) y portugués (CC BY-SA 4.0) quedan fuera de
+# la preferencia Apache / MIT / CC BY del reto.
+networkx>=3.0,<4             # BSD-3-Clause; solo serializa el grafo a GraphML
+
+# Desarrollo
+pytest>=8.0
