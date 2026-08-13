@@ -1,10 +1,8 @@
 # Pipeline RAG — CODEFEST Ad Astra 2026, Etapa 1
 
-Convierte el corpus documental de ADL —1826 archivos en siete formatos— en un
-índice vectorial consultable, y responde las 50 preguntas del reto con los tres
-documentos más relevantes para cada una.
+Convierte el corpus documental de ADL en un índice vectorial consultable, y responde las 50 preguntas del reto con los **k** (3) documentos más relevantes para cada una.
 
-Son tres capas encadenadas, cada una con su CLI y su artefacto en disco:
+Son tres capas encadenadas, cada una con su CLI y su artefacto:
 **extracción** (cada archivo → un `Documento` normalizado), **fragmentación**
 (cada documento → fragmentos de ≤250 palabras que nunca parten una oración) e
 **indexación y recuperación** (fragmentos → `index.faiss` → `resultados.jsonl`).
@@ -27,8 +25,7 @@ prohíbe las arquitecturas decoder en indexación y recuperación.
 | **Ground truth interno** | 50 consultas etiquetadas a mano × 5 fragmentos (`auxiliar/ground/`) |
 | **Pruebas** | 724, `python -m pytest` |
 
-Las dos métricas están medidas contra el ground truth interno del equipo, no
-contra el del jurado. **El techo de F1@3 sobre ese conjunto es 0,7989**, no 1,0:
+Las dos métricas están medidas contra el ground truth interno del equipo. **El techo de F1@3 sobre ese conjunto es 0,7989**, no 1,0:
 casi todas sus consultas marcan 4 o 5 documentos relevantes y el entregable solo
 admite 3. El número crudo se lee contra ese techo, y aun así es bajo — el
 análisis de dónde se pierde está en
@@ -53,7 +50,7 @@ Tesseract el pipeline no se detiene: los documentos que lo necesitan salen con
 `bloques=[]` y el motivo en `errores`, y se recuperan después con
 `--reintentar-errores`.
 
-## El pipeline completo
+## Pipeline completo
 
 ```bash
 # 1. extraer            base_documental/ -> extraidos/
@@ -63,15 +60,15 @@ python auxiliar/orquestador.py --entrada base_documental --salida extraidos \
 # 2. fragmentar         extraidos/ -> chunks/
 python fragmentador.py --entrada extraidos --salida chunks --tokenizador real
 
-# 3. indexar y responder
+# 3. indexar 
 python generador.py --entrada chunks --salida base_vectorial/encoder_granite-embedding-311m-multilingual-r2
+
+# 4. responder
 python generador.py --indice base_vectorial/encoder_granite-embedding-311m-multilingual-r2 \
     --consultas base_documental/Extracto_Preguntas_50_v2.pdf \
     --resultados resultados.jsonl
 ```
 
-Tiempos con el corpus completo: ~30 min de extracción con 6 procesos (3 h en
-secuencial), 10-15 min de fragmentación y ~1,5 h de codificación en una RTX 4050.
 
 ### 1. Extraer — `orquestador.py`
 
@@ -129,8 +126,7 @@ python auxiliar/scripts/barrido_fragmentacion.py --entrada extraidos --salida do
 
 Con `--entrada`/`--salida` construye el índice; con `--indice`/`--consultas` lo
 carga de disco y responde. Con las dos cosas, hace ambas en una corrida. Si algún
-fragmento se trunca, sale con código 1 y no escribe resultados: un índice con
-fragmentos a medias no vale para la entrega.
+fragmento se trunca, sale con código 1 y no escribe resultados.
 
 | Flag | Efecto |
 |---|---|
@@ -147,70 +143,10 @@ fragmentos a medias no vale para la entrega.
 | `--dimension` | Dimensión de salida; truncar activa Matryoshka. |
 | `--desarrollo` | Usa el modelo de 97M. Para iterar, no para la entrega. |
 
-**Con poca VRAM, lote pequeño es más rápido, no más lento** (26 frag/s con lote 2
-frente a 9,6 con lote 32 en una RTX 4050): lo que se paga es el padding al texto
-más largo del lote. En una GPU con más memoria el óptimo será mayor — súbelo y
-**mide**. Si un lote no cabe ni así, se codifica en CPU con un aviso en stderr.
 
-## Verificar
-
-```bash
-python -m pytest                                    # 685 pruebas
-
-python auxiliar/scripts/verificar_cobertura.py \             # ningún documento sin vectores
-    --indice base_documental/Indice_Datos_Codefest.xlsx \
-    --metadata base_vectorial/encoder_granite-embedding-311m-multilingual-r2/metadata.jsonl
-
-python auxiliar/scripts/verificar_corpus.py \                # checklist de aceptación
-    --corpus base_documental
-
-python auxiliar/scripts/evaluar.py \                        # F1@3 y NDCG@10
-    --resultados resultados.jsonl     --ground auxiliar/ground/ground_truth.json [--detalle]
-```
-
-`evaluar.py` no carga el índice ni el encoder: lee los dos artefactos y corre en
-un segundo, así que sirve para comparar configuraciones sin reconstruir nada.
-
-`verificar_cobertura.py` es la comprobación de piso: un documento sin un solo
-vector no puede aparecer en el top-3 de ninguna consulta, y nada más en el
-pipeline avisa. Devuelve 1 si hay huecos.
-
-Las cinco pruebas que exige el enunciado:
-
-| Requisito | Dónde |
-|---|---|
-| 1. `validar_documento` limpio para toda salida de un extractor | `test_toda_salida_cumple_el_contrato` / `test_la_salida_cumple_el_contrato` en cada `auxiliar/tests/test_extractor_*.py` |
-| 2. Archivo malformado → `bloques=[]` y `errores` no vacía | `test_un_*_ilegible_no_lanza` en cada extractor, y `test_un_archivo_corrupto_no_frena_a_los_demas` |
-| 3. Dos corridas → bytes idénticos | `test_dos_corridas_producen_bytes_identicos`, también con `--procesos` |
-| 4. `fuente` = nombre exacto del archivo | `test_todos_los_documentos_llevan_ruta_relativa`, `test_detecta_fuente_vacia` |
-| 5. Breadcrumb correcto a tres niveles | `test_la_jerarquia_produce_un_documento_que_valida`, `test_las_secciones_abren_subsecciones` |
-
-El fixture binario (`indice_minimo.xlsx`) se regenera con
-`python auxiliar/fixtures/generar_binarios.py`; no se edita a mano.
-
-## Preparar la entrega
-
-```bash
-python auxiliar/scripts/preparar_entrega.py --indice base_vectorial/encoder_granite-embedding-311m-multilingual-r2 \
-    --resultados resultados.jsonl --destino paquete
-```
-
-Ensambla un paquete de entrega en `--destino`: `resultados.jsonl`, `generador.py`
-**y el cierre transitivo de sus imports** —calculado del AST, no de una lista a
-mano—, más `base_vectorial/encoder_<modelo>/`.
-
-> **Este script quedó a medias tras la reorganización.** Ahora la raíz del
-> repositorio ya *es* la entrega, así que ensamblar una copia aparte solo sirve
-> para producir un ZIP suelto. Sigue funcionando y sus pruebas pasan, pero su
-> destino por defecto ya no tiene sentido y hay que replantearlo.
-
-`informe_tecnico.pdf` no lo genera el pipeline: el script avisa si falta.
 
 ## Estructura
 
-La raíz **es** el entregable: lo que un evaluador necesita está al abrir el
-repositorio, sin entrar en ninguna carpeta. Todo lo que construye ese entregable
-—pero no se entrega— vive en `auxiliar/`.
 
 ```
 resultados.jsonl     el entregable: 50 consultas x top-3 documentos
@@ -237,48 +173,3 @@ auxiliar/            todo lo que construye lo anterior y no se entrega
 
 base_documental/     corpus real de ADL (solo lectura, fuera de git)
 ```
-
-`base_vectorial/` y `chunks/` no se versionan: son 910 MiB entre los tres
-archivos, muy por encima del límite de 100 MB por archivo de GitHub. Se
-descargan de la Release o se reconstruyen con el pipeline de arriba.
-
-## Dónde está el porqué
-
-El README es el manual; las decisiones y sus mediciones viven en
-`docs/decisiones/`, una por tema:
-
-| Documento | De qué responde |
-|---|---|
-| `orquestacion-y-determinismo.md` | el contrato de datos y sus cinco reglas, identidad (`doc_id`/`fuente`/colisiones), qué detiene la corrida, paralelismo y memoria |
-| `extraccion-por-formato.md` | qué se extrae y qué se tira en cada formato, los filtros de ruido, el OCR, y cómo añadir un extractor nuevo |
-| `segmentacion-de-oraciones.md` | el componente crítico: pysbd, el portugués que no trae, la capa de re-fusión y el conjunto dorado |
-| `fragmentos-fuera-de-norma.md` | títulos huérfanos, pseudo-oraciones de 8995 palabras y el OCR por página de los PDF ilegibles |
-| `conteo-de-tokens.md` | por qué la estimación de 1,6 tokens/palabra no servía y qué salió de re-fragmentar |
-| `campos-indexables-tabulares.md` | qué columnas de un dataset entran al vector y cuáles viajan como metadata |
-| `enriquecimiento-de-contexto.md` | qué se codifica exactamente y por qué es legal bajo §4.2 |
-| `recuperacion-y-entregable.md` | memoria de GPU, orden índice↔metadata, las dos vistas del entregable, score por documento, deduplicación, el ground truth interno y **qué mide cada métrica** |
-
-`docs/specs/` guarda los specs de partida —fragmentador y selección de encoder—:
-son documentos fechados y no se reescriben, así que donde uno choque con una
-decisión posterior, manda la decisión.
-
-## Pendiente
-
-- **Subir la recuperación.** Medida, está en el 21 % de su techo. El siguiente
-  paso planificado es
-  [el grafo en la recuperación](docs/superpowers/plans/2026-08-12-grafo-en-recuperacion.md):
-  expansión de consulta con el gazetteer multilingüe y reordenamiento por
-  solape de entidades, cada uno tras su flag y medido por separado.
-- **Cerrar las dos decisiones que esperaban a poder medir**: la ablación del
-  enriquecimiento de contexto y la configuración de fragmentación del barrido.
-  Ya no están bloqueadas — `evaluar.py` las arbitra.
-- **Publicar la Release** con `index.faiss`, `metadata.jsonl`, `chunks.jsonl` y
-  `grafo.graphml`, y enlazarla desde aquí.
-- **Replantear `auxiliar/scripts/preparar_entrega.py`**, que ensamblaba una copia
-  en `entrega/` cuando esa carpeta era el entregable y ahora lo es la raíz.
-- **Confirmar los nombres de campo de la Tabla 2** contra el enunciado. Si ADL
-  los fija de otro modo, el único sitio que cambia es `registro_de_resultado()`.
-- **Relanzar `auxiliar/scripts/verificar_corpus.py`** de punta a punta desde que cambió la
-  paralelización. Sus criterios se comprobaron a mano sobre la salida real —0
-  violaciones de contrato en los 1826 documentos—, pero el script no.
-- **Escribir `informe_tecnico.pdf`.**
